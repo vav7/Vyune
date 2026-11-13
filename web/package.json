@@ -1,0 +1,29 @@
+{
+  "name": "web",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun dev.ts",
+    "build": "bun run typecheck && bun build.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@solidjs/router": "^1.0.1",
+    "@tanstack/solid-query": "^5.105.2",
+    "@tanstack/solid-virtual": "^3.13.52",
+    "hls.js": "^1.6.13",
+    "lit": "^3.3.0",
+    "lucide-solid": "^1.66.0",
+    "solid-js": "^1.9.18"
+  },
+  "devDependencies": {
+    "@babel/core": "^7",
+    "@babel/preset-typescript": "^7",
+    "@tailwindcss/cli": "^4.3.4",
+    "@types/node": "^24.0.0",
+    "babel-preset-solid": "^1.9.16",
+    "tailwindcss": "^4.1.0",
+    "typescript": "~5.9.0"
+  }
+}

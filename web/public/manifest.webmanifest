@@ -1,0 +1,17 @@
+{
+  "name": "VYUNE — Feel Every Frequency",
+  "short_name": "VYUNE",
+  "description": "Premium music playback. Feel every frequency.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#14131d",
+  "theme_color": "#d92e48",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

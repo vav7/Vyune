@@ -1,0 +1,1031 @@
+/*
+ * The app's one stylesheet. Components style themselves with Tailwind
+ * utilities; this file holds the theme they draw on, the design tokens and
+ * the element defaults.
+ *
+ * Design system inspired by Apple Music's own web DOM. Tokens live in styles/tokens.css.
+ *
+ * No preflight: the element defaults below are the app's own reset. Tokens
+ * and defaults live in the base layer, so any utility outranks them.
+ */
+@layer theme, base, components, utilities;
+
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+@import './styles/tokens.css' layer(base);
+@import './styles/glass.css';
+@import './styles/lyrics.css';
+@import './styles/system.css';
+
+/* Tailwind's hover: is (hover: hover)-gated; the design's hovers aren't. */
+@custom-variant hover (&:hover);
+
+@layer base {
+  button:not(:disabled) {
+    transition-property: scale, background-color, color, opacity;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* `scale`, not `transform`: a button that positions itself with a transform keeps it. */
+  button:not(:disabled):active {
+    scale: 0.975;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    button:not(:disabled) {
+      transition-duration: 0.01ms;
+    }
+  }
+}
+
+@layer components {
+  .glow-ring { position: relative; isolation: isolate; }
+  .glow-ring::before {
+    content: '';
+    position: absolute;
+    inset: -1.5px;
+    z-index: -1;
+    border-radius: inherit;
+    background: conic-gradient(from var(--spin), #ff5a7a, #7a6bff, #29d4ff, #ff5a7a);
+    animation: spin-angle 7s linear infinite;
+  }
+  @keyframes spin-angle { to { --spin: 360deg; } }
+
+  .vyune-logo-shine {
+    mask-image: linear-gradient(110deg, transparent 0%, #fff 44%, #fff 52%, transparent 100%);
+    mask-size: 300% 100%;
+    mask-repeat: no-repeat;
+    animation: vyune-logo-sweep 6s ease-in-out infinite;
+  }
+
+  @keyframes vyune-logo-sweep {
+    0%, 62% { mask-position: 165% 0; }
+    82%, 100% { mask-position: -65% 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .vyune-logo-shine { animation: none; }
+  }
+
+  .lyric-loading-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 1em;
+    color: currentColor;
+  }
+
+  .lyric-loading-dots i {
+    display: block;
+    width: 4px;
+    height: 4px;
+    border-radius: 999px;
+    background: currentColor;
+    animation: lyric-dot 0.9s ease-in-out infinite alternate;
+  }
+
+  .lyric-loading-dots i:nth-child(2) { animation-delay: 0.15s; }
+  .lyric-loading-dots i:nth-child(3) { animation-delay: 0.3s; }
+  .lyric-loading-dots-small { gap: 3px; }
+  .lyric-loading-dots-small i { width: 3px; height: 3px; }
+
+  @keyframes lyric-dot {
+    from { opacity: 0.3; transform: translateX(-2px); }
+    to { opacity: 1; transform: translateX(2px); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lyric-loading-dots i { animation: none; }
+  }
+}
+
+@theme {
+  /* The design is measured in px (web/docs/apple-music-dom.md): p-4 is 16px at any root font size. */
+  --spacing: 4px;
+
+  /* CSS's own keywords, as the design was written, not Tailwind's curves. */
+  --ease-*: initial;
+  --ease-in: ease-in;
+  --ease-out: ease-out;
+  --ease-in-out: ease-in-out;
+  --default-transition-timing-function: ease;
+  --default-transition-duration: 0.15s;
+
+  --breakpoint-*: initial;
+  --breakpoint-sm: 484px; /* below: phone, the sidebar becomes a drawer */
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1000px;
+
+  --animate-*: initial;
+  --animate-menu-in: menu-in 0.12s ease-out;
+  --animate-slide-in: slide-in var(--duration-panel) var(--ease-out-panel) forwards;
+  --animate-fade: fade 0.15s ease-out;
+  --animate-zoom: zoom 0.2s ease-out;
+  --animate-fade-in: fade-in 0.4s ease;
+  --animate-page-in: page-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-enter: enter 0.3s var(--ease-out-panel);
+  --animate-spin: spin 1s linear infinite;
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+  --animate-matching: matching 1.4s ease-in-out infinite alternate;
+  --animate-art-in: art-in 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  --animate-artist-drift: artist-drift 40s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+  --animate-lyric-line: lyric-line 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-lyric-rise: lyric-rise 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes menu-in {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+  }
+  @keyframes slide-in {
+    from {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes zoom {
+    from {
+      transform: scale(0.97);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes page-in {
+    from { opacity: 0; }
+  }
+  @keyframes enter {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 8px, 0);
+    }
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes shimmer {
+    to {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes matching {
+    to {
+      opacity: 0.7;
+    }
+  }
+  @keyframes artist-drift {
+    from { transform: scale(1.06) translate3d(-0.35%, 0, 0); }
+    to { transform: scale(1.15) translate3d(0.45%, -0.5%, 0); }
+  }
+  /* Opacity and transform only: nothing here forces a repaint, so the line glides at the display's rate. */
+  @keyframes lyric-line {
+    from { opacity: 0; transform: translate3d(0, 16px, 0) scale(0.98); }
+    to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  }
+  /* A plain sheet has no wipe to carry the movement, so the words arrive
+     themselves — a short rise, blurred at the bottom of the frame. */
+  @keyframes lyric-rise {
+    from { opacity: 0; transform: translate3d(0, 18px, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  @keyframes recommendation-arrive {
+    from { opacity: 0; transform: translate3d(0, 14px, 0) scale(.97); }
+    to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  }
+  /* One cover fading in over the last: the colour changes with the music. */
+  @keyframes art-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+.artist-recommendation {
+  animation: recommendation-arrive 620ms cubic-bezier(.2,.9,.25,1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .artist-recommendation { animation: none; }
+}
+
+/*
+ * The tokens (tokens.css) as Tailwind colours, radii and easings. Inline, so
+ * a utility reads the token where it's used: tinted pages (data-tint) and
+ * the dark appearance redefine them below :root.
+ */
+@theme inline {
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-white: #fff;
+  --color-black: #000;
+
+  --color-page: var(--pageBG);
+  --color-primary: var(--systemPrimary);
+  --color-secondary: var(--systemSecondary);
+  --color-tertiary: var(--systemTertiary);
+  --color-quaternary: var(--systemQuaternary);
+  --color-quinary: var(--systemQuinary);
+  --color-primary-on-dark: var(--systemPrimary-onDark);
+  --color-secondary-on-dark: var(--systemSecondary-onDark);
+  --color-tertiary-on-dark: var(--systemTertiary-onDark);
+
+  --color-key: var(--keyColor);
+  --color-key-rollover: var(--keyColor-rollover);
+  --color-key-pressed: var(--keyColor-pressed);
+  --color-key-bg: var(--keyColorBG);
+
+  --color-red: var(--systemRed);
+  --color-green: var(--systemGreen);
+  --color-blue: var(--systemBlue);
+  --color-gray: var(--systemGray);
+  --color-gray-2: var(--systemGray2);
+  --color-gray-3: var(--systemGray3);
+  --color-gray-4: var(--systemGray4);
+  --color-gray-5: var(--systemGray5);
+  --color-gray-6: var(--systemGray6);
+
+  --color-divider: var(--labelDivider);
+  --color-vibrant-divider: var(--vibrantDivider);
+  --color-glass: var(--glassMaterialBackground);
+  --color-glass-shadow: var(--glassMaterialShadowColor);
+  --color-thin-material: var(--systemStandardThinMaterialSover);
+  --color-thick-material: var(--systemStandardThickMaterialSover);
+  --color-header-material: var(--systemHeaderMaterialSover);
+  --color-nav-selected: var(--navSidebarSelectedState);
+  --color-tracklist-hover: var(--tracklistHoverColor);
+  --color-shelf: var(--shelfBG);
+  --color-opaque-shelf: var(--opaqueShelfBG);
+  --color-lockup-hover: var(--lockupHoverBGColor);
+  --color-joe: var(--genericJoeColor);
+  --color-scrim: var(--modalScrimColor);
+  --color-search-border: var(--searchBarBorderColor);
+  --color-segmented: var(--segmentedControlBG);
+  --color-segmented-selected: var(--segmentedControlSelectedBG);
+  --color-pill: var(--button-pill-color);
+  --color-pill-bg: var(--button-pill-background-color);
+  --color-radiosity: var(--radiosityShadowColor);
+  --color-dialog-shadow: var(--dialogShadowColor);
+  --color-destructive: var(--contextMenuOverrideTextColor);
+  --color-skeleton: var(--skeleton-fill);
+  --color-skeleton-shimmer: var(--skeleton-shimmer);
+  --color-card: var(--cardBG);
+  --color-card-hover: var(--cardBG-hover);
+  --color-card-stroke: var(--cardStroke);
+
+  --radius-*: initial;
+  --radius-xs: var(--r-xs);
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
+  --radius-artwork-sm: var(--r-sm);
+  --radius-artwork-md: var(--r-md);
+  --radius-artwork-lg: var(--r-lg);
+  --radius-nav: var(--r-md);
+  --radius-row: var(--r-md);
+  --radius-surface: var(--r-xl);
+  --radius-pill: 999px;
+  --radius-full: 999px;
+
+  --ease-panel: var(--ease-out-panel);
+
+  --shadow-*: initial;
+  --shadow-glass: 0 10px 40px var(--glassMaterialShadowColor);
+
+  --type-header-emphasized: var(--header-emphasized);
+  --type-large-title: var(--large-title);
+  --type-large-title-emphasized: var(--large-title-emphasized);
+  --type-title-1-emphasized: var(--title-1-emphasized);
+  --type-title-2: var(--title-2);
+  --type-title-2-emphasized: var(--title-2-emphasized);
+  --type-title-3: var(--title-3);
+  --type-title-3-emphasized: var(--title-3-emphasized);
+  --type-body: var(--body);
+  --type-body-emphasized: var(--body-emphasized);
+  --type-body-tall: var(--body-tall);
+  --type-headline: var(--headline);
+  --type-body-reduced: var(--body-reduced);
+  --type-callout: var(--callout);
+  --type-callout-medium: var(--callout-medium);
+  --type-callout-emphasized: var(--callout-emphasized);
+  --type-subhead-emphasized: var(--subhead-emphasized);
+  --type-caption-2: var(--caption-2);
+  --type-footnote: var(--footnote);
+}
+
+/*
+ * A type token from tokens.css (`type-body`), or a one-off `weight size/leading`
+ * in DM Sans (`type-[700_19px/24px]`). Either way the `font` shorthand, as the
+ * tokens are written.
+ */
+@utility type-* {
+  --tw-sort: font-family;
+  font: --value(--type-*);
+  font: --value([*]) var(--font-family);
+}
+
+/* Glass (report §1): the sidebar, the side panel and the phone's top bar. */
+@utility glass-material {
+  background-color: var(--glassMaterialBackground);
+  backdrop-filter: var(--glassMaterialBackdropFilter);
+}
+
+/* The player pill's glass: blurred fill and drop shadow (::before), 0.5px inner stroke (::after). */
+@utility glass-pill {
+  isolation: isolate;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  &::before {
+    z-index: -1;
+    /* Keep the controls legible over bright artwork while preserving the song tint. */
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0) 55%),
+      color-mix(in srgb, var(--song-tint, #4a4a58) 24%, rgb(14 14 20 / 0.78));
+    backdrop-filter: saturate(1.75) blur(28px) brightness(1.08);
+    -webkit-backdrop-filter: saturate(1.75) blur(28px) brightness(1.08);
+    transition: background-color 260ms ease-out;
+    box-shadow: 0 18px 50px -14px rgb(0 0 0 / 0.55);
+  }
+
+  &::after {
+    box-shadow:
+      inset 0.5px 0.5px 0 var(--glassMaterialInnerStroke),
+      inset 0.5px -0.5px 0 var(--glassMaterialInnerStroke),
+      inset -0.5px 0.5px 0 var(--glassMaterialInnerStroke),
+      inset -0.5px -0.5px 0 var(--glassMaterialInnerStroke);
+    opacity: var(--glassMaterialInnerStrokeAlpha);
+  }
+}
+
+/* Artwork's 0.5px inner stroke (report §1, "Inner stroke"), Apple's "has-borders". */
+@utility artwork-stroke {
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow:
+      inset 0.5px 0.5px 0 var(--containerInnerStroke),
+      inset 0.5px -0.5px 0 var(--containerInnerStroke),
+      inset -0.5px 0.5px 0 var(--containerInnerStroke),
+      inset -0.5px -0.5px 0 var(--containerInnerStroke);
+    opacity: var(--containerInnerStrokeAlpha);
+  }
+}
+
+/*
+ * Grouped settings rows: a hairline between two rows of the same kind, inset
+ * from the left by the value (to the text, past an icon).
+ */
+@utility hairline-* {
+  & + &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: --value([length]);
+    right: 0;
+    border-top: 0.5px solid var(--labelDivider);
+  }
+}
+
+/*
+ * Type. Apple devices render their own San Francisco (the system stack in tokens.css comes first).
+ * Everywhere else gets Inter Variable, self-hosted, one 48 KB file for every weight. `swap`: text is
+ * visible from the first frame in the fallback and refines when the font lands — never an invisible wait.
+ */
+@font-face {
+  font-family: 'Inter Variable';
+  src: url('/assets/fonts/InterVariable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Apple-like lyric typography, shared by words, instrumental labels and
+   warm-up copy so the player never jumps between font sizes or families. */
+.lyric-preview-lead,
+.lyric-preview-next {
+  font-family: var(--font-family);
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+.lyric-preview-lead {
+  font-size: clamp(22px, 2.1vw, 30px);
+  font-weight: 700;
+  line-height: 1.16;
+  letter-spacing: -0.038em;
+  color: #fff;
+}
+.lyric-preview-lead--quiet {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  color: rgb(255 255 255 / 0.58);
+}
+.lyric-preview-next {
+  font-size: clamp(16px, 1.45vw, 20px);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  color: rgb(255 255 255 / 0.36);
+}
+.lyric-preview-copy {
+  font-family: var(--font-family);
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: -0.02em;
+  will-change: transform, opacity;
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    height: 100%;
+  }
+
+  body {
+    font: var(--body);
+    letter-spacing: -0.012em;
+    color: var(--systemPrimary);
+    background-color: var(--pageBG);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* Apple's player is an app, not a document: no rubber-band on the page. */
+    overscroll-behavior: none;
+  }
+
+  #root {
+    height: 100%;
+  }
+
+  h1,
+  h2,
+  h3,
+  p,
+  ul,
+  ol,
+  figure {
+    margin: 0;
+    padding: 0;
+  }
+
+  ul,
+  ol {
+    list-style: none;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:disabled {
+    cursor: default;
+  }
+
+  input {
+    font: inherit;
+    color: inherit;
+  }
+
+  img {
+    display: block;
+    max-width: 100%;
+  }
+
+  svg {
+    flex-shrink: 0;
+  }
+
+  ::selection {
+    background-color: rgba(var(--keyColor-rgb), 0.3);
+  }
+
+  /* No ring for the mouse; the keyboard ring is in styles/glass.css. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/*
+ * Smooth scrolling for the main page: the virtualizer's overscan and the
+ * page's scroll container both benefit from the browser's native smooth
+ * scroll, which uses the GPU and has no jitter.
+ */
+@layer base {
+  #scrollable-page {
+    scroll-behavior: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  #scrollable-page::-webkit-scrollbar { display: none; }
+  #scrollable-page[data-artwork] {
+    background-color: color-mix(in srgb, var(--page-tint, #101018) 58%, var(--pageBG) 42%);
+  }
+  #scrollable-page[data-artwork]::before {
+    content: '';
+    position: fixed;
+    inset: -76px 0 -76px 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+  #scrollable-page[data-artwork]::before,
+  /* A pale poster is scattered: the wash is darkened and quieted so the page never glares,
+     while a dark or colourful one keeps every bit of its colour. */
+  #scrollable-page[data-pale]::before,
+  @keyframes artwork-tint-in {
+    from { opacity: 0; }
+    to { opacity: 0.8; }
+  }
+  #scrollable-page[data-home] { background-color: var(--pageBG); }
+  /* The page backdrop is the shared frost canvas; the old full-screen blurred wash is retired. */
+  #scrollable-page[data-artwork]::before { display: none !important; }
+
+  /* Titles in the display face (important: the type-* tokens set the font shorthand). */
+  h1, h2, h3 { font-family: var(--font-display) !important; letter-spacing: -0.028em; }
+
+  /* Real glass, cheaply: translucent gradient fill, a lit top edge and a hairline —
+     no backdrop-filter per box, because the frost behind the page is already soft. */
+  .track-row {
+    background-color: rgb(255 255 255 / 0.055);
+    background-image: none;
+    border-radius: 14px;
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.05);
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .track-row:hover {
+    background-color: rgb(255 255 255 / 0.11);
+    background-image: none;
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.09);
+  }
+
+  /* Scroll-driven, compositor-only: the artist hero drifts, scales and softens as the page scrolls. */
+  @supports (animation-timeline: scroll()) {
+    [data-apple-banner] {
+      animation: banner-parallax linear both;
+      animation-timeline: scroll(nearest block);
+      animation-range: 0 70vh;
+    }
+    @keyframes banner-parallax {
+      to { transform: translate3d(0, -6vh, 0) scale(1.05); opacity: 0.12; }
+    }
+  }
+
+  /* Short, light entrance stagger; keep the whole grid responsive during navigation. */
+  [data-waterfall] > li {
+    animation: waterfall-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(min(var(--i, 0), 12) * 18ms);
+  }
+  @keyframes waterfall-in {
+    from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  }
+  [data-emphasized] .track-row {
+    min-height: 78px;
+    height: auto;
+    border-radius: 15px;
+    background:
+      linear-gradient(125deg, rgb(255 255 255 / 0.075), rgb(255 255 255 / 0.025) 58%),
+      rgb(255 255 255 / 0.035);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.075), inset 0 0 0 1px rgb(255 255 255 / 0.055);
+  }
+  [data-emphasized] .track-row > div > div:first-child {
+    font: 600 15px / 20px var(--font-family);
+    letter-spacing: -0.015em;
+  }
+  [data-emphasized] .track-row .type-callout {
+    font: 500 12px / 17px var(--font-family);
+  }
+  [data-emphasized] .track-row:hover {
+    background: linear-gradient(125deg, rgb(255 255 255 / 0.12), rgb(255 255 255 / 0.055) 58%), rgb(255 255 255 / 0.06);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), inset 0 0 0 1px rgb(255 255 255 / 0.09);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-waterfall] > li { animation: none; }
+  }
+
+  /* Tucked-away sidebar: the page takes the whole width, the glass slides off. */
+  html[data-sidebar='hidden'] { --web-navigation-width: 0px; }
+  html[data-sidebar='hidden'] .sidebar-glass { transform: translateX(calc(-100% - 24px)); pointer-events: none; }
+  .sidebar-glass { transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1); }
+  @keyframes hero-rise {
+    from { opacity: 0; transform: translateY(14px); }
+  }
+  /* The slowest devices keep the colour and lose the full-screen blur. */
+  /* Not on the fastest tier: the wash is a plain gradient of the artwork's own colour —
+     the same hue and depth, but nothing to blur, so scrolling stays on the compositor. */
+  html:not([data-perf='high']) #scrollable-page[data-artwork]::before,
+  html:not([data-perf='high']) .artwork-tint-wash {
+    background-image: radial-gradient(110% 75% at 18% 0%, var(--page-tint, #20202a) 0%, transparent 72%);
+    filter: none;
+    opacity: 0.95;
+  }
+  html:not([data-perf='high']) .artwork-tint-wash--pale { opacity: 0.7; }
+  /* An artist page with a playing motion clip frosts that clip instead: the
+     artwork wash and the tint colour step aside for it. */
+  /* Not a hard cut to black: the tint stays in the page colour and glides there. */
+  #scrollable-page[data-motion] {
+    background-color: color-mix(in srgb, var(--page-tint, #07070b) 26%, #07070b) !important;
+  }
+  #scrollable-page[data-artwork],
+  #scrollable-page[data-motion] {
+    transition: background-color 1800ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+  #scrollable-page[data-motion]::before {
+    display: none !important;
+  }
+  @media (max-width: 484px) {
+    #scrollable-page[data-artwork]::before { inset: calc(var(--mobile-top-bar-height) - 76px) -76px -76px; }
+  }
+}
+
+/*
+ * The toast: the app's one addition — a glass pill over the player for
+ * favorites, the sleep timer and radio notices.
+ */
+@layer components {
+  .toast-pill {
+    position: fixed;
+    left: 50%;
+    bottom: calc(var(--player-pill-height) + var(--player-bottom-offset) + 16px);
+    z-index: var(--z-modal);
+    max-width: min(420px, calc(100vw - 40px));
+    translate: -50% 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease-in, translate 0.18s var(--ease-out-panel);
+    border-radius: 1000px;
+    padding: 8px 16px;
+    font: var(--callout-emphasized);
+    color: var(--systemPrimary);
+    background-color: var(--systemStandardThickMaterialSover);
+    box-shadow: 0 0 0 0.5px var(--vibrantDivider), 0 8px 30px var(--glassMaterialShadowColor);
+    backdrop-filter: saturate(2.2) blur(32px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .toast-pill.show {
+    opacity: 1;
+    translate: -50% 0;
+  }
+  @media (max-width: 483.99px) {
+    .toast-pill {
+      bottom: calc(var(--mini-player-height) + 16px);
+    }
+  }
+}
+
+/* Registered at the top level so the sweep angle can animate. */
+@property --spin {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* Three-column responsive layout (report §1): sidebar | page | side panel. */
+/* Desktop ≥1180px: three visible columns; 768–1180px: sidebar + page, panel floats; <768px: sidebar off-canvas. */
+.mc-frame {
+  display: grid;
+  grid-template-columns: var(--web-navigation-width) minmax(0, 1fr) 0;
+  grid-template-rows: minmax(0, 1fr);
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  /* The player chrome stays on its own layer. */
+}
+
+@media (min-width: 1180px) {
+  html[data-panel='open'] .mc-frame {
+    grid-template-columns: var(--web-navigation-width) minmax(0, 1fr) var(--side-panel-width);
+  }
+}
+
+.mc-col-sidebar {
+  grid-column: 1;
+  grid-row: 1;
+  position: relative;
+  z-index: var(--z-web-navigation);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.mc-col-page {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  z-index: var(--z-web-default);
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.mc-col-panel {
+  grid-column: 3;
+  grid-row: 1;
+  position: relative;
+  z-index: var(--z-web-chrome);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  /* When the panel is closed its width is 0; the grid still reserves the column. */
+}
+
+.mc-col-chrome {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-web-chrome);
+  pointer-events: none;
+  /* Children with `data-player-pill` re-enable pointer events. */
+}
+
+/* Responsive breakpoints matching the tokens. */
+@media (max-width: 1179.99px) {
+  .mc-frame {
+    grid-template-columns: var(--web-navigation-width) 1fr;
+    grid-template-areas:
+      'sidebar page'
+      'sidebar panel';
+  }
+  .mc-col-sidebar { grid-area: sidebar; }
+  .mc-col-page { grid-area: page; }
+  .mc-col-panel {
+    grid-area: panel;
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-web-chrome);
+  }
+  .mc-col-panel > aside { position: relative; }
+}
+
+@media (max-width: 767.99px) {
+  .mc-frame {
+    grid-template-columns: 0 1fr;
+    grid-template-areas:
+      'sidebar page'
+      'sidebar panel';
+  }
+  html[data-sidebar='hidden'] .mc-frame {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'page' 'panel';
+  }
+  .mc-col-sidebar {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-web-navigation);
+    transform: translateX(calc(-100% - 24px));
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  html:not([data-sidebar='hidden']) .mc-col-sidebar {
+    transform: translateX(0);
+  }
+}
+
+/* Artist hover scale on track rows (report §2): the artists column scales on hover. */
+.track-artists {
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: left center;
+}
+.track-row:hover .track-artists,
+.track-row:focus-within .track-artists {
+  transform: scale(1.02);
+}
+@media (prefers-reduced-motion: reduce) {
+  .track-artists { transition: none; }
+}
+
+/* The light behind the glass: the open page's colours as soft pools, fixed behind the sidebar
+   column, so the sidebar always has something to refract. The colours are registered so they glide. */
+@property --amb1 { syntax: '<color>'; inherits: true; initial-value: #3a3a42; }
+@property --amb2 { syntax: '<color>'; inherits: true; initial-value: #2c2c33; }
+@property --amb3 { syntax: '<color>'; inherits: true; initial-value: #45454d; }
+@property --amb4 { syntax: '<color>'; inherits: true; initial-value: #34343b; }
+
+.mc-frame { position: relative; isolation: isolate; }
+.mc-ambient {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(34vw 62vh at 4% 8%, var(--amb1), transparent 72%),
+    radial-gradient(30vw 56vh at 10% 62%, var(--amb2), transparent 72%),
+    radial-gradient(26vw 48vh at 2% 100%, var(--amb3), transparent 72%),
+    radial-gradient(22vw 40vh at 18% 30%, var(--amb4), transparent 74%),
+    #0a0a0e;
+  opacity: 0.5;
+  transition: --amb1 1s ease, --amb2 1s ease, --amb3 1s ease, --amb4 1s ease;
+}
+
+/* ------------------------------------------------------------------ */
+/* Seamless pages: the route rises in, and an artist page flows down   */
+/* from its hero — the name first, then each shelf in turn.            */
+/* ------------------------------------------------------------------ */
+@keyframes route-in {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes flow-in {
+  from { opacity: 0; transform: translate3d(0, 18px, 0); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes hero-settle {
+  from { opacity: 0.001; scale: 1.06; }
+  to { opacity: 1; scale: 1; }
+}
+@keyframes hero-name-in {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  to { opacity: 1; transform: none; }
+}
+.artist-rise {
+  animation: flow-in 640ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 80ms + 160ms);
+}
+.hero-settle { animation: hero-settle 1400ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.hero-name { animation: hero-name-in 780ms cubic-bezier(0.22, 1, 0.36, 1) 220ms backwards; }
+@media (prefers-reduced-motion: reduce) {
+  .artist-rise, .hero-settle, .hero-name { animation: none; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Colour scatter over the frosted artwork: a few huge soft pools of   */
+/* the picture's own colours, drifting slowly. Transform only.         */
+/* ------------------------------------------------------------------ */
+.frost-blob {
+  position: absolute;
+  width: 72vmax;
+  height: 72vmax;
+  border-radius: 50%;
+  opacity: 0.4;
+  will-change: transform;
+}
+.frost-blob[data-i='0'] { left: -22vmax; top: -26vmax; animation: frost-a 34s ease-in-out infinite alternate; }
+.frost-blob[data-i='1'] { right: -26vmax; top: -12vmax; animation: frost-b 41s ease-in-out infinite alternate; }
+.frost-blob[data-i='2'] { right: -18vmax; bottom: -34vmax; animation: frost-c 38s ease-in-out infinite alternate; }
+.frost-blob[data-i='3'] { left: -30vmax; bottom: -30vmax; animation: frost-d 46s ease-in-out infinite alternate; }
+@keyframes frost-a { to { transform: translate3d(16vmax, 12vmax, 0) scale(1.12); } }
+@keyframes frost-b { to { transform: translate3d(-14vmax, 16vmax, 0) scale(0.92); } }
+@keyframes frost-c { to { transform: translate3d(-18vmax, -12vmax, 0) scale(1.1); } }
+@keyframes frost-d { to { transform: translate3d(14vmax, -16vmax, 0) scale(0.94); } }
+@media (prefers-reduced-motion: reduce) {
+  .frost-blob { animation: none; }
+}
+
+/* Search: the "now playing" bars laid over the current row's art. */
+.sr-bars{display:inline-flex;align-items:flex-end;gap:2px;height:14px}
+.sr-bars i{display:block;width:3px;height:100%;border-radius:1px;background:#fff;transform-origin:bottom;animation:sr-bar 0.9s ease-in-out infinite}
+.sr-bars i:nth-child(2){animation-delay:-0.3s}
+.sr-bars i:nth-child(3){animation-delay:-0.6s}
+@keyframes sr-bar{0%,100%{transform:scaleY(0.3)}50%{transform:scaleY(1)}}
+@media (prefers-reduced-motion:reduce){.sr-bars i{animation:none;transform:scaleY(0.7)}}
+
+/* The search pill shows focus itself; the global input outline would box the text inside it. */
+.sr-field input { border: 0; padding: 0; margin: 0; appearance: none; -webkit-appearance: none; border-radius: 0; box-shadow: none; }
+.sr-field input:focus-visible { outline: none; }
+.sr-field button { border: 0; padding: 0; }
+
+
+/* Artist page: keep the blurred motion backdrop and scroll on their own compositor layers. */
+.artist-rise { will-change: auto; }
+@media (prefers-reduced-motion: no-preference) {
+  .mc-ambient { will-change: opacity; }
+}
+
+
+/* ------------------------------------------------------------------ */
+/* The big body on the right: a floating squircle pane like the sidebar, */
+/* and the docked side panel beside it. Desktop only; phones stay flush. */
+/* ------------------------------------------------------------------ */
+@media (min-width: 768px) {
+  .mc-col-page {
+    margin: 12px 12px 12px 0;
+    height: calc(100% - 24px);
+    /* The page IS the scroller. This rule is unlayered, so it beats Tailwind's layered
+       overflow-y-auto: hiding overflow here (as before) is what killed scrolling. */
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  html[data-sidebar='hidden'] .mc-col-page { margin-left: 12px; }
+}
+@media (min-width: 1180px) {
+  html[data-panel='open'] .mc-col-page { margin-right: 6px; }
+  .mc-col-panel > aside:not([class*='fixed']) {
+    inset-block: 12px !important;
+    right: 12px !important;
+    height: auto;
+    width: calc(var(--side-panel-width) - 18px) !important;
+  }
+}
+
+
+/* Front page */
+@keyframes hero-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.hero-progress { animation-name: hero-progress; animation-timing-function: linear; animation-fill-mode: both; }
+.hero-poster img, .hero-poster video { image-rendering: auto; -webkit-font-smoothing: antialiased; }
+@media (prefers-reduced-motion: reduce) {
+  .hero-progress { animation-duration: 1ms !important; }
+}
+
+/* Side panel open: keep hero stage balanced without colliding with left copy */
+@media (min-width: 1180px) {
+  html[data-panel='open'] .hero-stage .hero-poster-wrap {
+    max-width: 380px;
+  }
+  html[data-panel='open'] .hero-stage .hero-grid {
+    gap: clamp(16px, 2.5vw, 40px);
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  }
+}
+/* Curated rows: big HD squircle sleeves. */
+
+
+/* Similar artists: lift, ring and a springy portrait. */
+.circle-lockup {
+  transition: transform 0.5s var(--spring-soft), background-color 0.25s ease;
+}
+.circle-lockup-art {
+  transition: transform 0.55s var(--spring-soft), box-shadow 0.35s ease;
+  box-shadow: 0 8px 22px -12px rgb(0 0 0 / 0.7);
+}
+@media (hover: hover) {
+  .circle-lockup:hover { transform: translateY(-4px); background-color: rgb(255 255 255 / 0.07); }
+  .circle-lockup:hover .circle-lockup-art { transform: scale(1.05); box-shadow: 0 0 0 2px rgb(255 255 255 / 0.55), 0 22px 36px -14px rgb(0 0 0 / 0.8); }
+}
+.circle-lockup:active { transform: scale(0.96); transition-duration: 0.1s; }
+.circle-lockup:focus-visible { outline: 2px solid rgb(255 255 255 / 0.8); }
+@media (prefers-reduced-motion: reduce) {
+  .circle-lockup, .circle-lockup-art { transition-duration: 0.01ms !important; }
+}
+
+/* Search sits BESIDE the open side panel (lyrics, queue) and BEHIND the bottom player, so a song
+   started from search shows up in both at once instead of being hidden under the sheet. */
+@media (min-width: 768px) {
+  html[data-panel='open'] .search-sheet { right: calc(var(--side-panel-width) + 6px) !important; }
+  .search-sheet { transition: right var(--duration-panel, 300ms) var(--ease-panel, ease); }
+}
+.search-sheet { padding-bottom: calc(var(--player-pill-height, 56px) + var(--player-bottom-offset, 12px) + 12px); }
+@media (max-width: 639.99px) {
+  .search-sheet { padding-bottom: calc(var(--mini-player-height) + 8px + env(safe-area-inset-bottom, 0px)); }
+}

@@ -1,0 +1,248 @@
+/*
+ * system.css — VYUNE's design system, one file.
+ *
+ *   1. Radii        one scale; every rounded thing picks a step, nothing invents a number.
+ *   2. Squircles    one rule, applied to everything, with the circles and capsules named as the exceptions.
+ *   3. Surfaces     frosted panes: dark glass with a hairline rim, tinted by the artwork.
+ *   4. Buttons      .vy-btn (+ --primary / --glass / --tint / --plain / --icon), one family, one press.
+ *
+ * Unlayered on purpose: it is the last word on the shapes and controls it names.
+ */
+
+:root {
+  /* ---- Radii: continuous-corner steps ---- */
+  --r-xs: 6px;   /* progress bars, badges */
+  --r-sm: 10px;  /* thumbnails, chips */
+  --r-md: 14px;  /* rows, inputs, nav items, inner cards */
+  --r-lg: 20px;  /* cards, artwork, popovers */
+  --r-xl: 28px;  /* panes, sheets, hero art */
+
+  /* ---- Surfaces ---- */
+  --surface-1: #121215;
+  --surface-2: #1a1a1f;
+  --surface-3: #232329;
+  --hairline: rgb(255 255 255 / 0.09);
+  --fill-1: rgb(255 255 255 / 0.07);
+  --fill-2: rgb(255 255 255 / 0.11);
+  --fill-3: rgb(255 255 255 / 0.17);
+
+  /* ---- Controls ---- */
+  --press: 0.965;
+  --focus-ring: 0 0 0 2px var(--pageBG), 0 0 0 4px rgba(var(--keyColor-rgb), 0.9);
+}
+
+/* ================================================================== */
+/* 2. Squircles                                                        */
+/* ================================================================== */
+/*
+ * `corner-shape` is not inherited, and only does anything where a border-radius exists. Setting it on
+ * EVERY element and pseudo-element means a parent, the image inside it, the scrim over that image and the
+ * rim around the lot all draw the same curve — which is what removes the slivers at the corners that two
+ * different corner geometries leave between layers. Circles and capsules are the one exception: a squircle
+ * with a 50% radius is a rounded square, not a circle, so they stay `round`.
+ */
+@supports (corner-shape: squircle) {
+  *, *::before, *::after { corner-shape: squircle; }
+
+  .rounded-full, .rounded-pill, .vy-btn--pill, .vy-btn--icon, .round, .fs-chip, .fs-key, .fs-skip, .fs-puck,
+  [class*='rounded-full'], [class*='rounded-pill'], [class*='rounded-[999'], [class*='rounded-[50%'],
+  [class*='rounded-[100'], [style*='border-radius: 50%'], [style*='border-radius:50%'] {
+    corner-shape: round;
+  }
+  /* A pill's pseudo-elements follow it. */
+  .rounded-full::before, .rounded-full::after, .rounded-pill::before, .rounded-pill::after,
+  .vy-btn--pill::before, .vy-btn--pill::after, .vy-btn--icon::before, .vy-btn--icon::after,
+  .fs-chip::before, .fs-chip::after, .fs-skip::before, .fs-skip::after { corner-shape: round; }
+}
+
+/* ================================================================== */
+/* 3. Surfaces                                                         */
+/* ================================================================== */
+/*
+ * One recipe for every frosted pane (sidebar, search, brand mark, cards):
+ *   • a dark translucent body, tinted by the playing artwork (--amb1/--amb2 when present),
+ *   • a saturating blur,
+ *   • ONE hairline rim drawn as an inset shadow — the same box as the pane, so it can never disagree
+ *     with the pane's corners the way a separate masked ::after ring does,
+ *   • a soft drop shadow.
+ */
+.sidebar-glass,
+.search-glass {
+  isolation: isolate;
+  background:
+    radial-gradient(120% 120% at 5% 5%, rgb(255 255 255 / 0.08) 0%, transparent 60%),
+    linear-gradient(180deg, rgb(255 255 255 / 0.05) 0%, rgb(255 255 255 / 0.01) 100%),
+    rgb(10 11 16 / 0.72);
+  backdrop-filter: blur(48px) saturate(190%);
+  -webkit-backdrop-filter: blur(48px) saturate(190%);
+  box-shadow:
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.14),
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    0 24px 60px -20px rgb(0 0 0 / 0.85);
+}
+
+.brand-glass,
+.glass-card {
+  isolation: isolate;
+  background:
+    linear-gradient(165deg, color-mix(in srgb, var(--amb1, #3a3a48) 26%, rgb(255 255 255 / 0.09)), rgb(255 255 255 / 0.05) 55%, color-mix(in srgb, var(--amb2, #2a2a36) 22%, rgb(255 255 255 / 0.06))),
+    rgb(22 22 28 / 0.56);
+  backdrop-filter: blur(40px) saturate(1.8);
+  -webkit-backdrop-filter: blur(40px) saturate(1.8);
+  box-shadow:
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.16),
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    0 24px 60px -28px rgb(0 0 0 / 0.7);
+}
+/* Their old sheen and rim layers are retired: one box, one edge. */
+.sidebar-glass::before, .sidebar-glass::after,
+.search-glass::before, .search-glass::after { content: none; }
+
+.sidebar-glass { border-radius: var(--r-xl); }
+.search-glass  { border-radius: var(--r-xl); }
+.brand-glass   { border-radius: var(--r-md); }
+.glass-card    { border-radius: var(--r-md); transition: background-color 0.25s ease, scale 0.4s var(--spring-soft); }
+@media (hover: hover) {
+  .glass-card:hover { background-color: rgb(255 255 255 / 0.08); }
+}
+
+/* Boxes inside the sidebar are flat fills on the pane, not second panes (no nested blur). */
+.sidebar-glass .glass-card {
+  background: var(--fill-1);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  border-radius: var(--r-md);
+}
+.sidebar-glass .glass-card:hover { background: var(--fill-2); }
+
+html[data-dock-hover='sidebar'] .sidebar-glass {
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.5), 0 24px 60px -28px rgb(0 0 0 / 0.7);
+}
+
+/* The sidebar column used to clip its own shadow with a hard straight edge. It does not any more. */
+.mc-col-sidebar { clip-path: none; overflow: visible; }
+
+/* The big pane on the right and the docked side panel. */
+@media (min-width: 768px) {
+  .mc-col-page { border-radius: var(--r-xl); background-clip: padding-box; box-shadow: 0 0 0 0.5px var(--hairline), 0 30px 70px -36px rgb(0 0 0 / 0.7); }
+}
+@media (min-width: 1180px) {
+  .mc-col-panel > aside:not([class*='fixed']) { border-radius: var(--r-xl); }
+}
+
+/* Artwork and cards keep ONE shared curve across the frame, the image and the overlays on it. */
+.lockup-frame, .lockup-art, .lockup-frame img, .lockup-scrim, .row-art, .row-art-scrim, .track-row { border-radius: var(--r-sm); }
+.lockup-frame, .lockup-frame img, .lockup-scrim { border-radius: var(--r-lg); }
+.curated-row .lockup-frame, .curated-row .lockup-art, .curated-row .lockup-frame img, .curated-row .lockup-scrim { border-radius: var(--r-xl); }
+.track-row { border-radius: var(--r-md); }
+.sq-pill { border-radius: var(--r-lg); }
+/* Anything that borrows its parent's radius borrows the parent's curve too (already true now that corner-shape is universal). */
+[class*='rounded-[inherit]'], [class*='rounded-[inherit]']::before, [class*='rounded-[inherit]']::after { border-radius: inherit; }
+
+/* ================================================================== */
+/* 4. Buttons                                                          */
+/* ================================================================== */
+/*
+ * One family. Rounded rectangle by default (continuous corners), capsule or circle on request.
+ *   --primary  the one call to action: solid key colour.
+ *   --glass    secondary, over artwork and photos: frosted fill.
+ *   --tint     key-colour label on a faint key-colour fill.
+ *   --plain    text only.
+ *   --icon     a circle for a glyph.
+ * Press = scale + a little dimming, on every variant; focus = a ring that follows the shape.
+ */
+.vy-btn {
+  --btn-bg: var(--fill-2);
+  --btn-fg: var(--systemPrimary);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: var(--r-md);
+  color: var(--btn-fg);
+  background: var(--btn-bg);
+  font: 600 15px/1 var(--font-family);
+  letter-spacing: -0.012em;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: scale 0.4s var(--spring-soft), background-color 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+.vy-btn:enabled:hover { filter: brightness(1.12); }
+.vy-btn:enabled:active { scale: var(--press); filter: brightness(0.92); transition-duration: 0.1s; }
+.vy-btn:disabled { opacity: 0.4; cursor: default; }
+.vy-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.vy-btn > svg { flex: none; }
+
+.vy-btn--primary {
+  --btn-bg: var(--keyColor);
+  --btn-fg: #fff;
+  min-width: 140px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28), 0 10px 24px -12px rgba(var(--keyColor-rgb), 0.85);
+}
+.vy-btn--primary:focus-visible { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28), var(--focus-ring); }
+
+.vy-btn--glass {
+  --btn-bg: rgb(255 255 255 / 0.14);
+  backdrop-filter: blur(24px) saturate(1.7);
+  -webkit-backdrop-filter: blur(24px) saturate(1.7);
+  box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.2), inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+
+.vy-btn--tint { --btn-bg: rgba(var(--keyColor-rgb), 0.16); --btn-fg: var(--keyColor-rollover); }
+.vy-btn--plain { --btn-bg: transparent; --btn-fg: var(--keyColor-rollover); padding: 0 10px; }
+.vy-btn--plain:enabled:hover { background: var(--fill-1); filter: none; }
+
+.vy-btn--pill { border-radius: 999px; }
+.vy-btn--sm { min-height: 34px; padding: 0 16px; font-size: 13px; }
+.vy-btn--lg { min-height: 52px; padding: 0 28px; font-size: 16px; }
+.vy-btn--icon { width: 44px; min-width: 44px; padding: 0; border-radius: 50%; }
+.vy-btn--icon.vy-btn--sm { width: 34px; min-width: 34px; }
+
+/* The older class names used by DetailHeader stay valid and map onto the new variants. */
+.vy-btn-key { --btn-bg: var(--keyColor); --btn-fg: #fff; min-width: 140px; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28), 0 10px 24px -12px rgba(var(--keyColor-rgb), 0.85); }
+.vy-btn-round { width: 44px; min-width: 44px; padding: 0; border-radius: 50%; corner-shape: round; }
+
+/* ---- the full-screen player's controls follow the same family ---- */
+.fs-chip, .fs-puck { box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.2), 0 10px 26px -12px rgb(0 0 0 / 0.7); }
+.fs-puck { background: rgb(255 255 255 / 0.16); backdrop-filter: blur(32px) saturate(1.9); -webkit-backdrop-filter: blur(32px) saturate(1.9); }
+.fs-key[aria-pressed='true'] { background: rgba(var(--keyColor-rgb), 0.22); color: var(--keyColor-rollover); box-shadow: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vy-btn, .glass-card { transition-duration: 0.01ms !important; }
+}
+
+/* ---- focus: one ring everywhere, in the key colour ---- */
+:focus-visible { outline: 2px solid rgba(var(--keyColor-rgb), 0.95); outline-offset: 2px; }
+
+/* ================================================================== */
+/* Loading: the hero's placeholder — same footprint as the hero, so nothing jumps when the real one arrives. */
+/* ================================================================== */
+.hero-skeleton {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 34vw);
+  align-items: end;
+  gap: 24px;
+  min-height: clamp(340px, 50vh, 500px);
+  padding: 32px var(--body-gutter) 28px;
+}
+.hero-skeleton i {
+  display: block;
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+}
+.hero-skeleton i:nth-child(1) { height: 56px; width: min(78%, 520px); }
+.hero-skeleton i:nth-child(2) { display: none; }
+.hero-skeleton i:nth-child(3) { grid-column: 2; grid-row: 1 / span 2; aspect-ratio: 1; width: 100%; border-radius: var(--r-xl); }
+@keyframes skeleton-sweep { to { background-position: -300% 0; } }
+@media (max-width: 767.99px) {
+  .hero-skeleton { grid-template-columns: 1fr; min-height: 320px; }
+  .hero-skeleton i:nth-child(3) { grid-column: 1; grid-row: auto; max-width: 260px; }
+}
+@media (prefers-reduced-motion: reduce) { .hero-skeleton i { animation: none; } }
