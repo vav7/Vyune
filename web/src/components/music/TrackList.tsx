@@ -54,18 +54,24 @@ const rowVariant: Record<Variant, string> = {
 };
 
 function Artists({ track }: { track: Track }) {
+  const artists = () => track.artists || [];
   return (
     <>
-      <For each={track.artists || []}>
+      <For each={artists()}>
         {(artist, i) => {
           const href = () => artistLink(track.artistIds?.[i()], artist);
+          const total = artists().length;
+          const isLast = () => i() === total - 1;
+          const isSecondToLast = () => i() === total - 2;
           return (
             <span>
-              {i() > 0 && ', '}
               <Show when={href()} fallback={<span>{artist}</span>}>
                 <PrefetchLink to={href()!} class={link} onClick={(e) => e.stopPropagation()}>
                   {artist}
                 </PrefetchLink>
+              </Show>
+              <Show when={!isLast()}>
+                <span>{total === 2 || isSecondToLast() ? ' & ' : ', '}</span>
               </Show>
             </span>
           );

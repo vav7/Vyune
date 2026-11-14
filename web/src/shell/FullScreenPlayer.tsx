@@ -18,13 +18,12 @@ import { Marquee } from '@/components/music/Marquee';
 import { SongTitle } from '@/components/music/SongTitle';
 import { ExplicitBadge } from '@/components/music/ExplicitBadge';
 import { FavoriteButton } from '@/components/music/FavoriteButton';
-import { albumHref, artistHref } from '@/components/music/links';
+import { albumHref, artistLink } from '@/components/music/links';
 import { AppleMotionArtwork } from '@/components/music/AppleMotionArtwork';
 import { ArtVolume } from './ArtControls';
 import { PlayerMenu } from './PlayerMenu';
 import { artModeStore } from '@/store/artMode';
 import { PrefetchLink } from '@/components/PrefetchLink';
-import { creditSegments } from '@/lib/artistCredits';
 import { api } from '@/lib/api';
 import { posterCandidates, thumbCandidates, playerStore } from '@/store/player';
 import { LyricsPanel, LyricPreview } from './LyricsPanel';
@@ -118,23 +117,37 @@ const chrome = 'fs-chip absolute z-1';
 
 /** The artists, each name its own link where the catalogue linked one. */
 function Credits() {
-  const segments = createMemo(() => {
-    const current = playerStore.current;
-    if (!current) return [];
-    const line = (current.artists || []).filter(Boolean).join(', ') || current.channel || 'Artist unavailable';
-    return creditSegments(line, current.artists || [], current.artistIds);
-  });
+  const current = () => playerStore.current;
+  const rawArtists = () => {
+    const c = current();
+    if (!c) return [];
+    if (c.artists && c.artists.length > 0) return c.artists.filter(Boolean);
+    if (c.channel) return [c.channel];
+    return ['Artist unavailable'];
+  };
+  const artistIds = () => playerStore.current?.artistIds || [];
+
   return (
-    <For each={segments()}>
-      {(segment) =>
-        segment.id ? (
-          <PrefetchLink class="hover:underline" to={artistHref(segment.id)!}>
-            {segment.text}
-          </PrefetchLink>
-        ) : (
-          <span>{segment.text}</span>
-        )
-      }
+    <For each={rawArtists()}>
+      {(artist, i) => {
+        const id = artistIds()[i()];
+        const href = () => artistLink(id, artist);
+        const total = rawArtists().length;
+        const isLast = () => i() === total - 1;
+        const isSecondToLast = () => i() === total - 2;
+        return (
+          <span>
+            <Show when={href()} fallback={<span>{artist}</span>}>
+              <PrefetchLink class="hover:underline" to={href()!}>
+                {artist}
+              </PrefetchLink>
+            </Show>
+            <Show when={!isLast()}>
+              <span>{total === 2 || isSecondToLast() ? ' & ' : ', '}</span>
+            </Show>
+          </span>
+        );
+      }}
     </For>
   );
 }
@@ -479,7 +492,11 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
 
             {/* One layout for every mode: the artwork is the same big square in the same place; only the right column changes. */}
             <div
-              class="fs-lyrics grid h-full items-center justify-center gap-x-[clamp(32px,5vw,80px)] px-[clamp(20px,4vw,60px)] py-16 grid-cols-[var(--art)_minmax(0,1fr)] max-md:grid-cols-[minmax(0,1fr)] max-md:px-6 max-md:pb-18 max-md:items-stretch max-md:gap-y-4 max-md:grid-rows-[auto_minmax(0,1fr)]"
+              class={`fs-lyrics grid h-full items-center justify-center py-16 max-md:px-6 max-md:pb-18 ${
+                showLyrics()
+                  ? 'grid-cols-[var(--art)_minmax(0,44vw)] gap-x-[clamp(44px,6vw,96px)] pl-[clamp(32px,5vw,96px)] pr-[clamp(24px,4vw,72px)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[minmax(0,1fr)_auto] max-md:items-stretch max-md:gap-y-4'
+                  : 'grid-cols-[var(--art)_minmax(0,40vw)] gap-x-[clamp(44px,6vw,96px)] pl-[clamp(32px,5vw,96px)] pr-[clamp(24px,4vw,72px)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[auto_minmax(0,1fr)] max-md:items-stretch max-md:gap-y-4'
+              }`}
               data-lyrics={column() || undefined}
             >
               <section class={`poster-col flex w-(--art) min-w-0 flex-col${column() ? ' max-md:order-2 max-md:w-full' : ''}`} aria-label="Player">
@@ -508,13 +525,15 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                   </Show>
                 </div>
 
-                {/* With Up Next open the controls sit under the poster. */}
-                <Show when={showQueue()}>
-                  <div class={`${fades} mt-[clamp(20px,3.2vh,32px)] max-md:mt-0`}>
+                {/* With Up Next or Lyrics open the controls sit under the poster. */}
+                <Show when={column()}>
+                  <div class={`${fades} mt-[clamp(24px,4vh,44px)] max-md:mt-0 flex flex-col gap-2`}>
                     <SongTitle title={current().title} class="text-[clamp(18px,1.6vw,22px)] leading-[1.15] font-bold tracking-[-0.03em] [font-family:var(--font-family)]" />
-                    <Marquee class="mt-1 text-[15px] leading-[1.3] font-medium tracking-[-0.014em] text-secondary [font-family:var(--font-family)]" render={() => <Credits />} />
-                    <Scrubber />
-                    <Transport />
+                    <Marquee class="mt-0.5 text-[15px] leading-[1.3] font-medium tracking-[-0.014em] text-secondary [font-family:var(--font-family)]" render={() => <Credits />} />
+                    <div class="mt-3 flex flex-col gap-2">
+                      <Scrubber />
+                      <Transport />
+                    </div>
                   </div>
                 </Show>
               </section>
@@ -522,7 +541,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
               {/* Not in lyrics or Up Next: the track's names, the line being sung, the seek bar and the transport, beside the artwork. */}
               <Show when={!column()}>
                 <section
-                  class="flex min-h-0 min-w-0 animate-fade-in flex-col justify-between self-center py-1"
+                  class="flex min-h-0 min-w-0 animate-fade-in flex-col justify-between self-center py-2"
                   style={{ height: 'var(--art)', 'max-height': '100%' }}
                   aria-label="Now playing controls"
                 >
@@ -533,14 +552,14 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                     </span>
                     <Show when={playingFromTitle()}>
                       <span class="text-[13px] font-bold text-white/40 select-none">−</span>
-                      <span class="truncate text-[13px] font-bold text-white/90 tracking-tight [font-family:var(--font-display)]">
+                      <span class="truncate text-[13px] font-bold tracking-[0.08em] uppercase text-white/55 [font-family:var(--font-display)]">
                         {playingFromTitle()}
                       </span>
                     </Show>
                   </div>
 
-                  <div class="flex min-h-0 flex-col justify-center my-auto">
-                    <div class="mb-5 flex items-start justify-between gap-4">
+                  <div class="flex min-h-0 flex-col justify-center my-auto py-4">
+                    <div class="mb-6 flex items-start justify-between gap-5">
                       <div class="min-w-0 flex-1">
                         <h1 class="flex min-w-0 items-center gap-2 text-[clamp(28px,3vw,40px)] leading-[1.15] font-bold tracking-[-0.038em] [font-family:var(--font-family)]">
                           <SongTitle
@@ -553,18 +572,22 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                           </Show>
                         </h1>
                         <Marquee
-                          class="mt-1 text-[clamp(16px,1.4vw,19px)] leading-[1.35] font-medium tracking-[-0.016em] text-secondary [font-family:var(--font-family)]"
+                          class="mt-2 text-[clamp(16px,1.4vw,19px)] leading-[1.35] font-medium tracking-[-0.016em] text-secondary [font-family:var(--font-family)]"
                           render={() => <Credits />}
                         />
                       </div>
                       <FavoriteButton track={current()} class="fs-chip flex-none !size-10" size={20} />
                     </div>
-                    <div class="pt-2">
+                    <div class="pt-3 pb-2">
                       <LyricPreview />
                     </div>
-                    <Scrubber />
-                    <Transport />
-                    <div class="mt-3 flex justify-center">
+                    <div class="mt-3">
+                      <Scrubber />
+                    </div>
+                    <div class="mt-4">
+                      <Transport />
+                    </div>
+                    <div class="mt-6 flex justify-center">
                       <ArtVolume />
                     </div>
                   </div>
@@ -572,7 +595,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
               </Show>
 
               <Show when={showLyrics()}>
-                <section class="flex min-h-0 min-w-0 flex-1 w-full animate-fade-in self-stretch" aria-label="Lyrics">
+                <section class="-my-16 flex min-h-0 min-w-0 animate-fade-in self-stretch max-md:my-0" aria-label="Lyrics">
                   <LyricsPanel variant="full" />
                 </section>
               </Show>

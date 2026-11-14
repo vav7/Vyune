@@ -68,21 +68,42 @@ const CHROME = `
     background: transparent !important;
     opacity: 0 !important;
   }
+  /* Three instrumental gap dots: must strictly be in a horizontal row and never wrap vertically */
+  .lyrics-gap,
+  .lyrics-line.lyrics-gap,
+  .lyrics-gap-container {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+    width: auto !important;
+    min-width: 0 !important;
+  }
+  .lyrics-gap .lyrics-word,
+  .lyrics-line.lyrics-gap .lyrics-word,
+  .lyrics-gap-container .lyrics-word {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+  }
   .lyrics-gap .lyrics-syllable,
   .lyrics-line.lyrics-gap .lyrics-syllable,
   .lyrics-gap-container .lyrics-syllable {
-    width: 22px !important;
-    height: 22px !important;
-    min-width: 22px !important;
-    min-height: 22px !important;
-    max-width: 22px !important;
-    max-height: 22px !important;
+    width: 14px !important;
+    height: 14px !important;
+    min-width: 14px !important;
+    min-height: 14px !important;
+    max-width: 14px !important;
+    max-height: 14px !important;
     aspect-ratio: 1 / 1 !important;
     border-radius: 50% !important;
     padding: 0 !important;
     padding-block: 0 !important;
     margin-block: 0 !important;
-    margin-inline: 6px !important;
+    margin-inline: 4px !important;
     -webkit-mask-image: none !important;
     mask-image: none !important;
     flex-shrink: 0 !important;
@@ -110,20 +131,12 @@ const CHROME = `
     margin-block-end: 22px !important;
     --am-lyrics-highlight-radius: 24px;
     will-change: transform, opacity;
+    text-wrap: pretty !important;
   }
   .lyrics-line-container,
   .main-vocal-container {
     width: 100% !important;
     max-width: 100% !important;
-  }
-  /* Let lyrics flow smoothly till the right edge without forcing 1 word per line */
-  .lyrics-word,
-  .lyrics-word:not(.allow-break) {
-    display: inline !important;
-    white-space: normal !important;
-  }
-  .lyrics-syllable {
-    white-space: normal !important;
   }
   .lyrics-line::before { corner-shape: squircle; }
   .lyrics-line.active, .lyrics-line.pre-active {
@@ -235,7 +248,7 @@ export function AmLyricsView(props: {
     if (shaping) next.setAttribute('data-shaping', '');
     // A little larger than before; Indic scripts also get a taller line so the upper matras clear.
     // Devanagari and its relatives have a small x-height beside Latin at the same size, so they run larger.
-    const size = Math.round((props.full ? 38 : 22) * (shaping ? 1.15 : 1));
+    const size = Math.round((props.full ? 42 : 24) * (shaping ? 1.15 : 1));
     next.style.cssText = `display:block;width:100%;height:100%;--lyplus-font-size-base:${size}px;--am-lyrics-line-height:${shaping ? 1.48 : 1.22};--am-lyrics-line-spacing:${shaping ? 32 : 26}px;`;
     next.ttml = ttml();
     next.addEventListener('line-click', (event) => {

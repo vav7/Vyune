@@ -1,11 +1,7 @@
 import { createEffect, createMemo, lazy, onCleanup, Show, Suspense } from 'solid-js';
 import { PanelRight } from 'lucide-solid';
-import { useQuery } from '@tanstack/solid-query';
-import { thumbCandidates, playerStore } from '@/store/player';
+import { playerStore } from '@/store/player';
 import { uiStore } from '@/store/ui';
-import { useArtworkColor } from '@/lib/artworkColor';
-import { api } from '@/lib/api';
-import { ImageFrost } from '@/components/music/ImageFrost';
 import { UpNext } from './UpNext';
 
 // Load the lyric panel on first open so the GSAP renderer stays out of the initial bundle.
@@ -20,24 +16,7 @@ export function SidePanel() {
   // down while the player shows its own: one lyric engine running at a time.
   const panel = createMemo(() => uiStore.sidePanel);
   const lyricsLive = () => panel() === 'lyrics' && !playerStore.fullscreen;
-  const current = createMemo(() => playerStore.current);
   const float = () => uiStore.lyricsFloat;
-
-  const directArtwork = createMemo(() => {
-    const track = current();
-    return lyricsLive() && track ? (thumbCandidates(track)[0] ?? null) : null;
-  });
-
-  const catalogArtwork = useQuery(() => ({
-    queryKey: ['catalog-artwork', current()?.id],
-    queryFn: ({ signal }: { signal: AbortSignal }) => (current() ? api.artwork(current()!, signal) : Promise.resolve({ thumb: null })),
-    enabled: lyricsLive() && !!current() && current()!.source === 'yt' && !directArtwork(),
-    staleTime: 24 * 60 * 60_000,
-    retry: false,
-  }));
-
-  const artworkUrl = createMemo(() => directArtwork() || catalogArtwork.data?.thumb || null);
-  const artwork = useArtworkColor(() => artworkUrl());
 
   const floating = createMemo(() => panel() === 'lyrics' && !!float());
 
@@ -109,19 +88,6 @@ export function SidePanel() {
     onCleanup(end);
   };
 
-  const tint = createMemo(() => artwork()?.background ?? '#202025');
-  const lyricsStyle = createMemo<Record<string, string>>(() => {
-    const base = tint();
-    return {
-      '--page-tint': base,
-      '--glassMaterialBackground': `color-mix(in srgb, ${base} 22%, #131317 78%)`,
-      '--systemPrimary': '#ffffffeb',
-      '--systemSecondary': '#ffffffa3',
-      '--systemTertiary': '#ffffff66',
-      '--systemQuaternary': '#ffffff40',
-    };
-  });
-
   return (
     <Show when={panel()} keyed>
       {(active) => (
@@ -133,10 +99,7 @@ export function SidePanel() {
               : 'absolute top-[3px] bottom-[3px] right-[3px] z-(--z-web-chrome) isolate flex w-[calc(var(--side-panel-width)-6px)] animate-slide-in flex-col overflow-hidden rounded-[14px] panel-glass max-sm:inset-0 max-sm:w-full max-sm:rounded-none max-sm:border-0'
           }
           aria-label={active === 'up-next' ? 'Up Next' : 'Lyrics'}
-          style={{
-            ...(active === 'lyrics' ? lyricsStyle() : {}),
-            ...(floating() && float() && innerWidth >= 640 ? { left: `${float()!.x}px`, top: `${float()!.y}px` } : {}),
-          }}
+          style={floating() && float() && innerWidth >= 640 ? { left: `${float()!.x}px`, top: `${float()!.y}px` } : undefined}
         >
           <Show when={active === 'lyrics'}>
             <div
@@ -160,13 +123,6 @@ export function SidePanel() {
                 <PanelRight size={14} />
               </button>
             </Show>
-          </Show>
-          <Show when={active === 'lyrics' && lyricsLive() && artworkUrl()}>
-            {(url) => (
-              <div class="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
-                <ImageFrost src={url()} palette={artwork()?.palette} dim={0.34} class="bg-transparent" />
-              </div>
-            )}
           </Show>
           <div class="relative z-[1] flex min-h-0 flex-1 flex-col">
             <Show when={active === 'up-next'} fallback={
