@@ -43,9 +43,9 @@ const link = 'text-inherit hover:underline group-data-current/row:text-primary';
  * fill is clipped inside), brighter on hover, tinted red for the playing row.
  */
 const row = [
-  'group/row track-row relative grid items-center border-y-2 border-transparent bg-card bg-clip-padding hover:bg-card-hover [content-visibility:auto] [contain-intrinsic-size:auto_54px]',
+  'group/row track-row relative grid items-center border-y-2 border-transparent bg-card bg-clip-padding hover:bg-card-hover',
   '[box-shadow:inset_0_0_0_0.5px_var(--cardStroke)] transition-[background-color,box-shadow] duration-150 ease-out',
-  'data-current:bg-white/[0.12] data-current:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.22),0_4px_16px_-4px_rgba(0,0,0,0.35)] data-current:backdrop-blur-md rounded-[10px]',
+  'data-current:bg-[rgba(250,45,79,0.13)] data-current:shadow-[inset_0_0_0_1px_rgba(250,45,79,0.32),inset_0_1px_0_rgba(255,255,255,0.2),0_4px_16px_-4px_rgba(250,45,79,0.25)] rounded-[10px]',
 ].join(' ');
 
 const rowVariant: Record<Variant, string> = {
@@ -83,9 +83,9 @@ const time: Record<Variant, string> = {
 function AppleEqualizer() {
   return (
     <span class="inline-flex items-end justify-center gap-[2px] h-3.5 w-3.5" aria-hidden="true">
-      <span class="w-[2px] rounded-full bg-white animate-[eq1_1.1s_ease-in-out_infinite]" />
-      <span class="w-[2px] rounded-full bg-white animate-[eq2_0.85s_ease-in-out_infinite]" />
-      <span class="w-[2px] rounded-full bg-white animate-[eq3_1.2s_ease-in-out_infinite]" />
+      <span class="w-[2px] rounded-full bg-[#fa2d4f] animate-[eq1_1.1s_ease-in-out_infinite]" />
+      <span class="w-[2px] rounded-full bg-[#fa2d4f] animate-[eq2_0.85s_ease-in-out_infinite]" />
+      <span class="w-[2px] rounded-full bg-[#fa2d4f] animate-[eq3_1.2s_ease-in-out_infinite]" />
     </span>
   );
 }
@@ -118,7 +118,7 @@ function RowBase(props: RowProps) {
           <Show when={props.variant === 'playlist'} fallback={
             <span class="type-body text-secondary group-hover/row:invisible">
               <Show when={current()} fallback={<span>{track().trackNumber ?? props.position}</span>}>
-                <span class="grid place-items-center text-white group-hover/row:invisible" aria-label="Now playing">
+                <span class="grid place-items-center text-[#fa2d4f] group-hover/row:invisible" aria-label="Now playing">
                   <Show when={playing()} fallback={<PlayIcon size={14} />}>
                     <AppleEqualizer />
                   </Show>
@@ -137,7 +137,7 @@ function RowBase(props: RowProps) {
               <Show when={current()}>
                 {/* The playing row's marker: an equalizer over the artwork. */}
                 <span
-                  class="absolute inset-0 grid place-items-center rounded-artwork-sm bg-[rgb(0_0_0/0.45)] text-white group-hover/row:invisible"
+                  class="absolute inset-0 grid place-items-center rounded-artwork-sm bg-[rgb(0_0_0/0.45)] text-[#fa2d4f] group-hover/row:invisible"
                   aria-label="Now playing"
                 >
                   <Show when={playing()} fallback={<PlayIcon size={18} />}>
@@ -161,7 +161,7 @@ function RowBase(props: RowProps) {
             row's other cells out of the grid instead of being truncated. */}
         <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
           <div class="flex min-w-0 items-center gap-1.5">
-            <span class={`min-w-0 truncate type-body ${current() ? 'text-white font-semibold' : 'text-primary'}`}>{track().title}</span>
+            <span class={`min-w-0 truncate type-body ${current() ? 'text-[#fa2d4f] font-semibold' : 'text-primary'}`}>{track().title}</span>
             <Show when={track().explicit}>
               <ExplicitBadge />
             </Show>
@@ -317,7 +317,7 @@ export function TrackList(props: TrackListProps) {
 function Header() {
   const head = 'type-[700_11px/14px] tracking-[0.06em] text-tertiary uppercase';
   return (
-    <div class={`${playlistColumns} ${row} grid-cols-[minmax(0,36.5fr)_minmax(0,25.25fr)_minmax(0,25.25fr)_minmax(0,13fr)] h-8 items-center rounded-none border-y-0 bg-transparent`} role="row">
+    <div class={`${playlistColumns} grid-cols-[minmax(0,36.5fr)_minmax(0,25.25fr)_minmax(0,25.25fr)_minmax(0,13fr)] grid h-8 items-center rounded-none border-y-0 bg-transparent px-0`} role="row">
       <span class={`${cell} ${head}`}>Song</span>
       <span class={`${secondary} ${head}`}>Artist</span>
       <span class={`${tertiary} ${head}`}>Album</span>

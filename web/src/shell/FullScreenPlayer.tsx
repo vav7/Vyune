@@ -405,6 +405,25 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
         const showLyrics = () => panel() === 'lyrics';
         const showQueue = () => panel() === 'queue';
         const column = () => showLyrics() || showQueue();
+
+        const playingContext = () => playerStore.sourceContext;
+        const playingFromHeader = createMemo(() => {
+          const ctx = playingContext();
+          if (ctx?.type === 'search') return 'PLAYING FROM SEARCH';
+          if (ctx?.type === 'album') return 'PLAYING FROM ALBUM';
+          if (ctx?.type === 'playlist') return 'PLAYING FROM PLAYLIST';
+          if (ctx?.type === 'artist') return 'PLAYING FROM ARTIST';
+          if (current().album) return 'PLAYING FROM ALBUM';
+          if (current().artists?.length) return 'PLAYING FROM ARTIST';
+          return 'PLAYING FROM VYUNE';
+        });
+        const playingFromTitle = createMemo(() => {
+          const ctx = playingContext();
+          if (ctx?.title) return ctx.title;
+          if (current().album) return current().album;
+          if (current().artists?.length) return current().artists.join(', ');
+          return 'Music';
+        });
         return (
           <div
             // Over everything but menus and dialogs, which portal above it. The on-dark colours come from tokens.css.
@@ -458,6 +477,16 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
               </button>
             </Show>
 
+            {/* Apple Music: PLAYING FROM header at the very top in thick frosted type */}
+            <div class={`pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center text-center max-w-[70vw] ${fades}`}>
+              <span class="type-[700_10px/12px] tracking-[0.18em] text-white/55 uppercase font-bold [font-family:var(--font-display)]">
+                {playingFromHeader()}
+              </span>
+              <span class="mt-0.5 truncate max-w-full type-[700_13px/16px] text-white/95 font-bold tracking-tight [font-family:var(--font-display)]">
+                {playingFromTitle()}
+              </span>
+            </div>
+
             {/* One layout for every mode: the artwork is the same big square in the same place; only the right column changes. */}
             <div
               class="fs-lyrics grid h-full items-center justify-center gap-x-[clamp(32px,5vw,96px)] px-[clamp(20px,7vw,120px)] py-16 grid-cols-[var(--art)_minmax(0,42vw)] max-md:grid-cols-[minmax(0,1fr)] max-md:px-6 max-md:pb-18 max-md:items-stretch max-md:gap-y-4 max-md:grid-rows-[auto_minmax(0,1fr)]"
@@ -503,7 +532,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
               {/* Not in lyrics or Up Next: the track's names, the line being sung, the seek bar and the transport, beside the artwork. */}
               <Show when={!column()}>
                 <section class="flex min-h-0 min-w-0 animate-fade-in flex-col justify-center" aria-label="Now playing controls">
-                  <div class="mb-2 flex items-start justify-between gap-4">
+                  <div class="mb-5 flex items-start justify-between gap-4">
                     <div class="min-w-0 flex-1">
                       <h1 class="flex min-w-0 items-center gap-2 text-[clamp(28px,3vw,40px)] leading-[1.15] font-bold tracking-[-0.038em] [font-family:var(--font-family)]">
                         <SongTitle
@@ -522,7 +551,9 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                     </div>
                     <FavoriteButton track={current()} class="fs-chip flex-none !size-10" size={20} />
                   </div>
-                  <LyricPreview />
+                  <div class="pt-2">
+                    <LyricPreview />
+                  </div>
                   <Scrubber />
                   <Transport />
                   <div class="mt-3 flex justify-center">

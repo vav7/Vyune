@@ -850,7 +850,14 @@
 
 .mc-frame { position: relative; isolation: isolate; }
 .mc-ambient {
-  display: none !important;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(1100px 700px at 12% 15%, rgba(65, 60, 85, 0.42) 0%, transparent 70%),
+    radial-gradient(900px 600px at 88% 78%, rgba(50, 60, 85, 0.35) 0%, transparent 70%),
+    #09090c;
 }
 
 /* ------------------------------------------------------------------ */
@@ -951,12 +958,7 @@
     margin: 4px 4px 4px 0;
     height: calc(100% - 8px);
     border-radius: 14px;
-    /* The page IS the scroller. This rule is unlayered, so it beats Tailwind's layered
-       overflow-y-auto: hiding overflow here (as before) is what killed scrolling. */
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
-    -webkit-overflow-scrolling: touch;
+    overflow: hidden;
   }
   html[data-sidebar='hidden'] .mc-col-page { margin-left: 4px; }
   html[data-panel='open'] .mc-col-page { margin-right: 0px; }

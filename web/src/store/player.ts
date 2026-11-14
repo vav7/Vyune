@@ -64,6 +64,11 @@ export function subscribeProgress(fn: ProgressFn): () => void {
 
 /* ------------------------------ store ------------------------------ */
 
+export interface PlayContext {
+  type: 'search' | 'album' | 'playlist' | 'artist';
+  title?: string;
+}
+
 export interface PlayerState {
   queue: Track[];
   index: number;
@@ -83,9 +88,10 @@ export interface PlayerState {
   autoDj: boolean;
   /** Where the radio top-up section starts in the queue (null = none yet). */
   autoStart: number | null;
+  sourceContext: PlayContext | null;
 
   /* actions */
-  playQueue: (tracks: Track[], startIndex?: number, opts?: { shuffle?: boolean }) => void;
+  playQueue: (tracks: Track[], startIndex?: number, opts?: { shuffle?: boolean; context?: PlayContext }) => void;
   prefetch: (track: Track) => void;
   nextTrack: () => Track | null;
   enqueue: (t: Track) => void;
@@ -158,13 +164,18 @@ const [playerStore, setPlayerStore] = createStore<PlayerState>({
   sleepUntil: null,
   autoDj: restored.autoDj ?? LS.get<boolean>('mc_autodj', true),
   autoStart: null,
+  sourceContext: null,
 
   /* --------- internal helpers (not exposed) --------- */
 
   playQueue(tracks, startIndex = 0, opts) {
     const q = tracks.filter(Boolean);
     shuffleOrder = makeShuffleOrder(q.length);
-    setPlayerStore({ queue: q, autoStart: null });
+    setPlayerStore({
+      queue: q,
+      autoStart: null,
+      ...(opts?.context ? { sourceContext: opts.context } : {}),
+    });
     if (opts?.shuffle && !snap().shuffle) setPlayerStore({ shuffle: true });
     void loadTrack(Math.min(startIndex, q.length - 1));
   },
@@ -600,7 +611,15 @@ function scheduleRadioTopUp() {
     .then(({ tracks }) => {
       if (!tracks?.length) return;
       const have = new Set(snap().queue.map((t) => t.id));
-      const fresh = tracks.filter((t) => !have.has(t.id) && t.id !== current.id).slice(0, 20);
+      const currentTitle = current.title?.toLowerCase().replace(/[\s\W]+/g, ' ').trim() || '';
+      const fresh = tracks
+        .filter((t) => {
+          if (have.has(t.id) || t.id === current.id) return false;
+          const tTitle = t.title?.toLowerCase().replace(/[\s\W]+/g, ' ').trim() || '';
+          if (currentTitle && (tTitle === currentTitle || (currentTitle.length > 5 && (tTitle.startsWith(currentTitle) || currentTitle.startsWith(tTitle))))) return false;
+          return true;
+        })
+        .slice(0, 20);
       if (fresh.length) {
         const before = snap().queue.length;
         setPlayerStore({ queue: [...snap().queue, ...fresh], autoStart: snap().autoStart ?? before });

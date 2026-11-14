@@ -42,7 +42,7 @@
  * with a 50% radius is a rounded square, not a circle, so they stay `round`.
  */
 @supports (corner-shape: squircle) {
-  *, *::before, *::after { corner-shape: squircle; }
+  .squircle-card, .lockup-frame, .brand-glass { corner-shape: squircle; }
 
   .rounded-full, .rounded-pill, .vy-btn--pill, .vy-btn--icon, .round, .fs-chip, .fs-key, .fs-skip, .fs-puck,
   .lyrics-syllable, .lyrics-gap *, .lyrics-line.gap *,
@@ -60,12 +60,11 @@
 /* 3. Surfaces                                                         */
 /* ================================================================== */
 /*
- * One recipe for every frosted pane (sidebar, search, brand mark, cards):
- *   • a dark translucent body, tinted by the playing artwork (--amb1/--amb2 when present),
- *   • a saturating blur,
- *   • ONE hairline rim drawn as an inset shadow — the same box as the pane, so it can never disagree
- *     with the pane's corners the way a separate masked ::after ring does,
- *   • a soft drop shadow.
+ * Authentic Apple Liquid Glass Recipe:
+ *   • a dark vibrant translucent body,
+ *   • a deep saturating optical blur,
+ *   • crisp multi-stop specular directional sheen,
+ *   • inset hairline rim light and refraction highlights.
  */
 .sidebar-glass,
 .search-glass,
@@ -73,14 +72,14 @@
 .mc-col-panel > aside {
   isolation: isolate;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.02) 42%, rgba(0, 0, 0, 0.22) 100%),
-    rgba(18, 18, 22, 0.78);
-  backdrop-filter: blur(40px) saturate(200%) brightness(1.04);
-  -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.04);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 40%, rgba(0, 0, 0, 0.22) 100%),
+    rgba(13, 13, 17, 0.58);
+  backdrop-filter: blur(50px) saturate(220%) brightness(1.06);
+  -webkit-backdrop-filter: blur(50px) saturate(220%) brightness(1.06);
   box-shadow:
     0 24px 60px -16px rgba(0, 0, 0, 0.65),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.32),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
     inset 0 -1px 0 0 rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px !important;
@@ -90,13 +89,13 @@
 .glass-card {
   isolation: isolate;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 45%, rgba(0, 0, 0, 0.16) 100%),
-    rgba(22, 22, 28, 0.68);
-  backdrop-filter: blur(40px) saturate(200%) brightness(1.04);
-  -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.04);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.02) 45%, rgba(0, 0, 0, 0.18) 100%),
+    rgba(20, 20, 26, 0.55);
+  backdrop-filter: blur(40px) saturate(210%) brightness(1.05);
+  -webkit-backdrop-filter: blur(40px) saturate(210%) brightness(1.05);
   box-shadow:
     0 20px 50px -16px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.30),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.32),
     inset 0 0 0 1px rgba(255, 255, 255, 0.06),
     inset 0 -1px 0 0 rgba(0, 0, 0, 0.22);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -207,6 +206,12 @@ html[data-dock-hover='sidebar'] .sidebar-glass {
   --btn-fg: #fff;
   min-width: 140px;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28), 0 10px 24px -12px rgba(var(--keyColor-rgb), 0.85);
+  transition: scale 0.35s var(--spring-soft), filter 0.25s ease, box-shadow 0.3s ease;
+}
+.vy-btn--primary:enabled:hover {
+  scale: 1.04;
+  filter: brightness(1.1);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.4), 0 14px 28px -10px rgba(var(--keyColor-rgb), 0.95);
 }
 .vy-btn--primary:focus-visible { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28), var(--focus-ring); }
 
@@ -215,6 +220,12 @@ html[data-dock-hover='sidebar'] .sidebar-glass {
   backdrop-filter: blur(24px) saturate(1.7);
   -webkit-backdrop-filter: blur(24px) saturate(1.7);
   box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.2), inset 0 1px 0 rgb(255 255 255 / 0.18);
+  transition: scale 0.35s var(--spring-soft), background-color 0.2s ease, box-shadow 0.2s ease;
+}
+.vy-btn--glass:enabled:hover {
+  scale: 1.06;
+  background: rgb(255 255 255 / 0.22);
+  box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.3);
 }
 
 .vy-btn--tint { --btn-bg: rgba(var(--keyColor-rgb), 0.16); --btn-fg: var(--keyColor-rollover); }

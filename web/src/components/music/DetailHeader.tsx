@@ -28,8 +28,8 @@ interface DetailHeaderProps {
 
 /** Shuffle (circle) · Play (pill), report §14. */
 export const detailButton = {
-  pill: 'vy-btn vy-btn--primary vy-btn--pill',
-  circle: 'vy-btn vy-btn--glass vy-btn--icon',
+  pill: 'vy-btn vy-btn--primary vy-btn--pill rounded-full transition-all duration-300 hover:scale-[1.04] hover:shadow-[0_12px_28px_rgba(250,45,79,0.5)] active:scale-[0.96]',
+  circle: 'vy-btn vy-btn--glass vy-btn--icon rounded-full transition-all duration-300 hover:scale-[1.07] hover:bg-white/[0.22] hover:shadow-[0_8px_20px_rgba(0,0,0,0.4)] active:scale-[0.94]',
 };
 
 /**

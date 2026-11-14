@@ -20,7 +20,7 @@ import { SkeletonBlock, SkeletonLine } from '@/components/Skeleton';
 import { Artwork } from '@/components/music/Artwork';
 import { TrackMenu } from '@/components/music/TrackMenu';
 import { formatDuration, hrefFor } from '@/components/music/links';
-import { playList, playTrack } from '@/components/music/play';
+import { playTrack } from '@/components/music/play';
 import { SearchBar } from '@/components/search/SearchBar';
 import { api } from '@/lib/api';
 import { playerStore } from '@/store/player';
@@ -394,16 +394,16 @@ export default function SearchPage() {
   /* ---- grouped for the All page ---- */
   const topTrack = () => rows().find((r): r is Extract<SearchRow, { kind: 'top' }> => r.kind === 'top')?.track;
   const songs = () => rows().flatMap((r) => (r.kind === 'track' ? [r.track] : []));
-  const playable = () => rows().flatMap((r) => (r.kind === 'top' || r.kind === 'track' ? [r.track] : []));
   const browse = (kind: BrowseItem['kind']) =>
     rows().flatMap((r) => (r.kind === 'browse' && r.item.kind === kind ? [r.item] : []));
 
   const playFrom = (track: Track) => {
     searchHistory.addTrack(track);
-    const list = playable();
-    const index = list.findIndex((t) => t.id === track.id);
-    if (index >= 0) playList(list, index);
-    else playTrack(track);
+    // Play selected track with search context and enable autoplay radio with similar music (YT-style)
+    // rather than queuing the entire search results list (which has other covers/remixes of the same song).
+    playerStore.setAutoDj(true);
+    playTrack(track, { type: 'search', title: submitted() ? `"${submitted()}"` : track.title });
+    playerStore.radioTopUp();
   };
   const remember = (item: BrowseItem) => searchHistory.addBrowse(item as Parameters<typeof searchHistory.addBrowse>[0]);
 
@@ -518,13 +518,7 @@ export default function SearchPage() {
           ) : (
             <SongRow
               track={row.track}
-              onPlay={() => {
-                searchHistory.addTrack(row.track);
-                const list = typeaheadRows().flatMap((r) => (r.kind === 'track' || r.kind === 'top' ? [r.track] : []));
-                const at = list.findIndex((t) => t.id === row.track.id);
-                if (at >= 0) playList(list, at);
-                else playTrack(row.track);
-              }}
+              onPlay={() => playFrom(row.track)}
             />
           )
         }
@@ -587,7 +581,7 @@ export default function SearchPage() {
             />
             <button
               type="button"
-              class="absolute right-(--body-gutter) grid h-10 place-items-center rounded-pill bg-white/[0.1] px-4 type-callout-emphasized text-primary transition-colors hover:bg-white/[0.18] max-sm:px-3"
+              class="absolute right-(--body-gutter) grid h-10 place-items-center rounded-full bg-white/[0.12] px-4 type-callout-emphasized text-white transition-all hover:bg-white/[0.22] hover:scale-[1.03] active:scale-[0.96] shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] max-sm:px-3"
               aria-label="Close search"
               onClick={leave}
             >

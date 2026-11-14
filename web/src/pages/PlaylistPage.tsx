@@ -85,11 +85,15 @@ export default function PlaylistPage() {
             canPlay={tracks().length > 0}
             onPosterClick={toggle}
             posterLabel={on() ? 'Turn off music video background' : 'Turn on music video background'}
-            onPlay={() => playList(tracks(), 0)}
-            onShuffle={() => shuffleList(tracks())}
+            onPlay={() => playList(tracks(), 0, { type: 'playlist', title: title() })}
+            onShuffle={() => shuffleList(tracks(), { type: 'playlist', title: title() })}
           />
           <Show when={tracks().length > 0} fallback={<DetailSkeleton header={false} rowArtwork rows={8} />}>
-            <TrackList tracks={tracks()} variant="playlist" />
+            <TrackList
+              tracks={tracks()}
+              variant="playlist"
+              onPlayRow={(i) => playList(tracks(), i, { type: 'playlist', title: title() })}
+            />
             <Show when={query.data?.subtitle}>
               <footer class={detailFooter}>
                 <p>{query.data!.subtitle}</p>

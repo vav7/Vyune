@@ -64,11 +64,16 @@ export default function AlbumPage() {
             canPlay={tracks().length > 0}
             onPosterClick={toggle}
             posterLabel={on() ? 'Turn off music video background' : 'Turn on music video background'}
-            onPlay={() => playList(tracks(), 0)}
-            onShuffle={() => shuffleList(tracks())}
+            onPlay={() => playList(tracks(), 0, { type: 'album', title: title() })}
+            onShuffle={() => shuffleList(tracks(), { type: 'album', title: title() })}
           />
           <Show when={tracks().length > 0} fallback={<DetailSkeleton header={false} rows={10} />}>
-            <TrackList tracks={tracks()} variant="album" fallbackArtwork={thumb()} />
+            <TrackList
+              tracks={tracks()}
+              variant="album"
+              fallbackArtwork={thumb()}
+              onPlayRow={(i) => playList(tracks(), i, { type: 'album', title: title() })}
+            />
             <footer class={detailFooter}>
               {query.data?.year && <p>{query.data.year}</p>}
               {artists().length > 0 && <p>{artists().map((a) => a.name).join(', ')}</p>}

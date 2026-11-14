@@ -42,15 +42,15 @@ export function SongTitle(props: {
         </span>
       }
     >
-      <span class={`flex min-w-0 items-baseline gap-[0.3em] overflow-hidden ${props.class ?? ''}`}>
-        <span class="min-w-0 shrink-0 truncate max-w-[75%]">
+      <span class={`flex min-w-0 items-center gap-[0.25em] overflow-hidden ${props.class ?? ''}`}>
+        <span class="min-w-0 shrink-0 truncate max-w-[75%] text-inherit font-inherit text-[length:inherit] leading-[inherit]">
           {renderMain(parts().main)}
         </span>
         <Marquee
-          class={`min-w-0 flex-1 text-inherit font-normal opacity-95 ${props.tailClass ?? ''}`}
+          class={`min-w-0 flex-1 text-inherit font-inherit text-[length:inherit] leading-[inherit] ${props.tailClass ?? ''}`}
           render={() => (
-            <Show when={props.href} fallback={<span>{parts().tail}</span>}>
-              <PrefetchLink to={props.href!} class="hover:underline">
+            <Show when={props.href} fallback={<span class="text-inherit font-inherit">{parts().tail}</span>}>
+              <PrefetchLink to={props.href!} class="truncate hover:underline text-inherit font-inherit">
                 {parts().tail}
               </PrefetchLink>
             </Show>
