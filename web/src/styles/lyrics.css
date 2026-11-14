@@ -168,16 +168,18 @@
 .mc-kinetic-note {
   display: inline-flex;
   align-items: center;
-  gap: 0.34em;
-  height: 1.2em;
+  gap: 0.42em;
+  height: 1.4em;
 }
 .mc-kinetic-note i {
   display: block;
-  width: 0.5em;
-  height: 0.5em;
+  width: 0.78em;
+  height: 0.78em;
+  min-width: 18px;
+  min-height: 18px;
   aspect-ratio: 1 / 1;
   border-radius: 50% !important;
-  background: rgb(255 255 255 / 0.75);
+  background: rgb(255 255 255 / 0.85);
   scale: 0.8;
   flex-shrink: 0;
 }

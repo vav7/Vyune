@@ -419,7 +419,7 @@ export default function SearchPage() {
               role="tab"
               aria-selected={filter() === f.id}
               class={`h-8 flex-none rounded-pill px-3.5 type-callout-emphasized transition-colors ${
-                filter() === f.id ? 'bg-white text-black' : 'bg-white/[0.1] text-primary hover:bg-white/[0.18]'
+                filter() === f.id ? 'bg-white text-black font-semibold shadow-md' : 'bg-white/[0.08] border border-white/10 text-white/80 hover:bg-white/[0.14]'
               }`}
               onClick={() => pickFilter(f.id)}
             >
@@ -531,13 +531,13 @@ export default function SearchPage() {
       when={searchHistory.entries().length}
       fallback={
         <div class="mx-2 mt-20 flex flex-col items-center justify-center text-center">
-          <div class="mb-4 grid size-16 place-items-center rounded-2xl bg-white/[0.14] text-white/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_12px_28px_-6px_rgba(0,0,0,0.4)] [backdrop-filter:blur(24px)]">
-            <svg viewBox="0 0 24 24" class="size-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <div class="mb-3 grid size-13 place-items-center rounded-2xl bg-white/[0.06] border border-white/10 text-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] [backdrop-filter:blur(20px)]">
+            <svg viewBox="0 0 24 24" class="size-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" />
             </svg>
           </div>
-          <p class="type-title-2-emphasized text-white tracking-tight font-bold">Search</p>
-          <p class="mt-1.5 max-w-sm type-callout text-white/65">Find songs, artists, albums and playlists.</p>
+          <p class="type-title-3 font-semibold text-white tracking-tight">Search</p>
+          <p class="mt-1 max-w-sm type-callout text-white/50">Find songs, artists, albums and playlists.</p>
         </div>
       }
     >
@@ -586,7 +586,7 @@ export default function SearchPage() {
             />
             <button
               type="button"
-              class="absolute right-(--body-gutter) grid h-10 place-items-center rounded-full bg-white/[0.15] px-4 type-callout-emphasized text-white transition-all hover:bg-white/[0.24] hover:scale-[1.03] active:scale-[0.96] shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] max-sm:px-3"
+              class="absolute right-(--body-gutter) grid h-10 place-items-center rounded-full bg-white/[0.08] hover:bg-white/[0.14] border border-white/12 px-4 type-callout-emphasized text-white/90 hover:text-white transition-all hover:scale-[1.03] active:scale-[0.96] shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] max-sm:px-3"
               aria-label="Close search"
               onClick={leave}
             >

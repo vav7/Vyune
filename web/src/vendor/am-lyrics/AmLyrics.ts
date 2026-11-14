@@ -166,8 +166,8 @@ export class AmLyrics extends LitElement {
       --lyplus-padding-line: 10px;
       --lyplus-padding-gap: 0.3em;
       --lyplus-border-radius-base: 0.6em;
-      --lyplus-gap-dot-size: 0.58em;
-      --lyplus-gap-dot-margin: 0.22em;
+      --lyplus-gap-dot-size: 0.92em;
+      --lyplus-gap-dot-margin: 0.36em;
 
       --lyplus-font-size-base: 34px;
       --lyplus-font-size-base-grow: 24.5;
@@ -180,8 +180,8 @@ export class AmLyrics extends LitElement {
       --am-lyrics-background-vocal-max-height: 8em;
       --am-lyrics-background-vocal-enter-duration: 650ms;
       --am-lyrics-background-vocal-exit-duration: 450ms;
-      --am-lyrics-instrumental-height: 40px;
-      --am-lyrics-instrumental-spacing: 16px;
+      --am-lyrics-instrumental-height: 48px;
+      --am-lyrics-instrumental-spacing: 20px;
       --am-lyrics-instrumental-enter-duration: 400ms;
       --am-lyrics-instrumental-collapse-duration: 500ms;
       --am-lyrics-instrumental-exit-duration: 350ms;
@@ -1066,9 +1066,15 @@ export class AmLyrics extends LitElement {
         transform 0.7s ease;
     }
 
-    /* Paint the glow once, then composite its opacity. Animating text-shadow
-       on every glyph forces text rasterization throughout the rise. */
+    /* Never show duplicate pseudo-element or ghost letter in normal state */
+    .char::after {
+      display: none !important;
+      content: none !important;
+    }
+
+    /* Soft ambient glow only when letter is in active flight during high notes */
     .lyrics-line.active .char.native-motion[data-glow]::after {
+      display: block !important;
       content: attr(data-glyph);
       position: absolute;
       inset: 0;
@@ -1076,8 +1082,10 @@ export class AmLyrics extends LitElement {
       pointer-events: none;
       color: transparent;
       -webkit-text-fill-color: transparent;
-      text-shadow: 0 0 0.15em rgba(255, 255, 255, 0.65), 0 0 0.08em rgba(255, 255, 255, 0.4);
-      animation: char-glow var(--char-glow-duration) linear
+      opacity: 0;
+      /* Soft diffuse glow without any sharp tight-radius shadow letter */
+      text-shadow: 0 0 0.28em rgba(255, 255, 255, 0.42);
+      animation: char-glow var(--char-glow-duration) ease-out
         var(--char-glow-delay) both;
     }
 
@@ -1086,14 +1094,14 @@ export class AmLyrics extends LitElement {
       100% {
         opacity: 0;
       }
-      15% {
-        opacity: calc(0.8 * var(--char-glow-max, 0));
+      20% {
+        opacity: calc(0.55 * var(--char-glow-max, 0));
       }
-      30% {
+      45% {
         opacity: var(--char-glow-max, 0);
       }
-      60% {
-        opacity: calc(0.3 * var(--char-glow-max, 0));
+      75% {
+        opacity: calc(0.35 * var(--char-glow-max, 0));
       }
     }
 
@@ -1359,8 +1367,8 @@ export class AmLyrics extends LitElement {
       display: inline-block;
       width: var(--lyplus-gap-dot-size);
       height: var(--lyplus-gap-dot-size);
-      min-width: 15px;
-      min-height: 15px;
+      min-width: 22px;
+      min-height: 22px;
       aspect-ratio: 1 / 1;
       background-color: var(--lyplus-text-primary);
       border-radius: 50% !important;
@@ -8396,6 +8404,7 @@ export class AmLyrics extends LitElement {
         const el = chars[j] as HTMLElement;
         el.style.animation = '';
         el.removeAttribute('data-glow');
+        el.removeAttribute('data-glyph');
         el.style.removeProperty('will-change');
         el.style.removeProperty('background-color');
         el.style.removeProperty('transition');
@@ -8575,6 +8584,7 @@ export class AmLyrics extends LitElement {
     AmLyrics.characterAnimations.delete(char);
     char.classList.remove('native-motion');
     char.removeAttribute('data-glow');
+    char.removeAttribute('data-glyph');
   }
 
   private static resumeCharacterMotion(
@@ -8766,6 +8776,7 @@ export class AmLyrics extends LitElement {
             motionTarget.style.transform = motion.finalTransform;
             motion.settled = true;
             char.removeAttribute('data-glow');
+            char.removeAttribute('data-glyph');
             animation.cancel();
           };
         } else if (entry.settled) {
