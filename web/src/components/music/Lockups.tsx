@@ -102,7 +102,7 @@ function LockupArtwork(props: { item: MusicItem; width: number; aspect: number }
       {/* The card's own ⋯ menu, over the frame's top-right corner. */}
       <CardMenu
         item={item()}
-        class="absolute end-2 top-2 z-3 grid size-7 place-items-center rounded-full bg-black/55 text-white/90 opacity-0 backdrop-blur-md transition-[opacity,background-color] duration-150 ease-out hover:bg-black/75 hover:text-white group-hover/art:opacity-100 focus-visible:opacity-100 data-open:opacity-100"
+        class="absolute end-2 top-2 z-3 grid size-7 place-items-center rounded-full bg-black/75 text-white/90 opacity-0 transition-[opacity,background-color] duration-150 ease-out hover:bg-black/90 hover:text-white group-hover/art:opacity-100 focus-visible:opacity-100 data-open:opacity-100"
       />
     </div>
   );

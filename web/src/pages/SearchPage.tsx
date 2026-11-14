@@ -530,13 +530,8 @@ export default function SearchPage() {
     <Show
       when={searchHistory.entries().length}
       fallback={
-        <div class="mx-2 mt-20 flex flex-col items-center justify-center text-center">
-          <div class="mb-3 grid size-13 place-items-center rounded-2xl bg-white/[0.06] border border-white/10 text-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] [backdrop-filter:blur(20px)]">
-            <svg viewBox="0 0 24 24" class="size-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" />
-            </svg>
-          </div>
-          <p class="type-title-3 font-semibold text-white tracking-tight">Search</p>
+        <div class="mx-2 mt-24 flex flex-col items-center justify-center text-center select-none">
+          <p class="type-title-2-emphasized text-white tracking-tight font-bold">Search</p>
           <p class="mt-1 max-w-sm type-callout text-white/50">Find songs, artists, albums and playlists.</p>
         </div>
       }
@@ -568,7 +563,7 @@ export default function SearchPage() {
     <Portal>
       <Show when={!playerStore.fullscreen}>
         <div
-          class="search-sheet search-glass fixed top-[3px] right-[3px] bottom-[3px] left-[max(3px,var(--web-navigation-width))] z-[calc(var(--z-web-chrome)-2)] flex flex-col overflow-hidden rounded-[14px] text-primary animate-[fade-in_200ms_ease-out_both] max-md:inset-0 max-md:rounded-none"
+          class="search-sheet sidebar-glass fixed top-[3px] right-[3px] bottom-[3px] left-[max(3px,var(--web-navigation-width))] z-[calc(var(--z-web-chrome)-2)] flex flex-col overflow-hidden rounded-[14px] text-primary animate-[fade-in_200ms_ease-out_both] max-md:inset-0 max-md:rounded-none"
           role="dialog"
           aria-label="Search"
           data-search-sheet

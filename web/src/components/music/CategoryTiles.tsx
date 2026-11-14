@@ -250,7 +250,7 @@ export function CustomCurator() {
   const items = () => query.data || [];
 
   return (
-    <section class="mx-(--body-gutter) mt-6 mb-8 overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.04] p-5 [backdrop-filter:blur(36px)] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)]" aria-label="Custom Curator">
+    <section class="mx-(--body-gutter) mt-6 mb-8 overflow-hidden rounded-[20px] border border-white/10 bg-[#13141f] p-5 shadow-lg" aria-label="Custom Curator">
       <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/8">
         <div>
           <div class="flex items-center gap-2">
@@ -373,38 +373,31 @@ export function PopGenres(props: { categories?: GenreCategory[] }) {
         <h3 class="type-title-2-emphasized text-white">Pop Icons & Genres</h3>
         <p class="mt-0.5 type-caption-1 text-secondary">Curated sounds and biggest pop stars across every global rhythm</p>
       </div>
-      <ul class="mx-(--body-gutter) grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5 [contain:paint]">
+      <ul class="mx-(--body-gutter) grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5">
         <For each={POP_GENRES}>
           {(genre) => (
             <li class="[content-visibility:auto] [contain-intrinsic-size:auto_140px]">
               <PrefetchLink
                 to={getHref(genre)}
-                class="group relative flex aspect-[1.38] flex-col justify-end overflow-hidden rounded-[18px] border border-white/10 bg-[#12131d] p-3 text-white shadow-[0_10px_28px_rgba(0,0,0,0.4)] transition-[transform,box-shadow,border-color] duration-300 ease-out hover:-translate-y-1 hover:border-white/30 hover:shadow-[0_16px_36px_rgba(0,0,0,0.6)] focus-visible:outline-2 focus-visible:outline-white [contain:paint]"
+                class="group relative flex aspect-[1.38] flex-col justify-end overflow-hidden rounded-[16px] border border-white/10 bg-[#12131d] p-3 text-white shadow-md transition-transform duration-200 ease-out hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-white"
               >
-                {/* Image backdrop */}
-                <img
-                  src={genre.cover}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  class="absolute inset-0 size-full object-cover transition-transform duration-700 ease-out group-hover:scale-105 opacity-60"
-                />
-                {/* Gradient veil */}
+                {/* Instant GPU gradient backdrop — 60 FPS, 0 network lag */}
                 <span
-                  class="absolute inset-0 bg-gradient-to-t from-[#0a0a10]/95 via-[#0a0a10]/45 to-transparent"
+                  class="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-105"
+                  style={{
+                    background: `linear-gradient(135deg, ${genre.color}99 0%, ${genre.color}25 50%, #0d0e17 100%)`,
+                  }}
                   aria-hidden="true"
                 />
-                {/* Crisp hardware-accelerated radial tint on hover (no heavy blur) */}
                 <span
-                  class="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                  style={{ background: `radial-gradient(circle at 80% 80%, ${genre.color}40 0%, transparent 70%)` }}
+                  class="absolute inset-0 bg-gradient-to-t from-[#0a0a10]/95 via-[#0a0a10]/40 to-transparent"
                   aria-hidden="true"
                 />
                 <div class="relative z-1 min-w-0">
                   <span class="block truncate text-[10px] font-semibold uppercase tracking-wider text-white/70">
                     {genre.stars}
                   </span>
-                  <span class="mt-0.5 block truncate text-[14px] font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+                  <span class="mt-0.5 block truncate text-[14px] font-bold text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">
                     {genre.title}
                   </span>
                 </div>
@@ -422,12 +415,12 @@ function CategoryTile({ category }: { category: GenreCategory }) {
     <li class="[content-visibility:auto] [contain-intrinsic-size:auto_96px]">
       <PrefetchLink
         to={`/genre/${encodeURIComponent(category.params)}/${encodeURIComponent(category.label)}`}
-        class="genre-tile group relative flex aspect-[1.75] items-end overflow-hidden rounded-[20px] [corner-shape:squircle] border border-white/10 bg-[#161722] p-4 text-white shadow-[0_12px_30px_#0002] transition-[transform,box-shadow,border-color] duration-300 ease-out hover:-translate-y-1 hover:border-white/25 hover:shadow-[0_20px_44px_#0004] focus-visible:outline-2 focus-visible:outline-white [contain:paint]"
+        class="genre-tile group relative flex aspect-[1.75] items-end overflow-hidden rounded-[16px] border border-white/10 bg-[#161722] p-4 text-white shadow-sm transition-transform duration-200 ease-out hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-white"
       >
         <CategoryArtwork label={category.label} />
-        <span class="absolute inset-0 bg-gradient-to-t from-[#090a12]/85 via-[#090a12]/20 to-transparent transition-opacity duration-300 group-hover:from-[#090a12]/70" />
-        <span class="relative z-[1] max-w-[85%] type-title-2-emphasized tracking-[-.02em] drop-shadow-[0_2px_10px_#0009]">{category.label}</span>
-        <span class="absolute right-3 bottom-3 z-[1] grid size-8 translate-y-1 place-items-center rounded-full border border-white/20 bg-white/10 text-white opacity-0 backdrop-blur-md transition-[opacity,transform] duration-300 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100" aria-hidden="true">
+        <span class="absolute inset-0 bg-gradient-to-t from-[#090a12]/85 via-[#090a12]/20 to-transparent transition-opacity duration-200 group-hover:from-[#090a12]/70" />
+        <span class="relative z-[1] max-w-[85%] type-title-2-emphasized tracking-[-.02em] drop-shadow-[0_2px_8px_#0009]">{category.label}</span>
+        <span class="absolute right-3 bottom-3 z-[1] grid size-8 translate-y-1 place-items-center rounded-full border border-white/20 bg-white/20 text-white opacity-0 transition-[opacity,transform] duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100" aria-hidden="true">
           <ArrowRight size={15} />
         </span>
       </PrefetchLink>

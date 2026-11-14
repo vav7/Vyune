@@ -479,7 +479,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
 
             {/* One layout for every mode: the artwork is the same big square in the same place; only the right column changes. */}
             <div
-              class="fs-lyrics grid h-full items-center justify-center gap-x-[clamp(32px,5vw,96px)] px-[clamp(20px,7vw,120px)] py-16 grid-cols-[var(--art)_minmax(0,42vw)] max-md:grid-cols-[minmax(0,1fr)] max-md:px-6 max-md:pb-18 max-md:items-stretch max-md:gap-y-4 max-md:grid-rows-[auto_minmax(0,1fr)]"
+              class="fs-lyrics grid h-full items-center justify-center gap-x-[clamp(32px,5vw,80px)] px-[clamp(20px,4vw,60px)] py-16 grid-cols-[var(--art)_minmax(0,1fr)] max-md:grid-cols-[minmax(0,1fr)] max-md:px-6 max-md:pb-18 max-md:items-stretch max-md:gap-y-4 max-md:grid-rows-[auto_minmax(0,1fr)]"
               data-lyrics={column() || undefined}
             >
               <section class={`poster-col flex w-(--art) min-w-0 flex-col${column() ? ' max-md:order-2 max-md:w-full' : ''}`} aria-label="Player">
@@ -521,50 +521,58 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
 
               {/* Not in lyrics or Up Next: the track's names, the line being sung, the seek bar and the transport, beside the artwork. */}
               <Show when={!column()}>
-                <section class="flex min-h-0 min-w-0 animate-fade-in flex-col justify-center" aria-label="Now playing controls">
-                  {/* Apple Music: Playing from search/album header directly above the song title in art mode only */}
-                  <div class="mb-2.5 flex flex-col items-start select-none">
-                    <span class="text-[11px] font-bold tracking-[0.14em] uppercase text-white/50 [font-family:var(--font-display)]">
+                <section
+                  class="flex min-h-0 min-w-0 animate-fade-in flex-col justify-between self-center py-1"
+                  style={{ height: 'var(--art)', 'max-height': '100%' }}
+                  aria-label="Now playing controls"
+                >
+                  {/* Apple Music: Playing from search/album at top parallel to artwork on same line */}
+                  <div class="flex items-center gap-2 select-none min-w-0 max-w-full">
+                    <span class="text-[13px] font-bold tracking-[0.08em] uppercase text-white/55 [font-family:var(--font-display)] shrink-0">
                       {playingFromHeader()}
                     </span>
                     <Show when={playingFromTitle()}>
-                      <span class="mt-0.5 truncate max-w-full text-[13px] font-semibold text-white/80 tracking-tight [font-family:var(--font-display)]">
+                      <span class="text-[13px] font-bold text-white/40 select-none">−</span>
+                      <span class="truncate text-[13px] font-bold text-white/90 tracking-tight [font-family:var(--font-display)]">
                         {playingFromTitle()}
                       </span>
                     </Show>
                   </div>
-                  <div class="mb-5 flex items-start justify-between gap-4">
-                    <div class="min-w-0 flex-1">
-                      <h1 class="flex min-w-0 items-center gap-2 text-[clamp(28px,3vw,40px)] leading-[1.15] font-bold tracking-[-0.038em] [font-family:var(--font-family)]">
-                        <SongTitle
-                          title={current().title}
-                          href={current().albumId ? albumHref(current().albumId) : undefined}
-                          class="flex-1"
+
+                  <div class="flex min-h-0 flex-col justify-center my-auto">
+                    <div class="mb-5 flex items-start justify-between gap-4">
+                      <div class="min-w-0 flex-1">
+                        <h1 class="flex min-w-0 items-center gap-2 text-[clamp(28px,3vw,40px)] leading-[1.15] font-bold tracking-[-0.038em] [font-family:var(--font-family)]">
+                          <SongTitle
+                            title={current().title}
+                            href={current().albumId ? albumHref(current().albumId) : undefined}
+                            class="flex-1"
+                          />
+                          <Show when={current().explicit}>
+                            <ExplicitBadge size={15} />
+                          </Show>
+                        </h1>
+                        <Marquee
+                          class="mt-1 text-[clamp(16px,1.4vw,19px)] leading-[1.35] font-medium tracking-[-0.016em] text-secondary [font-family:var(--font-family)]"
+                          render={() => <Credits />}
                         />
-                        <Show when={current().explicit}>
-                          <ExplicitBadge size={15} />
-                        </Show>
-                      </h1>
-                      <Marquee
-                        class="mt-1 text-[clamp(16px,1.4vw,19px)] leading-[1.35] font-medium tracking-[-0.016em] text-secondary [font-family:var(--font-family)]"
-                        render={() => <Credits />}
-                      />
+                      </div>
+                      <FavoriteButton track={current()} class="fs-chip flex-none !size-10" size={20} />
                     </div>
-                    <FavoriteButton track={current()} class="fs-chip flex-none !size-10" size={20} />
-                  </div>
-                  <div class="pt-2">
-                    <LyricPreview />
-                  </div>
-                  <Scrubber />
-                  <Transport />
-                  <div class="mt-3 flex justify-center">
-                    <ArtVolume />
+                    <div class="pt-2">
+                      <LyricPreview />
+                    </div>
+                    <Scrubber />
+                    <Transport />
+                    <div class="mt-3 flex justify-center">
+                      <ArtVolume />
+                    </div>
                   </div>
                 </section>
               </Show>
 
               <Show when={showLyrics()}>
-                <section class="flex min-h-0 animate-fade-in self-stretch" aria-label="Lyrics">
+                <section class="flex min-h-0 min-w-0 flex-1 w-full animate-fade-in self-stretch" aria-label="Lyrics">
                   <LyricsPanel variant="full" />
                 </section>
               </Show>
