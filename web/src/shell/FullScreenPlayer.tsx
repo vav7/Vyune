@@ -45,7 +45,7 @@ function useBrowserFullScreen() {
 function Scrubber() {
   const { setBarRef, setElapsedRef, setRemainingRef, dragging, handlers } = useScrubber();
   return (
-    <div class="group/scrub mt-1" data-dragging={dragging() || undefined}>
+    <div class="group/scrub" data-dragging={dragging() || undefined}>
       {/* A taller hit area than the line it carries. */}
       <div class="group/hit flex h-4 cursor-pointer touch-none items-center" {...handlers}>
         <div
@@ -492,10 +492,10 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
 
             {/* One layout for every mode: the artwork is the same big square in the same place; only the right column changes. */}
             <div
-              class={`fs-lyrics grid h-full items-center justify-center py-16 max-md:px-6 max-md:pb-18 ${
+              class={`fs-lyrics grid h-full items-center justify-center py-16 max-md:px-6 max-md:pb-18 grid-cols-[var(--art)_minmax(0,44vw)] gap-x-[clamp(44px,6vw,96px)] pl-[clamp(32px,5vw,96px)] pr-[clamp(24px,4vw,72px)] ${
                 showLyrics()
-                  ? 'grid-cols-[var(--art)_minmax(0,1fr)] gap-x-[clamp(44px,6vw,96px)] pl-[clamp(32px,5vw,96px)] pr-[clamp(24px,4vw,72px)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[minmax(0,1fr)_auto] max-md:items-stretch max-md:gap-y-4'
-                  : 'grid-cols-[var(--art)_minmax(0,40vw)] gap-x-[clamp(44px,6vw,96px)] pl-[clamp(32px,5vw,96px)] pr-[clamp(24px,4vw,72px)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[auto_minmax(0,1fr)] max-md:items-stretch max-md:gap-y-4'
+                  ? 'max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[minmax(0,1fr)_auto] max-md:items-stretch max-md:gap-y-4'
+                  : 'max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[auto_minmax(0,1fr)] max-md:items-stretch max-md:gap-y-4'
               }`}
               data-lyrics={column() || undefined}
             >
@@ -545,21 +545,21 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                   style={{ height: 'var(--art)', 'max-height': '100%' }}
                   aria-label="Now playing controls"
                 >
-                  {/* Apple Music: Playing from search/album at top parallel to artwork on same line */}
-                  <div class="flex items-center gap-2 select-none min-w-0 max-w-full">
-                    <span class="text-[13px] font-bold tracking-[0.08em] uppercase text-white/55 [font-family:var(--font-display)] shrink-0">
-                      {playingFromHeader()}
-                    </span>
-                    <Show when={playingFromTitle()}>
-                      <span class="text-[13px] font-bold text-white/40 select-none">−</span>
-                      <span class="truncate text-[13px] font-bold tracking-[0.08em] uppercase text-white/55 [font-family:var(--font-display)]">
-                        {playingFromTitle()}
+                  {/* Top group: Playing From header + Song Title & Artist, anchored at top parallel to artwork */}
+                  <div class="flex flex-col min-w-0">
+                    <div class="flex items-center gap-2 select-none min-w-0 max-w-full">
+                      <span class="text-[13px] font-bold tracking-[0.08em] uppercase text-white/55 [font-family:var(--font-display)] shrink-0">
+                        {playingFromHeader()}
                       </span>
-                    </Show>
-                  </div>
+                      <Show when={playingFromTitle()}>
+                        <span class="text-[13px] font-bold text-white/40 select-none">−</span>
+                        <span class="truncate text-[13px] font-bold tracking-[0.08em] uppercase text-white/55 [font-family:var(--font-display)]">
+                          {playingFromTitle()}
+                        </span>
+                      </Show>
+                    </div>
 
-                  <div class="flex min-h-0 flex-col justify-center my-auto py-4">
-                    <div class="mb-[clamp(32px,4.5vh,52px)] flex items-start justify-between gap-5">
+                    <div class="mt-4 flex items-start justify-between gap-5">
                       <div class="min-w-0 flex-1">
                         <h1 class="flex min-w-0 items-center gap-2 text-[clamp(28px,3vw,40px)] leading-[1.15] font-bold tracking-[-0.038em] [font-family:var(--font-family)]">
                           <SongTitle
@@ -578,14 +578,20 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                       </div>
                       <FavoriteButton track={current()} class="fs-chip flex-none !size-10" size={20} />
                     </div>
-                    {/* The one-line lyric: sits with a generous gap below title/artist, staying right above the seek bar */}
-                    <div class="mb-2 min-h-[30px] flex items-end">
+                  </div>
+
+                  {/* Flexible spacer creating a generous distance between song/artist and the controls below */}
+                  <div class="flex-1 min-h-[clamp(36px,7vh,110px)]" />
+
+                  {/* Bottom group: lyric preview standing close right above the seek bar, scrubber, transport, and volume */}
+                  <div class="flex flex-col min-w-0">
+                    <div class="mb-0 flex items-end">
                       <LyricPreview />
                     </div>
-                    <div class="mt-1">
+                    <div>
                       <Scrubber />
                     </div>
-                    <div class="mt-4">
+                    <div class="mt-5">
                       <Transport />
                     </div>
                     <div class="mt-6 flex justify-center">

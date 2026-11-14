@@ -123,15 +123,23 @@ const CHROME = `
     filter: none !important;
     -webkit-filter: none !important;
   }
+  :host, :host *, .lyrics-container, .lyrics-line, .lyrics-line-container, .main-vocal-container {
+    box-sizing: border-box !important;
+  }
   .lyrics-container {
     width: 100% !important;
     max-width: 100% !important;
-    padding-inline-end: 36px !important;
+    padding-inline-start: 12px !important;
+    padding-inline-end: 48px !important;
+    box-sizing: border-box !important;
     overflow-x: visible !important;
   }
   .lyrics-line {
+    box-sizing: border-box !important;
     width: 100% !important;
     max-width: 100% !important;
+    padding-inline-start: 0 !important;
+    padding-inline-end: 28px !important;
     text-rendering: optimizeLegibility;
     font-kerning: normal;
     letter-spacing: -0.015em;
@@ -140,14 +148,28 @@ const CHROME = `
     --am-lyrics-highlight-radius: 24px;
     will-change: transform, opacity;
     text-wrap: pretty !important;
+    contain: none !important;
     overflow: visible !important;
     word-break: normal !important;
-    overflow-wrap: normal !important;
+    overflow-wrap: break-word !important;
   }
   .lyrics-line-container,
   .main-vocal-container {
+    box-sizing: border-box !important;
     width: 100% !important;
     max-width: 100% !important;
+    overflow: visible !important;
+    overflow-wrap: break-word !important;
+    word-break: normal !important;
+  }
+  .lyrics-word {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .lyrics-word.allow-break {
+    white-space: normal !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
   }
   .lyrics-line::before { corner-shape: squircle; }
   .lyrics-line.active, .lyrics-line.pre-active {
@@ -259,8 +281,8 @@ export function AmLyricsView(props: {
     if (shaping) next.setAttribute('data-shaping', '');
     // A little larger than before; Indic scripts also get a taller line so the upper matras clear.
     // Devanagari and its relatives have a small x-height beside Latin at the same size, so they run larger.
-    const size = Math.round((props.full ? 42 : 24) * (shaping ? 1.15 : 1));
-    next.style.cssText = `display:block;width:100%;height:100%;--lyplus-font-size-base:${size}px;--am-lyrics-line-height:${shaping ? 1.48 : 1.38};--am-lyrics-line-spacing:${shaping ? 32 : 28}px;`;
+    const size = Math.round((props.full ? 34 : 22) * (shaping ? 1.12 : 1));
+    next.style.cssText = `display:block;width:100%;height:100%;--lyplus-font-size-base:${size}px;--am-lyrics-line-height:${shaping ? 1.48 : 1.38};--am-lyrics-line-spacing:${shaping ? 28 : 24}px;`;
     next.ttml = ttml();
     next.addEventListener('line-click', (event) => {
       const at = (event as CustomEvent<{ timestamp: number }>).detail?.timestamp;

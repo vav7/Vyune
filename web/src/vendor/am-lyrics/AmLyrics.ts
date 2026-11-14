@@ -9477,7 +9477,7 @@ export class AmLyrics extends LitElement {
             const groupText = group.map(s => s.text).join('');
             const visibleWordLength = groupText.replace(/\s/g, '').length;
             const shouldAllowBreak =
-              groupText.trim().length >= 16 ||
+              groupText.trim().length >= 10 ||
               /[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/.test(
                 groupText,
               );

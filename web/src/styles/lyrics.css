@@ -208,9 +208,10 @@
   --word-ahead: rgb(255 255 255 / 0.38);
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   height: 26px;
-  margin: 0 0 -2px;
+  margin: 0;
+  padding-bottom: 2px;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif !important;
   -webkit-font-smoothing: antialiased;
