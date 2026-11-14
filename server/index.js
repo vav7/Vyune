@@ -271,27 +271,20 @@ app.get('/api/stream', async (c) => {
         : Promise.resolve(null);
 
     const youtubePromise = (async () => {
-      // Uploads are first mapped to the official Songs shelf.
-      if (isUpload && title) {
+      // Always look up the official Songs shelf first so we NEVER play an MV/video version!
+      if (title) {
         const hits = await yt.searchSongs(`${title} ${artist}`.trim(), 8);
-        for (const candidate of officialSongMatches(hits, title, artist, album, duration).slice(0, 4)) {
+        const matches = officialSongMatches(hits, title, artist, album, duration);
+        for (const candidate of matches.slice(0, 4)) {
           const stream = await tryVideo(candidate.id);
           if (stream) return stream;
         }
       }
 
+      // If official search had no stream, try direct video ID as last resort
       const direct = await tryVideo(id);
       if (direct) return direct;
 
-      // A stale ID may still have an exact official catalog recording.
-      if (!isUpload && title) {
-        const hits = await yt.searchSongs(`${title} ${artist}`.trim(), 8);
-        for (const candidate of officialSongMatches(hits, title, artist, album, duration).slice(0, 4)) {
-          if (candidate.id === id) continue;
-          const stream = await tryVideo(candidate.id);
-          if (stream) return stream;
-        }
-      }
       return null;
     })().catch(() => null);
 
@@ -556,10 +549,17 @@ app.get('/api/artist-images', async (c) => {
 
 /** Apple album motion for the full-screen player; null is a normal no-canvas result. */
 app.get('/api/apple-motion', async (c) => {
-  const title = String(c.req.query('title') || '').trim();
-  const artist = String(c.req.query('artist') || '').trim();
+  let title = String(c.req.query('title') || '').trim();
+  let artist = String(c.req.query('artist') || '').trim();
+  const channel = String(c.req.query('channel') || '').trim();
   const album = String(c.req.query('album') || '').trim();
-  if (!title || !artist) return c.json({ error: 'title and artist required' }, 400);
+  if (!artist && channel) artist = channel.replace(/\s*[-–|]\s*(?:topic|vevo)\s*$/i, '').trim();
+  if (!artist && title.includes(' - ')) {
+    const parts = title.split(/\s*[-–—]\s*/);
+    artist = parts[0].trim();
+    title = parts.slice(1).join(' - ').trim();
+  }
+  if (!title) return c.json({ error: 'title required' }, 400);
   // Every credited artist ("a|b|c"), not just the first: a film song is filed under different names in different catalogues.
   const artists = [
     ...new Set(
@@ -568,7 +568,7 @@ app.get('/api/apple-motion', async (c) => {
   ];
   const [art, apple] = await Promise.all([
     trackMotionArt({ title, artist, album }).catch(() => null),
-    trackMusicVideos({ title, artists, album }).catch(() => null),
+    trackMusicVideos({ title, artists, album, channel }).catch(() => null),
   ]);
   const mvs = (apple || []).map(({ url, aspect, title: name, label, provider }) => ({ url, aspect, title: name, label, provider }));
   return c.json({ ...(art || { url: null, aspect: null }), mv: mvs[0] || null, mvs });

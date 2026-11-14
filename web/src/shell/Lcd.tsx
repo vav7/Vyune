@@ -6,6 +6,7 @@ import { LogoMark } from '@/components/LogoMark';
 import { ExplicitBadge } from '@/components/music/ExplicitBadge';
 import { albumHref, artistHref } from '@/components/music/links';
 import { PrefetchLink } from '@/components/PrefetchLink';
+import { SongTitle } from '@/components/music/SongTitle';
 import { creditSegments } from '@/lib/artistCredits';
 import { sizedArtwork } from '@/lib/artwork';
 import { playerStore, thumbCandidates } from '@/store/player';
@@ -96,11 +97,11 @@ export function Lcd() {
             {/* Over the seek line, the names soften into the background so the times can sit over them. */}
             <div class="flex min-w-0 flex-col transition-[filter,opacity] group-has-[[data-scrubber]:hover]/lcd:opacity-30 group-has-[[data-scrubber]:hover]/lcd:blur-[3px] group-has-[[data-dragging]]/lcd:opacity-30 group-has-[[data-dragging]]/lcd:blur-[3px]">
               <div class="flex min-w-0 items-center">
-                <Show when={current.albumId} fallback={<span class={titleClass}>{current.title}</span>}>
-                  <PrefetchLink class={`${titleClass} ${pageLink}`} to={albumHref(current.albumId)!}>
-                    {current.title}
-                  </PrefetchLink>
-                </Show>
+                <SongTitle
+                  title={current.title}
+                  href={current.albumId ? albumHref(current.albumId) : undefined}
+                  class={titleClass}
+                />
                 <Show when={current.explicit}>
                   <ExplicitBadge size={11} />
                 </Show>

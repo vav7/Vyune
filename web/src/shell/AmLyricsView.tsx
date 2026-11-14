@@ -16,6 +16,7 @@ import { LyricClock } from '@/lib/clock';
 import { linesToTtml } from '@/lib/amttml';
 import type { LyricsLine } from '@/lib/types';
 import { audio, playerStore } from '@/store/player';
+import { lyricsStore } from '@/store/lyrics';
 
 if (!customElements.get('am-lyrics')) customElements.define('am-lyrics', AmLyrics);
 
@@ -42,7 +43,7 @@ const CHROME = `
 
   /* ---- Premium type: pure white paint, crisp HD glyphs, nothing cropped ---- */
   :host {
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "SF Pro", "Helvetica Neue", system-ui, sans-serif !important;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", "SF Pro Text", "SF Pro", "Helvetica Neue", system-ui, sans-serif !important;
     --am-lyrics-highlight-color: #ffffff;
     --lyplus-text-primary: #ffffff;
     /* The unsung words are white too, only quieter: not a muddy grey. */
@@ -63,7 +64,9 @@ const CHROME = `
   .lyrics-line {
     text-rendering: optimizeLegibility;
     font-kerning: normal;
-    letter-spacing: -0.012em;
+    letter-spacing: -0.02em;
+    line-height: 1.25 !important;
+    margin-block-end: 22px !important;
     --am-lyrics-highlight-radius: 24px;
   }
   .lyrics-line::before { corner-shape: squircle; }
@@ -132,7 +135,9 @@ export function AmLyricsView(props: {
     frame = 0;
     if (!el) return;
     const now = performance.now();
-    const ms = clock.frame(now, Math.trunc(audio.currentTime * 1000), now, discontinuity);
+    const effectiveLead = 140 + (lyricsStore.syncOffsetMs || 0);
+    const audioMs = Math.max(0, Math.trunc(audio.currentTime * 1000) + effectiveLead);
+    const ms = clock.frame(now, audioMs, now, discontinuity);
     if (ms !== lastMs) el.currentTime = ms;
     // Sleep when paused and nothing is changing; any transport event wakes it.
     still = audio.paused && ms === lastMs ? still + 1 : 0;

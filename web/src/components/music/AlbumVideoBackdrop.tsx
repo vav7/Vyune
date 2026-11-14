@@ -117,7 +117,7 @@ export function AlbumVideoBackdrop({ tracks }: { tracks: Track[] }) {
 
   return (
     <Show when={wanted() && urls().length > 0}>
-      <div class="pointer-events-none sticky top-0 z-0 -mb-[100dvh] -ml-(--web-navigation-width) h-dvh animate-[fade-in_1.2s_ease_both] max-sm:ml-0" aria-hidden="true">
+      <div class="pointer-events-none fixed inset-0 z-0 overflow-hidden animate-[fade-in_1.2s_ease_both]" aria-hidden="true">
         {/* The clip plays unseen; every frame is frosted on the GPU (mip-chain blur + dither), so there is
             no full-screen CSS blur on a moving layer: it stays smooth, a little visible, never pixelated. */}
         <video

@@ -349,8 +349,8 @@ export function identify(q) {
       const pick = fuzzy.find(
         (x) =>
           !q.artist ||
-          sharesArtist(q.artist, x.c.artist) ||
-          (q.duration && x.c.duration && Math.abs(q.duration - x.c.duration) <= 2),
+          isLabelish(q.artist) ||
+          sharesArtist(q.artist, x.c.artist),
       );
       if (pick) {
         best = pick.c;

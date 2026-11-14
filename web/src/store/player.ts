@@ -440,9 +440,17 @@ async function recoverWithYtDlp(track: Track, shouldResume: boolean) {
     if (shouldResume) await audio.play();
   } catch {
     if (snap().current === track) {
+      if (track.source !== 'saavn' && /^[\w-]{11}$/.test(track.id)) {
+        try {
+          await engageIframeFallback(audio, track.id, snap().muted ? 0 : snap().volume);
+          if (shouldResume) await audio.play();
+          return;
+        } catch {
+          releaseIframeFallback();
+        }
+      }
       audio.pause();
       setPlayerStore({ playing: false });
-      snap().showToast(`Couldn’t recover “${track.title}”. Press Play to retry.`, 5000);
     }
   } finally {
     recoveringStream = false;

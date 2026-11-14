@@ -9,7 +9,7 @@
  */
 
 import { score as matchScore, sharesArtist } from '../match.js';
-import { normKey, VERSION_WORDS } from './text.js';
+import { cleanTitle, normKey, VERSION_WORDS } from './text.js';
 
 /**
  * The recording matcher's judgement, plus one rule for lyrics: the credit has to agree too.
@@ -32,7 +32,17 @@ export function isThisSong(candidate, { title, artist, duration, album }) {
 /* ---- the strict matcher for free-text search hits ---- */
 
 const BRACKETED = /[(\[][^)\]]*[)\]]/g;
-const coreOf = (title) => normKey(title.replace(BRACKETED, ' ').split(' - ')[0]) || normKey(title);
+const coreOf = (title) => {
+  const stripped = String(title || '').replace(BRACKETED, ' ').trim();
+  const parts = stripped.split(/\s*[-–—]\s*/);
+  if (parts.length > 1) {
+    const p1 = normKey(parts[0]);
+    const p2 = normKey(parts[1]);
+    if (p2 && !VERSION_WORDS.has(p2)) return p2;
+    return p1;
+  }
+  return normKey(stripped) || normKey(title);
+};
 const versionOf = (title) => {
   const extras = `${(title.match(BRACKETED) || []).join(' ')} ${title.split(' - ').slice(1).join(' ')}`;
   return new Set(normKey(extras).split(' ').filter((w) => VERSION_WORDS.has(w)));
@@ -53,17 +63,22 @@ export function bestHit(hits, { title, artist, duration }, { tolerance = 3, acce
   const wantedTitle = coreOf(title);
   const wantedVersion = versionOf(title);
   const wantedArtists = artistsOf(artist);
+  const reqClean = normKey(cleanTitle(title, artist));
   const distance = (h) => (duration > 0 && h.duration != null ? Math.abs(h.duration - duration) : 0);
   return (
     hits
       .filter((h) => {
         const name = h.title || h.trackName || h.track_name;
         if (!name || !accept(h)) return false;
+        const candTitle = coreOf(name);
+        const candClean = normKey(cleanTitle(name));
+        const titleMatch = candTitle === wantedTitle || candClean === reqClean || candClean === wantedTitle || candTitle === reqClean;
         const hitArtists = artistsOf(h.artist || h.artistName || h.artist_name || '');
+        const artistMatch = !wantedArtists.size || [...hitArtists].some((a) => [...wantedArtists].some((wa) => wa === a || wa.includes(a) || a.includes(wa)));
         return (
-          coreOf(name) === wantedTitle &&
+          titleMatch &&
           sameSet(versionOf(name), wantedVersion) &&
-          (!wantedArtists.size || [...hitArtists].some((a) => wantedArtists.has(a))) &&
+          artistMatch &&
           distance(h) <= tolerance
         );
       })

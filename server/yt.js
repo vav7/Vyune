@@ -169,16 +169,50 @@ function rowTypeText(item) {
   return String(type).trim().toLowerCase();
 }
 
+/**
+ * Clean and separate song title and artist.
+ * Handles patterns like "Artist - Title", "Artist – Title", "Artist : Title".
+ * If title starts with Artist, separates them so title is strictly the song name.
+ */
+export function parseTitleAndArtist(rawTitle, rawArtists = [], channel = null) {
+  let title = String(rawTitle || '').trim();
+  let artists = Array.isArray(rawArtists) ? [...rawArtists] : [];
+
+  const dashMatch = title.match(/^([^–—\-:|]+)\s*[-–—:|]\s*(.+)$/);
+  if (dashMatch) {
+    const prefix = dashMatch[1].trim();
+    const suffix = dashMatch[2].trim();
+    const prefixNorm = prefix.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+    const hasArtistMatch = artists.some((a) => a.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '') === prefixNorm);
+    const channelNorm = (channel || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+    const channelMatch = channelNorm && (channelNorm.includes(prefixNorm) || prefixNorm.includes(channelNorm));
+    const isVersionSuffix = /^(live|remix|acoustic|instrumental|version|edit|mix|slowed|sped up|karaoke|official)\b/i.test(suffix);
+
+    if (!isVersionSuffix && (hasArtistMatch || channelMatch || artists.length === 0)) {
+      if (!artists.length && prefix) {
+        artists.push(prefix);
+      }
+      title = suffix;
+    }
+  }
+
+  return { title, artists };
+}
+
 /** Normalize any music item (search/playlist/home) into the Track DTO. */
 export function mapTrack(item, fallbackArtist) {
   if (!item) return null;
   const id = item.id;
   if (!id) return null;
   const artistObjs = item.artists || item.authors || [];
-  const artists = artistObjs.map((a) => a?.name).filter(Boolean);
+  let artists = artistObjs.map((a) => a?.name).filter(Boolean);
   if (!artists.length && fallbackArtist) artists.push(fallbackArtist);
   const artistIds = artistObjs.map((a) => a?.id || a?.channel_id).filter(Boolean);
-  const title = typeof item.title === 'string' ? item.title : item.title?.text || '';
+  const rawTitle = typeof item.title === 'string' ? item.title : item.title?.text || '';
+  const channel = item.author?.name || item.author || null;
+  const parsed = parseTitleAndArtist(rawTitle, artists, typeof channel === 'string' ? channel : null);
+  const title = parsed.title;
+  artists = parsed.artists;
   const durSec =
     typeof item.duration === 'number'
       ? item.duration
@@ -190,7 +224,6 @@ export function mapTrack(item, fallbackArtist) {
             item.fixedColumns?.[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs?.[0]?.text,
         );
   const type = rowTypeText(item);
-  const channel = item.author?.name || item.author || null;
   return {
     id,
     source: 'yt',
@@ -1034,12 +1067,14 @@ function mapRawListItem(r) {
   try {
     const flex = r.flexColumns || [];
     const col0 = flex[0]?.musicResponsiveListItemFlexColumnRenderer;
-    const titleCol = (col0?.text || col0?.title)?.runs?.[0];
-    if (!titleCol?.text) return null;
+    const titleRuns = (col0?.text || col0?.title)?.runs || [];
+    const rawTitle = titleRuns.map((x) => x.text).join('') || (col0?.text || col0?.title)?.text || '';
+    if (!rawTitle) return null;
+    const titleCol = titleRuns[0];
     const id =
       r.playlistItemData?.videoId ||
       r.navigationEndpoint?.watchEndpoint?.videoId ||
-      titleCol.navigationEndpoint?.watchEndpoint?.videoId ||
+      titleCol?.navigationEndpoint?.watchEndpoint?.videoId ||
       r.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer
         ?.playNavigationEndpoint?.watchEndpoint?.videoId;
     if (!id) return null;
@@ -1099,10 +1134,15 @@ function mapRawListItem(r) {
     // generator wrote from the song's name.
     const hasViews = /\bviews?\b/i.test(plain.join(' '));
     const isCatalogue = !!albumId;
+    const parsed = parseTitleAndArtist(rawTitle, artists, subText);
+    const title = parsed.title;
+    if (!artists.length && parsed.artists.length) {
+      artists.push(...parsed.artists);
+    }
     return {
       id,
       source: 'yt',
-      title: titleCol.text,
+      title,
       artists,
       artistIds,
       album,

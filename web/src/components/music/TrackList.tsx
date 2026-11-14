@@ -233,7 +233,7 @@ export function TrackList(props: TrackListProps) {
     },
     getScrollElement: () => scrollElement() as HTMLElement | null,
     estimateSize: () => ROW_HEIGHT[props.variant],
-    overscan: 25,
+    overscan: 50,
     get scrollMargin() {
       return listTop();
     },
@@ -278,7 +278,6 @@ export function TrackList(props: TrackListProps) {
                     'right': '0px',
                     'transform': `translate3d(0, ${item.start - virtualizer.options.scrollMargin}px, 0)`,
                     'height': `${ROW_HEIGHT[props.variant]}px`,
-                    'contain': 'layout style',
                   }}
                 >
                   <RowBase

@@ -360,6 +360,7 @@ const LABEL_ORDER = ['Music Video', "Director's Cut", 'Alternate Version', 'Live
 /** "Song - From "Film"", "Song (From "Film")" and remaster/version tails, reduced to the song's own name. */
 const bareTitle = (value) =>
   String(value || '')
+    .replace(/^[^–—\-:|]+\s*[-–—:|]\s*/, '')
     .replace(/\s*[-–—]\s*(?:from|remaster|single|version|live|official|film version|director'?s?\s*cut|extended|alternate|alternative|uncut).*$/i, '')
     .replace(/\s*[([](?:from|feat\.?|ft\.?|with|official|audio|video|lyrics?|remaster|director'?s?\s*cut|extended|alternate|alternative|uncut)[^)\]]*[)\]]/gi, '')
     .trim();
@@ -375,13 +376,19 @@ const bareTitle = (value) =>
  *   • a video qualifies when its title agrees with the song's AND (an artist
  *     is shared OR the video's album/film is the track's album).
  */
-export async function trackMusicVideos({ title, artists = [], album = '' }) {
-  const list = (Array.isArray(artists) ? artists : [artists]).map((a) => String(a || '').trim()).filter(Boolean);
+export async function trackMusicVideos({ title, artists = [], album = '', channel = '' }) {
+  let list = (Array.isArray(artists) ? artists : [artists]).map((a) => String(a || '').trim()).filter(Boolean);
+  const rawTitle = String(title || '');
+  const dashMatch = rawTitle.match(/^([^–—\-:|]+)\s*[-–—:|]\s*(.+)$/);
+  if (!list.length) {
+    if (dashMatch) list = [dashMatch[1].trim()];
+    else if (channel) list = [channel.replace(/\s*[-–|]\s*(?:topic|vevo)\s*$/i, '').trim()];
+  }
   const bare = bareTitle(title);
   const titleKey = motionTitleKey(bare) || motionTitleKey(title);
   if (!titleKey || !list.length) return [];
   const albumKey = motionTitleKey(bareTitle(album));
-  const cacheKey = `mvs4:${titleKey}|${list.map(normalizeName).sort().join('+')}`;
+  const cacheKey = `mvs5:${titleKey}|${list.map(normalizeName).sort().join('+')}`;
   return musicVideoCache.resolve(cacheKey, async () => {
     const joined = list.join(', ');
     const terms = [...new Set([
@@ -389,6 +396,7 @@ export async function trackMusicVideos({ title, artists = [], album = '' }) {
       bare,
       album ? `${bare} ${bareTitle(album)}` : null,
       list[1] ? `${list[1]} ${bare}` : null,
+      list[0],
     ].filter(Boolean))];
     const found = new Map();
 
@@ -408,7 +416,12 @@ export async function trackMusicVideos({ title, artists = [], album = '' }) {
             const label = videoLabel(name);
             if (!label) continue;
             const itemKey = motionTitleKey(bareTitle(name));
-            const sameTitle = itemKey === titleKey || itemKey.startsWith(titleKey) || titleKey.startsWith(itemKey);
+            const sameTitle =
+              itemKey === titleKey ||
+              itemKey.startsWith(titleKey) ||
+              titleKey.startsWith(itemKey) ||
+              itemKey.includes(titleKey) ||
+              titleKey.includes(itemKey);
             if (!sameTitle) continue;
             const sameArtist = motionMatchesArtist(joined, item.artistName);
             const sameFilm = albumKey && motionTitleKey(bareTitle(item.collectionName)) === albumKey;

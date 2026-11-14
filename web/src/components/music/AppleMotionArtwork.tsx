@@ -143,7 +143,7 @@ export function AppleMotionArtwork(props: {
       props.track.album,
     ],
     queryFn: ({ signal }: { signal: AbortSignal }) => api.appleMotion(props.track, signal),
-    enabled: wanted() && !!props.track.title && !!props.track.artists?.[0],
+    enabled: wanted() && !!props.track.title && (!!props.track.artists?.[0] || !!props.track.channel || props.track.title.includes(' - ')),
     staleTime: 24 * 60 * 60_000,
     gcTime: 48 * 60 * 60_000,
     retry: 1,

@@ -52,7 +52,7 @@ function PageFrost() {
   return (
     <Show when={pageArtStore.url}>
       {(url) => (
-        <div class="pointer-events-none sticky top-0 z-0 -mb-[100dvh] h-dvh">
+        <div class="pointer-events-none absolute inset-0 z-0 overflow-hidden">
           <ImageFrost
             src={url()}
             palette={pageArtStore.palette}
@@ -143,16 +143,18 @@ export function Layout(props: RouteSectionProps) {
       </div>
 
       {/* The page scrolls under the fixed sidebar and the floating player. */}
-      <main
-        id="scrollable-page"
-        class="mc-col-page isolate overflow-x-hidden overflow-y-auto data-tint:bg-(--page-tint) data-tint:transition-[background-color] data-tint:duration-300 data-tint:ease-out max-sm:pt-(--mobile-top-bar-height)"
-      >
+      <div class="mc-col-page relative h-full min-h-0 overflow-hidden">
         <PageFrost />
-        {/* Clears the floating pill: its height, its offset, and some air. */}
-        <div class="relative z-[1] min-h-full pb-[calc(var(--player-pill-height)+var(--player-bottom-offset)+40px)] max-sm:pb-[calc(var(--mini-player-height)+24px)]">
-          {props.children}
-        </div>
-      </main>
+        <main
+          id="scrollable-page"
+          class="relative z-[1] isolate size-full overflow-x-hidden overflow-y-auto data-tint:bg-(--page-tint) data-tint:transition-[background-color] data-tint:duration-300 data-tint:ease-out max-sm:pt-(--mobile-top-bar-height)"
+        >
+          {/* Clears the floating pill: its height, its offset, and some air. */}
+          <div class="relative z-[1] min-h-full pb-[calc(var(--player-pill-height)+var(--player-bottom-offset)+40px)] max-sm:pb-[calc(var(--mini-player-height)+24px)]">
+            {props.children}
+          </div>
+        </main>
+      </div>
 
       {/* The third column: the side panel, when it is open. */}
       <div class="mc-col-panel">

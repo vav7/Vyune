@@ -43,7 +43,7 @@ function LoadingDots(props: { small?: boolean }) {
  * so a missing bundled family does not split lyrics into inconsistent faces.
  */
 const LYRIC_FONT =
-  "'Inter Variable', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Gurmukhi', " +
+  "-apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'SF Pro Display', 'SF Pro Text', 'SF Pro', 'Helvetica Neue', 'Inter Variable', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Gurmukhi', " +
   "'Noto Sans Gujarati', 'Noto Sans Oriya', 'Noto Sans Tamil', 'Noto Sans Telugu', " +
   "'Noto Sans Kannada', 'Noto Sans Malayalam', 'Nirmala UI', 'Mangal', 'Kohinoor Devanagari', " +
   "'Devanagari Sangam MN', 'Noto Sans Arabic', 'Noto Sans Thai', " +
@@ -80,6 +80,17 @@ function useLyricFont(): () => boolean {
 }
 
 
+
+const ALL_KNOWN_PROVIDERS = [
+  'BiniLyrics',
+  'LRCLIB',
+  'KuGou',
+  'NetEase',
+  'LRC.RED',
+  'Unison',
+  'BetterLyrics (QQ)',
+  'AMLL',
+];
 
 /** Which sheet is showing, and the alternates the engine found for it. */
 function ProviderPicker(props: {
@@ -151,6 +162,45 @@ function ProviderPicker(props: {
               {entry.source}
             </MenuItem>
           ))}
+          <MenuSeparator />
+          <MenuHeader>Switch to provider</MenuHeader>
+          {ALL_KNOWN_PROVIDERS.filter((p) => {
+            const currentSource = props.result?.primary?.source?.toLowerCase() || '';
+            const alts = alternates().map((a) => a.source.toLowerCase());
+            return !currentSource.includes(p.toLowerCase()) && !alts.some((a) => a.includes(p.toLowerCase()));
+          }).map((p) => (
+            <MenuItem
+              checked={props.picked?.toLowerCase() === p.toLowerCase()}
+              onSelect={() => (close(), props.onPick(p))}
+            >
+              {p}
+            </MenuItem>
+          ))}
+          <MenuSeparator />
+          <MenuHeader>Timing offset</MenuHeader>
+          <div class="flex items-center justify-between gap-1 px-3 py-1.5 text-xs text-secondary">
+            <span>{lyricsStore.syncOffsetMs > 0 ? `+${lyricsStore.syncOffsetMs}ms` : `${lyricsStore.syncOffsetMs}ms`}</span>
+            <div class="flex items-center gap-1">
+              <button
+                class="rounded bg-white/10 px-1.5 py-0.5 text-xs text-primary hover:bg-white/20"
+                onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) - 50)}
+              >
+                -50ms
+              </button>
+              <button
+                class="rounded bg-white/10 px-1.5 py-0.5 text-xs text-primary hover:bg-white/20"
+                onClick={() => lyricsStore.setSyncOffset(0)}
+              >
+                Reset
+              </button>
+              <button
+                class="rounded bg-white/10 px-1.5 py-0.5 text-xs text-primary hover:bg-white/20"
+                onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) + 50)}
+              >
+                +50ms
+              </button>
+            </div>
+          </div>
         </Menu>
       )}
       {!props.full && (

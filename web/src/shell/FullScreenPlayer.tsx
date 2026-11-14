@@ -506,15 +506,10 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                   <div class="mb-3 flex items-start justify-between gap-4">
                     <div class="min-w-0 flex-1">
                       <h1 class="flex min-w-0 items-center gap-2 text-[clamp(28px,3vw,40px)] leading-[1.15] font-bold tracking-[-0.038em] [font-family:var(--font-family)]">
-                        <Marquee
+                        <SongTitle
+                          title={current().title}
+                          href={current().albumId ? albumHref(current().albumId) : undefined}
                           class="flex-1"
-                          render={() => (
-                            <Show when={current().albumId} fallback={<span>{current().title}</span>}>
-                              <PrefetchLink class="hover:underline" to={albumHref(current().albumId)!}>
-                                {current().title}
-                              </PrefetchLink>
-                            </Show>
-                          )}
                         />
                         <Show when={current().explicit}>
                           <ExplicitBadge size={15} />

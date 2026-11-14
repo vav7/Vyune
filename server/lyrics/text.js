@@ -40,10 +40,29 @@ const CREDITS = [
   /\s*[-|–]\s*(?:official\s*)?(?:lyrics?|audio|video|music video|lyric video|hd|hq)\s*$/gi,
 ];
 
-export function cleanTitle(title = '') {
-  let name = String(title);
+export function cleanTitle(title = '', artist = '') {
+  let name = String(title || '');
   for (const pattern of CREDITS) name = name.replace(pattern, ' ');
   name = name.replace(/\s+/g, ' ').trim().replace(/[,\-–—]+$/, '').trim();
+
+  // If title begins with "Artist - " or "Artist – ", strip it to isolate pure song name
+  if (artist) {
+    const artKey = normKey(artist);
+    const m = name.match(/^([^–—\-:|]+)\s*[-–—:|]\s*(.+)$/);
+    if (m) {
+      const prefixKey = normKey(m[1]);
+      if (prefixKey && (prefixKey === artKey || artKey.includes(prefixKey) || prefixKey.includes(artKey))) {
+        name = m[2].trim();
+      }
+    }
+  } else {
+    // If no artist given, strip leading "Artist - " if suffix is not a take modifier
+    const m = name.match(/^([^–—\-:|]+)\s*[-–—:|]\s*(.+)$/);
+    if (m && !/^(live|remix|acoustic|instrumental|version|edit|mix|sped|slowed|lofi)\b/i.test(m[2])) {
+      name = m[2].trim();
+    }
+  }
+
   return name || String(title).trim(); // a title that was only packaging is better asked as given than as nothing
 }
 

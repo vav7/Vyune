@@ -37,7 +37,11 @@ const wordTimed = (line: LyricsLine) =>
   line.text.some((syllable) => !syllable.lineSynced && syllable.endtime > syllable.timestamp);
 
 export function linesToTtml(lines: readonly LyricsLine[], opts: { translation?: boolean; romanization?: boolean } = {}): string {
-  const rows = lines.filter((line) => !line.section && (line.text.length > 0 || line.backgroundText?.length > 0));
+  const hasContent = (line: LyricsLine) =>
+    line.text.some((s) => s.text && s.text.trim().length > 0) ||
+    (line.backgroundText && line.backgroundText.some((s) => s.text && s.text.trim().length > 0));
+
+  const rows = lines.filter((line) => !line.section && hasContent(line));
 
   let body = '';
   let openPart: string | null | undefined;
