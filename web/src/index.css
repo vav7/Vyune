@@ -579,8 +579,10 @@
     -ms-overflow-style: none;
   }
   #scrollable-page::-webkit-scrollbar { display: none; }
-  #scrollable-page[data-artwork] {
-    background-color: color-mix(in srgb, var(--page-tint, #101018) 58%, var(--pageBG) 42%);
+  #scrollable-page[data-artwork],
+  #scrollable-page[data-artwork][data-tint] {
+    background-color: transparent !important;
+    background: transparent !important;
   }
   #scrollable-page[data-artwork]::before {
     content: '';

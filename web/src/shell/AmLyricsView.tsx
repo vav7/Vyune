@@ -26,7 +26,12 @@ if (!customElements.get('am-lyrics')) customElements.define('am-lyrics', AmLyric
 // from it, and with it collapsed (display:none) the scroll range is zero and
 // the active line never rises.
 const CHROME = `
-  .lyrics-header { display: none !important; }
+  .lyrics-header, .source-info, .version-info, .download-button, .source-switch-btn {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+  }
   .lyrics-footer { opacity: 0 !important; pointer-events: none !important; }
   /* Where the active line parks: am-lyrics' default is 18% from the top, which reads as
      "stuck at the top". About a third down keeps it in the middle of the eye line. */
@@ -42,16 +47,26 @@ const CHROME = `
   }
 
   /* ---- Premium type: pure white paint, crisp HD glyphs, nothing cropped ---- */
-  :host {
+  :host, .lyrics-container, .lyrics-line, .lyrics-syllable, .lyrics-word, span.char, span.word {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", "SF Pro Text", "SF Pro", "Helvetica Neue", system-ui, sans-serif !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    font-synthesis: none !important;
+  }
+  :host {
     --am-lyrics-highlight-color: #ffffff;
     --lyplus-text-primary: #ffffff;
     /* The unsung words are white too, only quieter: not a muddy grey. */
     --lyplus-text-secondary: rgb(255 255 255 / 0.5);
-    --am-lyrics-highlight-surface: rgb(255 255 255 / 0.1);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    font-synthesis: none;
+    --am-lyrics-highlight-surface: transparent !important;
+  }
+  /* Remove cheap rectangular highlight background box behind active lines */
+  .lyrics-line::before,
+  .lyrics-line.active::before {
+    display: none !important;
+    content: none !important;
+    background: transparent !important;
+    opacity: 0 !important;
   }
   .lyrics-gap .lyrics-syllable,
   .lyrics-line.lyrics-gap .lyrics-syllable,

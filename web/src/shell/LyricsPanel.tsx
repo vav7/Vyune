@@ -522,7 +522,15 @@ export function LyricPreview() {
       aria-label={state() === 'lyric' ? 'Current lyric' : 'Lyrics'}
       data-overflow="false"
     >
-      <div ref={box} class="fs-oneline-line">
+      <div
+        ref={box}
+        class="fs-oneline-line"
+        style={{
+          'font-family': "-apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'SF Pro Display', 'SF Pro Text', 'SF Pro', 'Helvetica Neue', system-ui, sans-serif !important",
+          'font-weight': '700',
+          'letter-spacing': '-0.022em',
+        }}
+      >
         <Show when={state() === 'lyric'}>
           {wordTimced() ? (
             <p

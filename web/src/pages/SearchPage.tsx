@@ -567,40 +567,42 @@ export default function SearchPage() {
   // fixed sheet to the page column.
   return (
     <Portal>
-      <div
-        class="search-sheet search-glass fixed top-1.5 right-1.5 bottom-1.5 left-[max(6px,var(--web-navigation-width))] z-[calc(var(--z-web-chrome)-2)] flex flex-col overflow-hidden rounded-[16px] text-primary animate-[fade-in_200ms_ease-out_both] max-md:inset-0 max-md:rounded-none [background:linear-gradient(145deg,rgb(14_14_22/0.88),rgb(10_10_18/0.84))] [backdrop-filter:saturate(240%)_blur(44px)_brightness(0.9)] border border-white/[0.07] shadow-[0_30px_80px_-20px_rgb(0_0_0/0.85),inset_0_1px_0_rgb(255_255_255/0.07)]"
-        role="dialog"
-        aria-label="Search"
-        data-search-sheet
-      >
-        <div class="relative z-20 flex h-[68px] flex-none items-center justify-center gap-3 px-(--body-gutter)">
-          <SearchBar
-            value={draft()}
-            autofocus={!submitted()}
-            onInput={setDraft}
-            onSubmit={submit}
-            onClear={() => {
-              setDraft('');
-              setParams({ q: undefined, filter: undefined }, { replace: true });
-            }}
-          />
-          <button
-            type="button"
-            class="absolute right-(--body-gutter) grid h-10 place-items-center rounded-pill bg-white/[0.1] px-4 type-callout-emphasized text-primary transition-colors hover:bg-white/[0.18] max-sm:px-3"
-            aria-label="Close search"
-            onClick={leave}
-          >
-            Close
-          </button>
-        </div>
-        <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-32" data-search-scroll>
-          <div class="mx-auto w-full max-w-[760px] px-(--body-gutter)">
-            <Show when={view() === 'recents'}><Recents /></Show>
-            <Show when={view() === 'suggest'}><Suggest /></Show>
-            <Show when={view() === 'results'}><Results /></Show>
+      <Show when={!playerStore.fullscreen}>
+        <div
+          class="search-sheet search-glass fixed top-1.5 right-1.5 bottom-1.5 left-[max(6px,var(--web-navigation-width))] z-[calc(var(--z-web-chrome)-2)] flex flex-col overflow-hidden rounded-[16px] text-primary animate-[fade-in_200ms_ease-out_both] max-md:inset-0 max-md:rounded-none [background:radial-gradient(100%_80%_at_10%_0%,rgba(255,255,255,0.11)_0%,transparent_68%),linear-gradient(145deg,rgba(20,20,32,0.88)_0%,rgba(11,11,19,0.92)_100%)] [backdrop-filter:saturate(240%)_blur(52px)_brightness(0.95)] border border-white/[0.12] shadow-[0_32px_80px_-20px_rgb(0_0_0/0.9),inset_0_1px_0_0.5px_rgb(255_255_255/0.25)]"
+          role="dialog"
+          aria-label="Search"
+          data-search-sheet
+        >
+          <div class="relative z-20 flex h-[68px] flex-none items-center justify-center gap-3 px-(--body-gutter)">
+            <SearchBar
+              value={draft()}
+              autofocus={!submitted()}
+              onInput={setDraft}
+              onSubmit={submit}
+              onClear={() => {
+                setDraft('');
+                setParams({ q: undefined, filter: undefined }, { replace: true });
+              }}
+            />
+            <button
+              type="button"
+              class="absolute right-(--body-gutter) grid h-10 place-items-center rounded-pill bg-white/[0.1] px-4 type-callout-emphasized text-primary transition-colors hover:bg-white/[0.18] max-sm:px-3"
+              aria-label="Close search"
+              onClick={leave}
+            >
+              Close
+            </button>
+          </div>
+          <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-44" data-search-scroll>
+            <div class="mx-auto w-full max-w-[760px] px-(--body-gutter)">
+              <Show when={view() === 'recents'}><Recents /></Show>
+              <Show when={view() === 'suggest'}><Suggest /></Show>
+              <Show when={view() === 'results'}><Results /></Show>
+            </div>
           </div>
         </div>
-      </div>
+      </Show>
     </Portal>
   );
 }

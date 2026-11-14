@@ -32,10 +32,15 @@ export function ShelfScroller(props: { kind: ShelfKind; children: JSX.Element })
   let list!: HTMLUListElement;
   const [edges, setEdges] = createSignal({ start: true, end: true });
 
+  let frame = 0;
   const measure = () => {
-    const el = list;
-    if (!el) return;
-    setEdges({ start: el.scrollLeft <= 2, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 2 });
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      const el = list;
+      if (!el) return;
+      setEdges({ start: el.scrollLeft <= 2, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 2 });
+    });
   };
 
   onMount(() => {
@@ -44,7 +49,10 @@ export function ShelfScroller(props: { kind: ShelfKind; children: JSX.Element })
     if (!el) return;
     const observer = new ResizeObserver(measure);
     observer.observe(el);
-    onCleanup(() => observer.disconnect());
+    onCleanup(() => {
+      if (frame) cancelAnimationFrame(frame);
+      observer.disconnect();
+    });
   });
 
   /** Pages by one viewport of columns, as Apple's arrows do. */
