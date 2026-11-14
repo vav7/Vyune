@@ -12,8 +12,8 @@
 :root {
   /* ---- Type ------------------------------------------------------------ */
   /* Real San Francisco on Apple devices; Inter Variable (self-hosted) everywhere else; Indic faces after. */
-  --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter Variable', system-ui, 'Segoe UI', Roboto, 'Hind', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Gurmukhi', 'Noto Sans Gujarati', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Kannada', 'Noto Sans Malayalam', 'Helvetica Neue', Arial, sans-serif;
-  --font-display: var(--font-family);
+  --font-display: 'Sora', 'MC SF Pro Display', -apple-system, BlinkMacSystemFont, 'DM Sans', system-ui, sans-serif;
+  --font-family: 'MC SF Pro Display', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'DM Sans', system-ui, 'Segoe UI', Roboto, 'Hind', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Gurmukhi', 'Noto Sans Gujarati', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Kannada', 'Noto Sans Malayalam', 'Helvetica Neue', Arial, sans-serif;
 
   /* font: <weight> <size>/<line-height> (report §10) */
   --header-emphasized: 700 36px / 42px var(--font-family);
@@ -170,12 +170,12 @@
     --systemQuaternary: #ffffff1a;
     --systemQuinary: #ffffff0d;
 
-    --keyColor: #fa2d4f;
-    --keyColor-rgb: 250, 45, 79;
-    --keyColor-rollover: #ff5a76;
-    --keyColor-pressed: #e0213f;
-    --keyColorBG: #fa2d4f;
-    --selectionColor: #fa2d4f;
+    --keyColor: #c11b2e;
+    --keyColor-rgb: 193, 27, 46;
+    --keyColor-rollover: #d12034;
+    --keyColor-pressed: #b0182a;
+    --keyColorBG: #c11b2e;
+    --selectionColor: #c11b2e;
     --keyColor-focus-color: rgba(var(--keyColor-rgb), 0.55);
 
     --systemRed: #ff453a;

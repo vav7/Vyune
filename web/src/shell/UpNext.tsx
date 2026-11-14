@@ -26,7 +26,7 @@ function Row(props: {
   return (
     <li
       class={`track-row group/row relative grid h-[55px] grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-x-3 rounded-row px-2.5 hover:bg-quinary data-dragging:opacity-40 data-over:before:absolute data-over:before:inset-x-2.5 data-over:before:-top-px data-over:before:border-t-2 data-over:before:border-t-key ${
-        isCurrent() ? 'bg-white/[0.08] shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.12)]' : ''
+        isCurrent() ? 'bg-[color-mix(in_srgb,var(--keyColor)_20%,#ffffff0d)] shadow-[inset_0_0_0_0.5px_var(--cardStroke)]' : ''
       }`}
       data-current={isCurrent() || undefined}
       data-over={over() || undefined}

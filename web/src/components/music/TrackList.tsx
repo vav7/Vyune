@@ -44,8 +44,8 @@ const link = 'text-inherit hover:underline group-data-current/row:text-primary';
  */
 const row = [
   'group/row track-row relative grid items-center border-y-2 border-transparent bg-card bg-clip-padding hover:bg-card-hover',
-  '[box-shadow:inset_0_0_0_0.5px_var(--cardStroke)] transition-[background-color,box-shadow] duration-150 ease-out',
-  'data-current:bg-[rgba(250,45,79,0.13)] data-current:shadow-[inset_0_0_0_1px_rgba(250,45,79,0.32),inset_0_1px_0_rgba(255,255,255,0.2),0_4px_16px_-4px_rgba(250,45,79,0.25)] rounded-[10px]',
+  '[box-shadow:inset_0_0_0_0.5px_var(--cardStroke)] transition-[background-color] duration-200 ease-out',
+  'data-current:bg-[color-mix(in_srgb,var(--keyColor)_20%,#ffffff0d)]',
 ].join(' ');
 
 const rowVariant: Record<Variant, string> = {
@@ -118,7 +118,7 @@ function RowBase(props: RowProps) {
           <Show when={props.variant === 'playlist'} fallback={
             <span class="type-body text-secondary group-hover/row:invisible">
               <Show when={current()} fallback={<span>{track().trackNumber ?? props.position}</span>}>
-                <span class="grid place-items-center text-[#fa2d4f] group-hover/row:invisible" aria-label="Now playing">
+                <span class="grid place-items-center text-key group-hover/row:invisible" aria-label="Now playing">
                   <Show when={playing()} fallback={<PlayIcon size={14} />}>
                     <AppleEqualizer />
                   </Show>
@@ -137,7 +137,7 @@ function RowBase(props: RowProps) {
               <Show when={current()}>
                 {/* The playing row's marker: an equalizer over the artwork. */}
                 <span
-                  class="absolute inset-0 grid place-items-center rounded-artwork-sm bg-[rgb(0_0_0/0.45)] text-[#fa2d4f] group-hover/row:invisible"
+                  class="absolute inset-0 grid place-items-center rounded-artwork-sm bg-[rgb(0_0_0/0.45)] text-key group-hover/row:invisible"
                   aria-label="Now playing"
                 >
                   <Show when={playing()} fallback={<PlayIcon size={18} />}>

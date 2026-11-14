@@ -9,6 +9,8 @@ import {
   SearchIcon,
   type NavIconProps,
 } from '@/components/icons/NavIcons';
+import { CoverGlass } from '@/components/music/CoverGlass';
+import { playerStore } from '@/store/player';
 import { uiStore } from '@/store/ui';
 
 interface NavItem {
@@ -41,7 +43,7 @@ function size24({ size: _size, ...props }: NavIconProps) {
 
 // A sidebar row; NavLink sets aria-current on the page's own row.
 const item =
-  'group relative flex h-10 items-center gap-3 mb-1 px-3 rounded-[10px] type-[600_14px/20px] tracking-[-0.01em] text-white/75 transition-[background-color,color] duration-150 ease-out hover:bg-white/[0.09] hover:text-white aria-[current=page]:bg-white/[0.18] aria-[current=page]:text-white aria-[current=page]:shadow-[inset_0_1px_0_#ffffff45,inset_0_0_0_0.5px_#ffffff20,0_4px_14px_-6px_#0008]';
+  'group relative flex h-11 items-center gap-3 mb-1 px-3 rounded-[14px] type-[600_14px/20px] tracking-[-0.01em] text-secondary transition-[background-color,color,scale] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-white/[0.07] hover:text-primary active:scale-[0.98] aria-[current=page]:bg-white/[0.13] aria-[current=page]:text-primary aria-[current=page]:shadow-[inset_0_1px_0_#ffffff2e,inset_0_0_0_1px_#ffffff10]';
 // Apple's glyphs, drawn at 24px (their 24-unit box).
 const icon = 'inline-grid size-6 flex-none place-items-center text-current transition-colors group-aria-[current=page]:text-key';
 const navLabel = 'min-w-0 truncate';
@@ -71,6 +73,8 @@ export function Sidebar() {
   const drawerOpen = uiStore.drawerOpen;
   const setDrawerOpen = uiStore.setDrawerOpen;
   const close = () => setDrawerOpen(false);
+  const cover = () => playerStore.current?.thumb ?? null;
+  const docked = () => uiStore.playerDock === 'sidebar' && playerStore.current !== null;
 
   return (
     <>
@@ -81,6 +85,8 @@ export function Sidebar() {
         aria-label="Main"
         data-sidebar
       >
+        {/* The whole cover, blurred into the sidebar: strongest where the docked player sits, gone by the top. */}
+        <CoverGlass src={cover()} class="-z-1" fade="bottom" veil={docked() ? 0.34 : 0.5} />
         <div class="mt-2 flex h-18 items-center px-6">
           <PrefetchLink to="/" class="group inline-flex items-center gap-2.5 rounded-[6px]" aria-label="VYUNE, Home" onClick={close}>
             <span class="brand-glass grid size-11 shrink-0 place-items-center rounded-[12px] transition-transform duration-300 group-hover:scale-[1.04]"><LogoMark size={26} /></span>

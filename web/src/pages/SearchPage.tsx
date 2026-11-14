@@ -76,7 +76,7 @@ function SongRow(props: { track: Track; onPlay: () => void }) {
   const meta = () => [artists(), formatDuration(props.track.duration)].filter(Boolean).join(' · ');
   return (
     <div
-      class={`${rowBase} ${current() ? 'bg-white/[0.08] shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.12)]' : ''}`}
+      class={`${rowBase} ${current() ? 'bg-[color-mix(in_srgb,var(--keyColor)_20%,#ffffff0d)] shadow-[inset_0_0_0_0.5px_var(--cardStroke)]' : ''}`}
       onPointerEnter={() => playerStore.prefetch(props.track)}
       onFocusIn={() => playerStore.prefetch(props.track)}
     >
@@ -168,7 +168,7 @@ function TopResultCard(props: { track: Track; onPlay: () => void }) {
   const isCurrent = () => playerStore.current?.id === props.track.id;
   const artists = () => (props.track.artists || []).join(', ');
   return (
-    <div class={`mt-3 rounded-[16px] glass-card p-4 transition-all duration-200 ${isCurrent() ? 'bg-white/[0.08] shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.12)]' : ''}`}>
+    <div class={`mt-3 rounded-[16px] glass-card p-4 transition-all duration-200 ${isCurrent() ? 'bg-[color-mix(in_srgb,var(--keyColor)_20%,#ffffff0d)] shadow-[inset_0_0_0_0.5px_var(--cardStroke)]' : ''}`}>
       <div class="flex items-center gap-4">
         <div class="w-[72px] flex-none">
           <Artwork src={props.track.thumb} track={props.track} displayWidth={72} radius="8px" />

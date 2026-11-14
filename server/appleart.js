@@ -127,32 +127,78 @@ function motionFrom(node) {
 }
 
 /** The anonymous bearer token used by Apple's web catalog API. */
+/** A JWT's expiry in ms, or 0 when it is not one. */
+function jwtExpiry(token) {
+  try {
+    const payload = JSON.parse(Buffer.from(String(token).split('.')[1], 'base64url').toString('utf8'));
+    return Number(payload.exp) * 1000 || 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** The catalog token from the page's `<meta name="…/config/environment">` block, if present and unexpired. */
+function tokenFromMeta(html) {
+  for (const tag of String(html).match(/<meta[^>]+config\/environment[^>]*>/gi) || []) {
+    const content = tag.match(/content="([^"]+)"/i)?.[1];
+    if (!content) continue;
+    try {
+      const config = JSON.parse(decodeURIComponent(content));
+      const token = config?.MEDIA_API?.token;
+      const expiry = jwtExpiry(token);
+      if (typeof token === 'string' && expiry > Date.now() + 60_000) return { token, expiry };
+    } catch {
+      // not the block we want
+    }
+  }
+  return null;
+}
+
 export async function appleCatalogToken() {
   if (catalogToken && catalogTokenExpiry > Date.now() + 60_000) return catalogToken;
   if (catalogTokenRequest) return catalogTokenRequest;
   catalogTokenRequest = (async () => {
-    const page = await safeFetch('https://music.apple.com/us/browse', { timeout: 8000, headers: { 'User-Agent': UA } });
-    if (!page?.ok) return null;
-    const html = await page.text();
-    const assets = [...html.matchAll(/\/assets\/index(?:-legacy)?[~-][A-Za-z0-9_-]+\.js/g)].map((m) => m[0]);
-    for (const asset of [...new Set(assets)].slice(0, 4)) {
-      const response = await safeFetch(`https://music.apple.com${asset}`, { timeout: 9000, headers: { 'User-Agent': UA } });
-      if (!response?.ok) continue;
-      const source = await response.text();
-      const candidates = [...new Set(source.match(/ey[A-Za-z0-9_-]+\.ey[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g) || [])];
-      const decoded = candidates.map((token) => {
-        try {
-          const [headerPart, payloadPart] = token.split('.');
-          const header = JSON.parse(Buffer.from(headerPart, 'base64url').toString('utf8'));
-          const payload = JSON.parse(Buffer.from(payloadPart, 'base64url').toString('utf8'));
-          return { token, header, payload, expiry: Number(payload.exp) * 1000 };
-        } catch { return null; }
-      }).filter((item) => item?.expiry > Date.now());
-      const chosen = decoded.find((item) => /WebPlayKid/i.test(JSON.stringify(item.header)) || /AMPWebPlay/i.test(JSON.stringify(item.payload))) || decoded[0];
-      if (!chosen) continue;
-      catalogToken = chosen.token;
-      catalogTokenExpiry = chosen.expiry;
-      return catalogToken;
+    // Try regional storefronts — token lives in the page meta / bundle JS.
+    const pages = [
+      'https://music.apple.com/us/browse',
+      'https://music.apple.com/in/browse',
+      'https://music.apple.com/gb/browse',
+    ];
+    const headers = {
+      'User-Agent': UA || 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+      Accept: 'text/html,application/xhtml+xml',
+      'Accept-Language': 'en-US,en;q=0.9',
+    };
+    for (const pageUrl of pages) {
+      const page = await safeFetch(pageUrl, { timeout: 10_000, headers });
+      if (!page?.ok) continue;
+      const html = await page.text();
+      const fromMeta = tokenFromMeta(html);
+      if (fromMeta) {
+        catalogToken = fromMeta.token;
+        catalogTokenExpiry = fromMeta.expiry;
+        return catalogToken;
+      }
+      const assets = [...html.matchAll(/\/assets\/index(?:-legacy)?[~-][A-Za-z0-9_-]+\.js/g)].map((m) => m[0]);
+      for (const asset of [...new Set(assets)].slice(0, 5)) {
+        const response = await safeFetch(`https://music.apple.com${asset}`, { timeout: 10_000, headers: { ...headers, Accept: '*/*' } });
+        if (!response?.ok) continue;
+        const source = await response.text();
+        const candidates = [...new Set(source.match(/ey[A-Za-z0-9_-]+\.ey[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g) || [])];
+        const decoded = candidates.map((token) => {
+          try {
+            const [headerPart, payloadPart] = token.split('.');
+            const header = JSON.parse(Buffer.from(headerPart, 'base64url').toString('utf8'));
+            const payload = JSON.parse(Buffer.from(payloadPart, 'base64url').toString('utf8'));
+            return { token, header, payload, expiry: Number(payload.exp) * 1000 };
+          } catch { return null; }
+        }).filter((item) => item?.expiry > Date.now());
+        const chosen = decoded.find((item) => /WebPlayKid|AMPWebPlay|MediaAPI/i.test(JSON.stringify(item))) || decoded[0];
+        if (!chosen) continue;
+        catalogToken = chosen.token;
+        catalogTokenExpiry = chosen.expiry;
+        return catalogToken;
+      }
     }
     return null;
   })().catch((error) => {
