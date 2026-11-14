@@ -9,6 +9,7 @@ import { playTrack } from './play';
 import { CardMenu } from './CardMenu';
 import { isPlayable, type MusicItem } from './types';
 import type { Track } from '@/lib/types';
+import { playerStore } from '@/store/player';
 
 /* Lockups (report §2), adapted to this app's items. */
 const lockup = 'flex min-w-0 flex-col';
@@ -111,15 +112,20 @@ function LockupArtwork(props: { item: MusicItem; width: number; aspect: number }
 export function SquareLockup(props: { item: MusicItem; width?: number }) {
   const item = () => props.item;
   const href = () => (isPlayable(item()) ? null : hrefFor(item().kind, item().id));
+  const isCurrent = () => {
+    const cur = playerStore.current;
+    if (!cur) return false;
+    return cur.id === item().id || (item().track && cur.id === item().track?.id);
+  };
   return (
     <div class={lockup}>
       <LockupArtwork item={item()} width={props.width ?? 300} aspect={1} />
       <div class={caption}>
         <div class={title}>
-          <Show when={href()} fallback={<span>{item().title}</span>}>
+          <Show when={href()} fallback={<span class={isCurrent() ? 'text-[#fa2d4f] font-semibold' : ''}>{item().title}</span>}>
             <PrefetchLink
               to={href()!}
-              class="hover:underline"
+              class={`hover:underline ${isCurrent() ? 'text-[#fa2d4f] font-semibold' : ''}`}
               hint={{ title: item().title, thumb: item().thumbnail, subtitle: item().subtitle }}
             >
               {item().title}
@@ -176,12 +182,20 @@ export function CircleLockup(props: { item: MusicItem; width?: number }) {
 export function TrackLockup(props: { item: MusicItem; onPlay?: () => void }) {
   const item = () => props.item;
   const play = () => (props.onPlay ? props.onPlay() : item().track && playTrack(item().track));
+  const isCurrent = () => {
+    const cur = playerStore.current;
+    if (!cur) return false;
+    return cur.id === item().id || (item().track && cur.id === item().track?.id);
+  };
   return (
     // 68px art column (56 + 12 gap), content; 72px tall. Clicking anywhere on
     // the row plays it, as Apple's list rows do; buttons and links keep their
     // own clicks.
     <div
-      class="track-row group/track grid h-[72px] cursor-pointer grid-cols-[56px_minmax(0,1fr)] items-center gap-x-3 rounded-[10px] border-y-[3px] border-transparent bg-card bg-clip-padding py-1.5 pr-3.5 pl-2 [box-shadow:inset_0_0_0_0.5px_var(--cardStroke)] transition-[background-color] duration-200 ease-out hover:-translate-y-px hover:bg-card-hover hover:shadow-[0_10px_26px_-16px_#000,inset_0_0_0_0.5px_var(--cardStroke)]"
+      class={`track-row group/track grid h-[72px] cursor-pointer grid-cols-[56px_minmax(0,1fr)] items-center gap-x-3 rounded-[10px] border-y-[3px] border-transparent bg-card bg-clip-padding py-1.5 pr-3.5 pl-2 [box-shadow:inset_0_0_0_0.5px_var(--cardStroke)] transition-[background-color] duration-150 ease-out hover:-translate-y-px hover:bg-card-hover hover:shadow-[0_10px_26px_-16px_#000,inset_0_0_0_0.5px_var(--cardStroke)] ${
+        isCurrent() ? 'bg-[rgba(250,45,79,0.14)] shadow-[inset_0_0_0_1px_rgba(250,45,79,0.32)]' : ''
+      }`}
+      data-current={isCurrent() || undefined}
       onPointerEnter={() => prewarmArtworkColor(item().thumbnail)}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest('button, a')) return;
@@ -191,7 +205,11 @@ export function TrackLockup(props: { item: MusicItem; onPlay?: () => void }) {
       <button class="group/art relative ml-0 w-14 rounded-artwork-sm" aria-label={`Play ${item().title}`} onClick={play}>
         <Artwork src={item().thumbnail} track={item().track} displayWidth={56} radius="var(--radius-artwork-small)" />
         <span
-          class="absolute inset-0 grid place-items-center rounded-[inherit] bg-black/45 text-white opacity-0 transition-opacity duration-150 ease-out group-hover/track:opacity-100 group-focus-visible/art:opacity-100"
+          class={`absolute inset-0 grid place-items-center rounded-[inherit] transition-opacity duration-150 ease-out ${
+            isCurrent()
+              ? 'bg-black/50 text-[#fa2d4f] opacity-100'
+              : 'bg-black/45 text-white opacity-0 group-hover/track:opacity-100 group-focus-visible/art:opacity-100'
+          }`}
           aria-hidden="true"
         >
           <PlayIcon size={18} />
@@ -199,7 +217,7 @@ export function TrackLockup(props: { item: MusicItem; onPlay?: () => void }) {
       </button>
       <div class="flex min-w-0 flex-col gap-px px-1">
         <div class="flex min-w-0 items-center type-body">
-          <button class="min-w-0 truncate text-left" onClick={play}>
+          <button class={`min-w-0 truncate text-left ${isCurrent() ? 'text-[#fa2d4f] font-semibold' : ''}`} onClick={play}>
             {item().title}
           </button>
           <Show when={item().explicit}>

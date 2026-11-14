@@ -38,7 +38,7 @@
 
   /* ---- Layout ------------------------------------------------------------ */
   --web-navigation-width: 260px;
-  --body-gutter: 25px;
+  --body-gutter: 18px;
   --player-pill-height: 56px;
   --player-bottom-offset: 20px;
   --side-panel-width: 300px;
@@ -146,7 +146,7 @@
 
 @media (min-width: 1000px) {
   :root {
-    --body-gutter: 40px;
+    --body-gutter: 20px;
   }
 }
 

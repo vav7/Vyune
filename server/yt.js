@@ -176,15 +176,17 @@ function rowTypeText(item) {
  */
 export function parseTitleAndArtist(rawTitle, rawArtists = [], channel = null) {
   let title = String(rawTitle || '').trim();
-  let artists = Array.isArray(rawArtists) ? [...rawArtists] : [];
+  let artists = (Array.isArray(rawArtists) ? rawArtists : [])
+    .map((a) => (typeof a === 'string' ? a : a?.name || a?.text || ''))
+    .filter(Boolean);
 
   const dashMatch = title.match(/^([^–—\-:|]+)\s*[-–—:|]\s*(.+)$/);
   if (dashMatch) {
     const prefix = dashMatch[1].trim();
     const suffix = dashMatch[2].trim();
     const prefixNorm = prefix.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
-    const hasArtistMatch = artists.some((a) => a.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '') === prefixNorm);
-    const channelNorm = (channel || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+    const hasArtistMatch = artists.some((a) => String(a || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '') === prefixNorm);
+    const channelNorm = String(channel || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
     const channelMatch = channelNorm && (channelNorm.includes(prefixNorm) || prefixNorm.includes(channelNorm));
     const isVersionSuffix = /^(live|remix|acoustic|instrumental|version|edit|mix|slowed|sped up|karaoke|official)\b/i.test(suffix);
 

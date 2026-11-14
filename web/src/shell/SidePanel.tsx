@@ -130,7 +130,7 @@ export function SidePanel() {
           class={
             floating()
               ? 'fixed z-[70] isolate flex h-[min(640px,78dvh)] min-h-[260px] w-[400px] min-w-[280px] max-h-[calc(100dvh-16px)] max-w-[calc(100vw-16px)] resize flex-col overflow-hidden rounded-[20px] border border-white/12 glass-material shadow-[0_30px_80px_-20px_#000d] animate-[fade-in_160ms_ease-out_both] [&::-webkit-resizer]:bg-transparent max-sm:inset-0 max-sm:h-auto max-sm:w-full max-sm:max-w-none max-sm:resize-none max-sm:rounded-none max-sm:border-0'
-              : 'absolute inset-y-0 right-0 z-(--z-web-chrome) isolate flex w-(--side-panel-width) animate-slide-in flex-col overflow-hidden glass-material shadow-glass max-sm:w-full'
+              : 'absolute top-1.5 bottom-1.5 right-1.5 z-(--z-web-chrome) isolate flex w-[calc(var(--side-panel-width)-9px)] animate-slide-in flex-col overflow-hidden rounded-[16px] border border-white/10 glass-material shadow-glass max-sm:inset-0 max-sm:w-full max-sm:rounded-none max-sm:border-0'
           }
           aria-label={active === 'up-next' ? 'Up Next' : 'Lyrics'}
           style={{

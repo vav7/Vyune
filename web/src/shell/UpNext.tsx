@@ -21,10 +21,14 @@ function Row(props: {
   const [anchor, setAnchor] = createSignal<HTMLElement | null>(null);
   const [over, setOver] = createSignal(false);
   const close = () => setAnchor(null);
+  const isCurrent = () => playerStore.current?.id === props.track.id;
 
   return (
     <li
-      class="track-row group/row relative grid h-[55px] grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-x-3 rounded-row px-2.5 hover:bg-quinary data-dragging:opacity-40 data-over:before:absolute data-over:before:inset-x-2.5 data-over:before:-top-px data-over:before:border-t-2 data-over:before:border-t-key"
+      class={`track-row group/row relative grid h-[55px] grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-x-3 rounded-row px-2.5 hover:bg-quinary data-dragging:opacity-40 data-over:before:absolute data-over:before:inset-x-2.5 data-over:before:-top-px data-over:before:border-t-2 data-over:before:border-t-key ${
+        isCurrent() ? 'bg-[rgba(250,45,79,0.14)] shadow-[inset_0_0_0_1px_rgba(250,45,79,0.32)]' : ''
+      }`}
+      data-current={isCurrent() || undefined}
       data-over={over() || undefined}
       data-dragging={props.dragging || undefined}
       draggable
@@ -60,7 +64,7 @@ function Row(props: {
         onClick={() => playerStore.jump(props.at)}
         aria-label={`Play ${props.track.title}`}
       >
-        <span class="truncate type-body text-primary">{props.track.title}</span>
+        <span class={`truncate type-body ${isCurrent() ? 'text-[#fa2d4f] font-semibold' : 'text-primary'}`}>{props.track.title}</span>
         <span class="truncate type-body text-secondary">{(props.track.artists || []).join(', ')}</span>
       </button>
       <div class="relative grid items-center justify-items-end">

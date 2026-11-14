@@ -76,7 +76,7 @@ function SongRow(props: { track: Track; onPlay: () => void }) {
   const meta = () => [artists(), formatDuration(props.track.duration)].filter(Boolean).join(' · ');
   return (
     <div
-      class={rowBase}
+      class={`${rowBase} ${current() ? 'bg-[rgba(250,45,79,0.14)] shadow-[inset_0_0_0_1px_rgba(250,45,79,0.32)]' : ''}`}
       onPointerEnter={() => playerStore.prefetch(props.track)}
       onFocusIn={() => playerStore.prefetch(props.track)}
     >
@@ -100,7 +100,7 @@ function SongRow(props: { track: Track; onPlay: () => void }) {
         </div>
         <div class="flex min-w-0 flex-1 flex-col">
           <span class="flex items-center gap-1.5">
-            <span class={`truncate type-body ${current() ? 'text-key' : ''}`}>{props.track.title}</span>
+            <span class={`truncate type-body ${current() ? 'text-[#fa2d4f] font-semibold' : ''}`}>{props.track.title}</span>
             <Show when={props.track.explicit}>
               <span class="grid h-[14px] w-[14px] flex-none place-items-center rounded-[3px] bg-white/[0.28] text-[9px] font-bold leading-none text-black/80" title="Explicit">E</span>
             </Show>
@@ -165,15 +165,16 @@ const SectionTitle = (props: { children: JSX.Element }) => (
 /* ---------------------------------------------------------------- */
 
 function TopResultCard(props: { track: Track; onPlay: () => void }) {
+  const isCurrent = () => playerStore.current?.id === props.track.id;
   const artists = () => (props.track.artists || []).join(', ');
   return (
-    <div class="mt-3 rounded-[16px] glass-card p-4">
+    <div class={`mt-3 rounded-[16px] glass-card p-4 transition-all duration-200 ${isCurrent() ? 'ring-1 ring-[#fa2d4f]/60 bg-[rgba(250,45,79,0.08)]' : ''}`}>
       <div class="flex items-center gap-4">
         <div class="w-[72px] flex-none">
           <Artwork src={props.track.thumb} track={props.track} displayWidth={72} radius="8px" />
         </div>
         <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span class="line-clamp-2 type-title-3">{props.track.title}</span>
+          <span class={`line-clamp-2 type-title-3 ${isCurrent() ? 'text-[#fa2d4f] font-semibold' : ''}`}>{props.track.title}</span>
           <span class="truncate type-callout text-secondary">
             {['Song', artists()].filter(Boolean).join(' · ')}
           </span>
@@ -567,7 +568,7 @@ export default function SearchPage() {
   return (
     <Portal>
       <div
-        class="search-sheet search-glass fixed top-3 right-3 bottom-3 left-[max(12px,var(--web-navigation-width))] z-[calc(var(--z-web-chrome)-2)] flex flex-col overflow-hidden rounded-[22px] bg-[rgb(12_12_22/0.16)] text-primary animate-[fade-in_200ms_ease-out_both] max-md:inset-0 max-md:rounded-none"
+        class="search-sheet search-glass fixed top-1.5 right-1.5 bottom-1.5 left-[max(6px,var(--web-navigation-width))] z-[calc(var(--z-web-chrome)-2)] flex flex-col overflow-hidden rounded-[16px] bg-[rgb(12_12_22/0.16)] text-primary animate-[fade-in_200ms_ease-out_both] max-md:inset-0 max-md:rounded-none"
         role="dialog"
         aria-label="Search"
         data-search-sheet

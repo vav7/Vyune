@@ -16,7 +16,7 @@ export const shelfHeader = 'mx-(--body-gutter) mb-3.5 flex min-h-[22px] items-ce
 export const shelfList = [
   'grid grid-flow-col grid-rows-[repeat(var(--rows),max-content)] auto-cols-(--xs-width) gap-x-2.5 gap-y-(--row-gap)',
   'px-(--body-gutter) py-2 scroll-px-(--body-gutter)',
-  'overflow-x-auto overflow-y-hidden overscroll-x-none snap-x snap-proximity motion-reduce:scroll-auto',
+  'overflow-x-auto overflow-y-hidden overscroll-x-none snap-x snap-proximity motion-reduce:scroll-auto touch-pan-y',
   '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden *:min-w-0 *:snap-start',
   '[--gap:20px] [--n:var(--cols-s)] min-[1260px]:[--n:var(--cols-m)] min-[1580px]:[--n:var(--cols-l)] min-[1940px]:[--n:var(--cols-xl)]',
   'lg:auto-cols-[calc((100%-(var(--n)-1)*var(--gap))/var(--n))] lg:gap-x-(--gap)',

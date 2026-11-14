@@ -343,7 +343,30 @@ export function CustomCurator() {
 }
 
 /** Featured Pop Genres with big star names and hardware-accelerated backdrops. */
-export function PopGenres() {
+export function PopGenres(props: { categories?: GenreCategory[] }) {
+  const getHref = (genre: PopGenre) => {
+    const cats = props.categories || [];
+    const match = cats.find((c) => {
+      const l = c.label.toLowerCase();
+      if (genre.id === 'pop') return l === 'pop';
+      if (genre.id === 'hiphop') return l.includes('hip-hop') || l.includes('rap');
+      if (genre.id === 'punjabi') return l === 'punjabi';
+      if (genre.id === 'bollywood') return l === 'hindi' || l === 'indian pop';
+      if (genre.id === 'rnb') return l.includes('r&b') || l.includes('soul');
+      if (genre.id === 'edm') return l.includes('dance') || l.includes('electronic');
+      if (genre.id === 'kpop') return l.includes('k-pop');
+      if (genre.id === 'latin') return l === 'latin';
+      if (genre.id === 'rock') return l === 'rock';
+      if (genre.id === 'chill') return l === 'chill';
+      if (genre.id === 'workout') return l === 'workout';
+      return false;
+    });
+    if (match) {
+      return `/genre/${encodeURIComponent(match.params)}/${encodeURIComponent(match.label)}`;
+    }
+    return `/search?q=${encodeURIComponent(genre.q)}&filter=playlists`;
+  };
+
   return (
     <section class="mt-8 mb-6" aria-label="Pop Icons & Genres">
       <div class="mx-(--body-gutter) mb-3.5">
@@ -353,9 +376,9 @@ export function PopGenres() {
       <ul class="mx-(--body-gutter) grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5 [contain:paint]">
         <For each={POP_GENRES}>
           {(genre) => (
-            <li>
+            <li class="[content-visibility:auto] [contain-intrinsic-size:auto_140px]">
               <PrefetchLink
-                to={`/search?q=${encodeURIComponent(genre.q)}&filter=playlists`}
+                to={getHref(genre)}
                 class="group relative flex aspect-[1.38] flex-col justify-end overflow-hidden rounded-[18px] border border-white/10 bg-[#12131d] p-3 text-white shadow-[0_10px_28px_rgba(0,0,0,0.4)] transition-[transform,box-shadow,border-color] duration-300 ease-out hover:-translate-y-1 hover:border-white/30 hover:shadow-[0_16px_36px_rgba(0,0,0,0.6)] focus-visible:outline-2 focus-visible:outline-white [contain:paint]"
               >
                 {/* Image backdrop */}
@@ -371,10 +394,10 @@ export function PopGenres() {
                   class="absolute inset-0 bg-gradient-to-t from-[#0a0a10]/95 via-[#0a0a10]/45 to-transparent"
                   aria-hidden="true"
                 />
-                {/* Accent glow on hover */}
+                {/* Crisp hardware-accelerated radial tint on hover (no heavy blur) */}
                 <span
-                  class="pointer-events-none absolute -bottom-10 -right-10 size-28 rounded-full opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-60"
-                  style={{ background: genre.color }}
+                  class="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                  style={{ background: `radial-gradient(circle at 80% 80%, ${genre.color}40 0%, transparent 70%)` }}
                   aria-hidden="true"
                 />
                 <div class="relative z-1 min-w-0">
@@ -396,7 +419,7 @@ export function PopGenres() {
 
 function CategoryTile({ category }: { category: GenreCategory }) {
   return (
-    <li>
+    <li class="[content-visibility:auto] [contain-intrinsic-size:auto_96px]">
       <PrefetchLink
         to={`/genre/${encodeURIComponent(category.params)}/${encodeURIComponent(category.label)}`}
         class="genre-tile group relative flex aspect-[1.75] items-end overflow-hidden rounded-[20px] [corner-shape:squircle] border border-white/10 bg-[#161722] p-4 text-white shadow-[0_12px_30px_#0002] transition-[transform,box-shadow,border-color] duration-300 ease-out hover:-translate-y-1 hover:border-white/25 hover:shadow-[0_20px_44px_#0004] focus-visible:outline-2 focus-visible:outline-white [contain:paint]"
@@ -431,7 +454,7 @@ export function CategoryTiles(props: {
       {!props.compact && <CustomCurator />}
 
       {/* 2. Pop Icons & Genres */}
-      <PopGenres />
+      <PopGenres categories={props.categories} />
 
       {/* 3. Official YouTube Music Moods & Categories */}
       {props.title && <h2 class="mx-(--body-gutter) mt-8 mb-2 type-title-2-emphasized">{props.title}</h2>}

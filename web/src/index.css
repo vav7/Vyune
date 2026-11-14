@@ -958,8 +958,9 @@
 /* ------------------------------------------------------------------ */
 @media (min-width: 768px) {
   .mc-col-page {
-    margin: 12px 12px 12px 0;
-    height: calc(100% - 24px);
+    margin: 6px 6px 6px 0;
+    height: calc(100% - 12px);
+    border-radius: 16px;
     /* The page IS the scroller. This rule is unlayered, so it beats Tailwind's layered
        overflow-y-auto: hiding overflow here (as before) is what killed scrolling. */
     overflow-x: hidden;
@@ -967,15 +968,15 @@
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
   }
-  html[data-sidebar='hidden'] .mc-col-page { margin-left: 12px; }
+  html[data-sidebar='hidden'] .mc-col-page { margin-left: 6px; }
 }
 @media (min-width: 1180px) {
   html[data-panel='open'] .mc-col-page { margin-right: 6px; }
   .mc-col-panel > aside:not([class*='fixed']) {
-    inset-block: 12px !important;
-    right: 12px !important;
+    inset-block: 6px !important;
+    right: 6px !important;
     height: auto;
-    width: calc(var(--side-panel-width) - 18px) !important;
+    width: calc(var(--side-panel-width) - 9px) !important;
   }
 }
 

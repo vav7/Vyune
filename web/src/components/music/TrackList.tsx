@@ -43,9 +43,9 @@ const link = 'text-inherit hover:underline group-data-current/row:text-primary';
  * fill is clipped inside), brighter on hover, tinted red for the playing row.
  */
 const row = [
-  'group/row track-row relative grid items-center border-y-2 border-transparent bg-card bg-clip-padding hover:bg-card-hover',
-  '[box-shadow:inset_0_0_0_0.5px_var(--cardStroke)] transition-[background-color] duration-200 ease-out',
-  'data-current:bg-white/10',
+  'group/row track-row relative grid items-center border-y-2 border-transparent bg-card bg-clip-padding hover:bg-card-hover [content-visibility:auto] [contain-intrinsic-size:auto_54px]',
+  '[box-shadow:inset_0_0_0_0.5px_var(--cardStroke)] transition-[background-color] duration-150 ease-out',
+  'data-current:bg-[rgba(250,45,79,0.14)] data-current:shadow-[inset_0_0_0_1px_rgba(250,45,79,0.32)]',
 ].join(' ');
 
 const rowVariant: Record<Variant, string> = {
@@ -108,7 +108,7 @@ function RowBase(props: RowProps) {
           <Show when={props.variant === 'playlist'} fallback={
             <span class="type-body text-secondary group-hover/row:invisible">
               <Show when={current()} fallback={<span>{track().trackNumber ?? props.position}</span>}>
-                <span class="grid place-items-center text-primary group-hover/row:invisible" aria-label="Now playing">
+                <span class="grid place-items-center text-[#fa2d4f] group-hover/row:invisible" aria-label="Now playing">
                   <PlayIcon size={14} />
                 </span>
               </Show>
@@ -125,7 +125,7 @@ function RowBase(props: RowProps) {
               <Show when={current()}>
                 {/* The playing row's marker: a still play glyph over the artwork. */}
                 <span
-                  class="absolute inset-0 grid place-items-center rounded-artwork-sm bg-[rgb(0_0_0/0.45)] text-white group-hover/row:invisible"
+                  class="absolute inset-0 grid place-items-center rounded-artwork-sm bg-[rgb(0_0_0/0.45)] text-[#fa2d4f] group-hover/row:invisible"
                   aria-label="Now playing"
                 >
                   <PlayIcon size={18} />
@@ -147,7 +147,7 @@ function RowBase(props: RowProps) {
             row's other cells out of the grid instead of being truncated. */}
         <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
           <div class="flex min-w-0 items-center gap-1.5">
-            <span class="min-w-0 truncate type-body text-primary">{track().title}</span>
+            <span class={`min-w-0 truncate type-body ${current() ? 'text-[#fa2d4f] font-semibold' : 'text-primary'}`}>{track().title}</span>
             <Show when={track().explicit}>
               <ExplicitBadge />
             </Show>

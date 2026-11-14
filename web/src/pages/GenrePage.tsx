@@ -25,9 +25,12 @@ export default function GenrePage() {
 
   const [expanded, setExpanded] = createSignal<Record<string, boolean>>({});
   const items = createMemo(() => query.data?.items || []);
-  const sections = createMemo(() => query.data?.sections?.length ? query.data!.sections : [{ title: 'Featured playlists', items: items() }]);
-  const featured = createMemo(() => sections().filter((section) => !/community|user.?made/i.test(section.title)));
-  const community = createMemo(() => sections().filter((section) => /community|user.?made/i.test(section.title)));
+  const sections = createMemo(() => {
+    const s = query.data?.sections || [];
+    // Keep only official curated sections; drop user/community generated scrap
+    const clean = s.filter((sec) => !/community|user.?made/i.test(sec.title));
+    return clean.length ? clean : [{ title: 'Featured Playlists', items: items() }];
+  });
   const title = createMemo(() => decodeURIComponent(label()));
 
   const renderSection = (section: { title: string; items: Card[] }, sectionKey: string, initialCount: number) => {
@@ -38,13 +41,13 @@ export default function GenrePage() {
         <div class="mx-(--body-gutter) mb-3 flex items-end justify-between gap-4">
           <div>
             <h2 class="type-title-2-emphasized">{section.title}</h2>
-            <p class="mt-0.5 type-caption-1 text-secondary">{section.items.length} playlists, with duplicates removed</p>
+            <p class="mt-0.5 type-caption-1 text-secondary">{section.items.length} official playlists</p>
           </div>
         </div>
         <ul class={seeAllGrid}>
           <For each={visibleItems()}>
             {(item) => (
-              <li class="animate-fade-in">
+              <li class="animate-fade-in [content-visibility:auto] [contain-intrinsic-size:auto_220px]">
                 <SquareLockup item={cardItem(item)} />
               </li>
             )}
@@ -74,27 +77,9 @@ export default function GenrePage() {
       <Show when={query.isError}><LoadError error={query.error} onRetry={() => void query.refetch()} /></Show>
       <Show when={!query.isPending && !query.isError && items().length === 0}><EmptyState title="Nothing here yet" detail="YouTube returned no playlists." /></Show>
       <Show when={items().length > 0}>
-        <>
-          <For each={featured()}>
-            {(section, i) => <>{renderSection(section, `featured-${i()}`, 24)}</>}
-          </For>
-          <Show when={community().length > 0}>
-            <details class="mx-(--body-gutter) mt-8 mb-10 overflow-hidden rounded-[20px] border border-white/10 bg-thin-material px-4 open:pb-5 sm:px-5">
-              <summary class="flex cursor-pointer list-none items-center justify-between gap-4 py-4 [&::-webkit-details-marker]:hidden">
-                <span>
-                  <span class="block type-title-3-emphasized">Community playlists</span>
-                  <span class="mt-0.5 block type-caption-1 text-secondary">Listener-made picks, kept in their own collection</span>
-                </span>
-                <span class="rounded-full bg-white/8 px-3 py-1 type-caption-1 text-secondary">
-                  {community().reduce((sum, section) => sum + section.items.length, 0)}
-                </span>
-              </summary>
-              <For each={community()}>
-                {(section, i) => <>{renderSection(section, `community-${i()}`, 12)}</>}
-              </For>
-            </details>
-          </Show>
-        </>
+        <For each={sections()}>
+          {(section, i) => <>{renderSection(section, `section-${i()}`, 24)}</>}
+        </For>
       </Show>
     </>
   );
