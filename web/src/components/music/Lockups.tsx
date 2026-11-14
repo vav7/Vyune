@@ -163,10 +163,10 @@ export function CircleLockup(props: { item: MusicItem; width?: number }) {
   return (
     <PrefetchLink
       to={hrefFor(item().kind, item().id) ?? '#'}
-      class="circle-lockup group/circle flex min-w-0 flex-col items-center gap-2.5 rounded-[18px] p-2.5 outline-offset-0"
+      class="circle-lockup group/circle flex w-full min-w-0 flex-col items-center gap-2.5 rounded-[18px] p-2.5 outline-offset-0"
     >
-      <span class="circle-lockup-art block rounded-full">
-        <Artwork src={item().thumbnail} displayWidth={props.width ?? 160} radius="50%" />
+      <span class="circle-lockup-art relative block aspect-square w-full max-w-[160px] rounded-full overflow-hidden">
+        <Artwork src={item().thumbnail} displayWidth={props.width ?? 160} radius="50%" class="size-full" />
       </span>
       <span class="max-w-full truncate text-center type-body text-white/85 transition-colors duration-200 group-hover/circle:text-white">{item().title}</span>
     </PrefetchLink>

@@ -13,8 +13,8 @@ import { TrackMenu } from './TrackMenu';
 type Variant = 'album' | 'playlist';
 
 const ROW_HEIGHT: Record<Variant, number> = { album: 46, playlist: 54 };
-/** Below this, plain rows: albums and standard playlists scroll smoother without virtual DOM churn. */
-const VIRTUALIZE_FROM = 180;
+/** Playlists with 40+ tracks are virtualized for butter-smooth 60fps scrolling. */
+const VIRTUALIZE_FROM = 40;
 
 interface TrackListProps {
   tracks: Track[];
@@ -43,7 +43,7 @@ const link = 'text-inherit hover:underline group-data-current/row:text-primary';
  * fill is clipped inside), brighter on hover, tinted red for the playing row.
  */
 const row = [
-  'group/row track-row relative grid items-center border-y-2 border-transparent bg-card bg-clip-padding hover:bg-card-hover',
+  'group/row track-row relative grid items-center border-y-2 border-transparent bg-card bg-clip-padding hover:bg-card-hover [content-visibility:auto] [contain-intrinsic-size:auto_54px]',
   '[box-shadow:inset_0_0_0_0.5px_var(--cardStroke)] transition-[background-color] duration-200 ease-out',
   'data-current:bg-[color-mix(in_srgb,var(--keyColor)_20%,#ffffff0d)]',
 ].join(' ');

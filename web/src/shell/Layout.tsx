@@ -147,7 +147,7 @@ export function Layout(props: RouteSectionProps) {
         <PageFrost />
         <main
           id="scrollable-page"
-          class="relative z-[1] isolate size-full overflow-x-hidden overflow-y-auto data-tint:bg-(--page-tint) data-tint:transition-[background-color] data-tint:duration-300 data-tint:ease-out max-sm:pt-(--mobile-top-bar-height)"
+          class="relative z-[1] isolate size-full overflow-x-hidden overflow-y-auto overscroll-y-contain [scroll-behavior:smooth] [-webkit-overflow-scrolling:touch] data-tint:bg-(--page-tint) data-tint:transition-[background-color] data-tint:duration-300 data-tint:ease-out max-sm:pt-(--mobile-top-bar-height)"
         >
           {/* Clears the floating pill: its height, its offset, and some air. */}
           <div class="relative z-[1] min-h-full pb-[calc(var(--player-pill-height)+var(--player-bottom-offset)+40px)] max-sm:pb-[calc(var(--mini-player-height)+24px)]">

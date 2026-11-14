@@ -506,6 +506,18 @@ function rawTwoRowId(r) {
     nav.watchEndpoint?.playlistId || nav.watchEndpoint?.videoId || null;
 }
 
+function rawTwoRowThumbnails(r) {
+  return (
+    r?.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+    r?.thumbnailRenderer?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails ||
+    r?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ||
+    r?.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails ||
+    r?.thumbnail?.thumbnails ||
+    r?.thumbnails ||
+    []
+  );
+}
+
 export function classifyRawTwoRow(r) {
   const nav = r.title?.runs?.[0]?.navigationEndpoint || r.navigationEndpoint || {};
   const be = nav.browseEndpoint || nav;
@@ -703,7 +715,7 @@ export async function getArtistPage(artistId) {
             id: rawTwoRowId(r),
             title: r.title?.runs?.[0]?.text,
             subtitle: { runs: r.subtitle?.runs || [], text: (r.subtitle?.runs || []).map((x) => x.text).join('') },
-            thumbnails: r.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails,
+            thumbnails: rawTwoRowThumbnails(r),
             kind: classifyRawTwoRow(r),
           }),
         )

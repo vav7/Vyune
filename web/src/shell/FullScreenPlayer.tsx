@@ -494,12 +494,12 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
             <div
               class={`fs-lyrics grid h-full items-center justify-center py-16 max-md:px-6 max-md:pb-18 ${
                 showLyrics()
-                  ? 'grid-cols-[var(--art)_minmax(0,44vw)] gap-x-[clamp(44px,6vw,96px)] pl-[clamp(32px,5vw,96px)] pr-[clamp(24px,4vw,72px)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[minmax(0,1fr)_auto] max-md:items-stretch max-md:gap-y-4'
+                  ? 'grid-cols-[var(--art)_minmax(0,1fr)] gap-x-[clamp(44px,6vw,96px)] pl-[clamp(32px,5vw,96px)] pr-[clamp(24px,4vw,72px)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[minmax(0,1fr)_auto] max-md:items-stretch max-md:gap-y-4'
                   : 'grid-cols-[var(--art)_minmax(0,40vw)] gap-x-[clamp(44px,6vw,96px)] pl-[clamp(32px,5vw,96px)] pr-[clamp(24px,4vw,72px)] max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[auto_minmax(0,1fr)] max-md:items-stretch max-md:gap-y-4'
               }`}
               data-lyrics={column() || undefined}
             >
-              <section class={`poster-col flex w-(--art) min-w-0 flex-col${column() ? ' max-md:order-2 max-md:w-full' : ''}`} aria-label="Player">
+              <section class={`poster-col flex w-(--art) min-w-0 flex-col${showQueue() ? ' max-md:order-2 max-md:w-full' : ''}`} aria-label="Player">
                 {/* Shrinks a touch while paused, as Apple's does. */}
                 <div
                   class={`fs-poster group/poster relative w-(--art) cursor-pointer rounded-[10px] transition-[scale] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-data-[idle=true]:scale-[0.95]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.92]'}`}
@@ -525,8 +525,8 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                   </Show>
                 </div>
 
-                {/* With Up Next or Lyrics open the controls sit under the poster. */}
-                <Show when={column()}>
+                {/* With Up Next open the controls sit under the poster in the same style as the main view. */}
+                <Show when={showQueue()}>
                   <div class={`${fades} mt-[clamp(24px,4vh,44px)] max-md:mt-0 flex flex-col gap-2`}>
                     <SongTitle title={current().title} class="text-[clamp(18px,1.6vw,22px)] leading-[1.15] font-bold tracking-[-0.03em] [font-family:var(--font-family)]" />
                     <Marquee class="mt-0.5 text-[15px] leading-[1.3] font-medium tracking-[-0.014em] text-secondary [font-family:var(--font-family)]" render={() => <Credits />} />
@@ -559,7 +559,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                   </div>
 
                   <div class="flex min-h-0 flex-col justify-center my-auto py-4">
-                    <div class="mb-6 flex items-start justify-between gap-5">
+                    <div class="mb-[clamp(32px,4.5vh,52px)] flex items-start justify-between gap-5">
                       <div class="min-w-0 flex-1">
                         <h1 class="flex min-w-0 items-center gap-2 text-[clamp(28px,3vw,40px)] leading-[1.15] font-bold tracking-[-0.038em] [font-family:var(--font-family)]">
                           <SongTitle
@@ -578,10 +578,11 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                       </div>
                       <FavoriteButton track={current()} class="fs-chip flex-none !size-10" size={20} />
                     </div>
-                    <div class="pt-3 pb-2">
+                    {/* The one-line lyric: sits with a generous gap below title/artist, staying right above the seek bar */}
+                    <div class="mb-2 min-h-[30px] flex items-end">
                       <LyricPreview />
                     </div>
-                    <div class="mt-3">
+                    <div class="mt-1">
                       <Scrubber />
                     </div>
                     <div class="mt-4">
