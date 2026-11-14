@@ -1,4 +1,5 @@
 import { GripVertical } from 'lucide-solid';
+import { useLocation } from '@solidjs/router';
 import { SongTitle } from '@/components/music/SongTitle';
 import { createSignal, Show } from 'solid-js';
 import {
@@ -82,9 +83,12 @@ export function PlayerBar() {
   const [volumeOpen, setVolumeOpen] = createSignal(false);
   let body!: HTMLDivElement;
   const songTint = useSongTint();
+  const location = useLocation();
+  const isSearch = () => location.pathname.startsWith('/search');
+  const shouldShow = () => !isSearch() || !!playerStore.current;
 
   return (
-    <Show when={uiStore.playerDock !== 'sidebar'}>
+    <Show when={uiStore.playerDock !== 'sidebar' && shouldShow()}>
       <footer
         // The side panel overlays the page; the pill re-centres in what's left.
         class="pointer-events-none absolute right-0 bottom-(--player-bottom-offset) left-(--web-navigation-width) z-[calc(var(--z-web-chrome)-1)] flex justify-center px-5 transition-[padding-inline-end] duration-(--duration-panel) ease-panel data-[panel-open=true]:pe-[calc(var(--side-panel-width)+20px)] max-sm:hidden"

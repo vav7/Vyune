@@ -53,13 +53,33 @@ const CHROME = `
     -moz-osx-font-smoothing: grayscale;
     font-synthesis: none;
   }
-  .lyrics-gap .lyrics-syllable {
-    width: var(--lyplus-gap-dot-size, 0.44em) !important;
-    height: var(--lyplus-gap-dot-size, 0.44em) !important;
+  .lyrics-gap .lyrics-syllable,
+  .lyrics-line.lyrics-gap .lyrics-syllable,
+  .lyrics-gap-container .lyrics-syllable {
+    width: 8px !important;
+    height: 8px !important;
+    min-width: 8px !important;
+    min-height: 8px !important;
+    max-width: 8px !important;
+    max-height: 8px !important;
     aspect-ratio: 1 / 1 !important;
     border-radius: 50% !important;
+    corner-shape: round !important;
+    padding: 0 !important;
+    padding-block: 0 !important;
+    margin-block: 0 !important;
+    margin-inline: 4px !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
     flex-shrink: 0 !important;
     display: inline-block !important;
+    box-sizing: border-box !important;
+  }
+  /* Hardware-accelerated kinetic lyrics: strip costly multi-pass Gaussian blur filters */
+  .lyrics-line,
+  .lyrics-line * {
+    filter: none !important;
+    -webkit-filter: none !important;
   }
   .lyrics-line {
     text-rendering: optimizeLegibility;
@@ -68,14 +88,26 @@ const CHROME = `
     line-height: 1.25 !important;
     margin-block-end: 22px !important;
     --am-lyrics-highlight-radius: 24px;
+    will-change: transform, opacity;
   }
   .lyrics-line::before { corner-shape: squircle; }
-  .lyrics-line.active, .lyrics-line.pre-active { color: #ffffff; }
+  .lyrics-line.active, .lyrics-line.pre-active {
+    color: #ffffff !important;
+    opacity: 1 !important;
+  }
+  .lyrics-line:not(.active):not(.pre-active):not(.lyrics-gap) {
+    opacity: 0.42 !important;
+    transition: opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1), transform 0.4s cubic-bezier(0.22, 1, 0.36, 1) !important;
+  }
+  .lyrics-line.next-active-line,
+  .lyrics-line.post-active-line {
+    opacity: 0.65 !important;
+  }
   /* background-clip:text only paints inside the span's box. A tight box shaves the top off tall
      glyphs and Indic vowel signs, so every span gets vertical room, cancelled by the negative
      margin so the layout does not move. (Vertical only: the wipe is horizontal.) */
-  .lyrics-syllable,
-  .lyrics-syllable span.char {
+  .lyrics-line:not(.lyrics-gap) .lyrics-syllable,
+  .lyrics-line:not(.lyrics-gap) .lyrics-syllable span.char {
     padding-block: 0.34em 0.26em;
     margin-block: -0.34em -0.26em;
   }
@@ -159,6 +191,7 @@ export function AmLyricsView(props: {
   const mount = () => {
     el?.remove();
     const next = document.createElement('am-lyrics') as AmElement;
+    (next as any).noBlur = true;
     next.noAutoAlternates = true; // nothing is generated or fetched behind our sheet
     next.highlightColor = '#ffffff';
     next.fontFamily = props.fontFamily;

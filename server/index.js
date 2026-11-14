@@ -271,30 +271,48 @@ app.get('/api/stream', async (c) => {
         : Promise.resolve(null);
 
     const youtubePromise = (async () => {
-      // Always look up the official Songs shelf first so we NEVER play an MV/video version!
-      if (title) {
-        const hits = await yt.searchSongs(`${title} ${artist}`.trim(), 8);
+      // Direct video ID attempt (fastest path for community playlists / catalog tracks)
+      const directPromise = id ? tryVideo(id) : Promise.resolve(null);
+
+      // Concurrently check if an official audio track exists to avoid MV video versions
+      const isMvTitle = title && /video|official\s+video|music\s+video|mv\b|clip|visualizer/i.test(title);
+
+      if (title && (isUpload || isMvTitle)) {
+        // Priority search for official audio track when explicitly an MV or user upload
+        const hits = await yt.searchSongs(`${title} ${artist}`.trim(), 6);
         const matches = officialSongMatches(hits, title, artist, album, duration);
-        for (const candidate of matches.slice(0, 4)) {
+        for (const candidate of matches.slice(0, 3)) {
           const stream = await tryVideo(candidate.id);
           if (stream) return stream;
         }
       }
 
-      // If official search had no stream, try direct video ID as last resort
-      const direct = await tryVideo(id);
+      // If direct video stream is ready (fast ~200ms path):
+      const direct = await directPromise;
       if (direct) return direct;
+
+      // If not an explicit MV or direct stream was not available, search official songs:
+      if (title) {
+        const hits = await yt.searchSongs(`${title} ${artist}`.trim(), 6);
+        const matches = officialSongMatches(hits, title, artist, album, duration);
+        for (const candidate of matches.slice(0, 3)) {
+          const stream = await tryVideo(candidate.id);
+          if (stream) return stream;
+        }
+      }
 
       return null;
     })().catch(() => null);
 
-    const saavnFirst = await withTimeout(saavnPromise, 4_500, null);
+    // Quick-match with JioSaavn first within a fast window (up to 1,200ms)
+    const saavnFirst = await withTimeout(saavnPromise, 1_200, null);
     if (saavnFirst) return saavnFirst;
-    // If Saavn has no verified match (or its lookup/CDN is stalled), don't
-    // make the listener wait for its remaining alternate queries.
+
+    // If Saavn has no verified match or is taking longer, fall back to YouTube immediately without latency
     const viaYoutube = await youtubePromise;
     if (viaYoutube) return viaYoutube;
-    // YouTube had nothing: a Saavn answer that arrived late still beats an error.
+
+    // YouTube had nothing: a Saavn answer that arrived late still beats an error
     return await saavnPromise;
   });
 

@@ -61,11 +61,12 @@ export function HomeHero(props: { tracks: Track[] }) {
         onPointerLeave={() => setHover(false)}
       >
         {/* The music video / motion sleeve, frosted: the hero's own light. */}
-        <div class="pointer-events-none absolute inset-0 -z-1 [mask-image:linear-gradient(180deg,#000_62%,transparent_100%)]">
+        <div class="pointer-events-none absolute inset-0 -z-1 overflow-hidden">
           <Show when={video()} fallback={<ImageFrost src={current()!.thumb} dim={0.46} />}>
             <MotionFrost video={video()} dim={0.4} />
           </Show>
           <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(4,4,8,0.62)_0%,rgba(4,4,8,0.18)_52%,transparent_100%)]" />
+          <div class="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[var(--pageBG,#07070b)]" />
         </div>
 
         <div class="hero-grid mx-auto grid min-h-[clamp(560px,82vh,800px)] max-w-[1680px] grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] items-center gap-x-[clamp(24px,4vw,80px)] px-(--body-gutter) pt-28 pb-16 max-lg:grid-cols-1 max-lg:justify-items-start max-lg:gap-y-8 max-lg:pt-24">

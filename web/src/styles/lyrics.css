@@ -210,7 +210,7 @@
   height: 30px;
   margin: 10px 0 2px;
   overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "SF Pro", system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", "SF Pro Text", "SF Pro", -apple-system-body, "Helvetica Neue", system-ui, sans-serif !important;
 }
 .fs-oneline[data-overflow='true'] {
   -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
@@ -219,14 +219,23 @@
 .fs-oneline-line {
   display: inline-block;
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 700;
   line-height: 1.5;
-  letter-spacing: -0.012em;
+  letter-spacing: -0.022em;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", "SF Pro Text", "SF Pro", -apple-system-body, "Helvetica Neue", system-ui, sans-serif !important;
   white-space: nowrap;
   will-change: transform, opacity;
 }
-.fs-oneline-words { margin: 0; white-space: nowrap; }
-.fs-oneline-words--solid { color: rgb(255 255 255 / 0.92); }
+.fs-oneline-words {
+  margin: 0;
+  white-space: nowrap;
+  font-weight: 700;
+  font-family: inherit;
+}
+.fs-oneline-words--solid {
+  color: rgb(255 255 255 / 0.95);
+  font-weight: 700;
+}
 /* Inside the one line the painted word does not need room above it. */
 .fs-oneline .lyric-word { white-space: pre; padding-block: 0.1em 0.14em; margin-block: -0.1em -0.14em; }
 .fs-oneline .lyric-word[data-live='true'] { translate: 0 -0.04em; }

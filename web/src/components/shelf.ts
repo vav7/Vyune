@@ -15,8 +15,7 @@ export const shelfHeader = 'mx-(--body-gutter) mb-3.5 flex min-h-[22px] items-ce
 /** The scrolling grid; a kind from `shelfKinds` fills in its rows, widths and column counts. */
 export const shelfList = [
   'grid grid-flow-col grid-rows-[repeat(var(--rows),max-content)] auto-cols-(--xs-width) gap-x-2.5 gap-y-(--row-gap)',
-  // 15px bleed so hover shadows aren't clipped (--standard-lockup-shadow-offset).
-  '-my-[15px] px-(--body-gutter) py-[15px] scroll-px-(--body-gutter)',
+  'px-(--body-gutter) py-2 scroll-px-(--body-gutter)',
   'overflow-x-auto overflow-y-hidden overscroll-x-none snap-x snap-proximity motion-reduce:scroll-auto',
   '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden *:min-w-0 *:snap-start',
   '[--gap:20px] [--n:var(--cols-s)] min-[1260px]:[--n:var(--cols-m)] min-[1580px]:[--n:var(--cols-l)] min-[1940px]:[--n:var(--cols-xl)]',
@@ -29,7 +28,7 @@ export const shelfKinds: Record<ShelfKind, string> = {
   // G
   square: '[--rows:1] [--row-gap:24px] [--xs-width:144px] [--cols-s:4] [--cols-m:5] [--cols-l:6] [--cols-xl:6]',
   // TrackLockupsShelf
-  tracks: '[--rows:4] [--row-gap:0px] [--xs-width:270px] [--cols-s:2] [--cols-m:3] [--cols-l:4] [--cols-xl:4]',
+  tracks: '[--rows:4] [--row-gap:6px] [--xs-width:270px] [--cols-s:2] [--cols-m:3] [--cols-l:4] [--cols-xl:4]',
   // B
   horizontal: '[--rows:2] [--row-gap:24px] [--xs-width:298px] [--cols-s:2] [--cols-m:3] [--cols-l:4] [--cols-xl:4]',
   // C

@@ -45,6 +45,7 @@
   *, *::before, *::after { corner-shape: squircle; }
 
   .rounded-full, .rounded-pill, .vy-btn--pill, .vy-btn--icon, .round, .fs-chip, .fs-key, .fs-skip, .fs-puck,
+  .lyrics-syllable, .lyrics-gap *, .lyrics-line.gap *,
   [class*='rounded-full'], [class*='rounded-pill'], [class*='rounded-[999'], [class*='rounded-[50%'],
   [class*='rounded-[100'], [style*='border-radius: 50%'], [style*='border-radius:50%'] {
     corner-shape: round;

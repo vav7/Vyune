@@ -74,8 +74,6 @@ export function Artwork(props: ArtworkProps) {
   });
 
   const [attempt, setAttempt] = createSignal(0);
-  const [loaded, setLoaded] = createSignal(false);
-  let img: HTMLImageElement | undefined;
 
   // A different picture reusing this instance starts over on its own chain.
   createEffect(
@@ -94,13 +92,6 @@ export function Artwork(props: ArtworkProps) {
     return value ? sizedArtwork(value, props.displayWidth, props.aspect ?? 1) : null;
   };
 
-  createEffect(() => {
-    sized();
-    queueMicrotask(() => {
-      if (img?.complete && img.naturalWidth > 0) setLoaded(true);
-    });
-  });
-
   return (
     <div
       class={props.class ? `${frame} ${props.class}` : frame}
@@ -109,12 +100,7 @@ export function Artwork(props: ArtworkProps) {
       <Show when={sized()}>
         {(source) => (
           <img
-            ref={(el) => {
-              img = el;
-              if (el?.complete && el.naturalWidth > 0) setLoaded(true);
-            }}
-            class="absolute inset-0 size-full object-cover opacity-0 transition-opacity duration-200 ease-out data-loaded:opacity-100"
-            data-loaded={loaded() || undefined}
+            class="absolute inset-0 size-full object-cover"
             src={source()}
             alt=""
             // googleusercontent throttles hotlinked images (429) by Referer.
@@ -122,9 +108,7 @@ export function Artwork(props: ArtworkProps) {
             loading={props.eager ? 'eager' : 'lazy'}
             decoding="async"
             draggable={false}
-            onLoad={() => setLoaded(true)}
             onError={() => {
-              setLoaded(false);
               if (attempt() < chain().length - 1) setAttempt(attempt() + 1);
             }}
           />

@@ -162,10 +162,12 @@ export function Layout(props: RouteSectionProps) {
       </div>
 
       <Portal>
-        <div class="mc-col-chrome" style={{ 'z-index': '9950' }}>
-          <PlayerBar data-player-pill />
-          <MiniPlayer />
-        </div>
+        <Show when={!playerStore.fullscreen}>
+          <div class="mc-col-chrome" style={{ 'z-index': '9950' }}>
+            <PlayerBar data-player-pill />
+            <MiniPlayer />
+          </div>
+        </Show>
       </Portal>
 
       <Show when={playerMounted() && PlayerView()}>
