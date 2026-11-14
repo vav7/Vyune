@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, onCleanup } from 'solid-js';
+import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js';
 import { proxiedImg } from '@/lib/api';
 import { artworkForPaint } from '@/lib/artwork';
 
@@ -53,19 +53,21 @@ export function CoverGlass(props: {
   const veil = () => props.veil ?? 0.3;
 
   return (
-    <div
-      class={`pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit] ${props.class ?? ''}`}
-      style={mask() ? { '-webkit-mask-image': mask(), 'mask-image': mask() } : undefined}
-      aria-hidden="true"
-    >
-      <For each={layers()}>
-        {(layer) => <GlassCanvas url={layer.url} />}
-      </For>
-      <div class="absolute inset-0" style={{ background: `rgba(8,8,14,${veil()})` }} />
-      <div class="absolute inset-0 bg-[linear-gradient(180deg,rgb(255_255_255/0.18),rgb(255_255_255/0)_40%,rgb(0_0_0/0.14))]" />
-      <div class="absolute inset-0 opacity-[0.04] mix-blend-soft-light" style={{ 'background-image': GRAIN }} />
-      <div class="absolute inset-0 rounded-[inherit] shadow-[inset_0_1px_0_rgb(255_255_255/0.38),inset_0_0_0_1px_rgb(255_255_255/0.1),inset_0_-14px_26px_-18px_rgb(0_0_0/0.45)]" />
-    </div>
+    <Show when={props.src && layers().length > 0}>
+      <div
+        class={`pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit] transition-opacity duration-700 ease-out ${props.class ?? ''}`}
+        style={mask() ? { '-webkit-mask-image': mask(), 'mask-image': mask() } : undefined}
+        aria-hidden="true"
+      >
+        <For each={layers()}>
+          {(layer) => <GlassCanvas url={layer.url} />}
+        </For>
+        <div class="absolute inset-0" style={{ background: `rgba(8,8,14,${veil()})` }} />
+        <div class="absolute inset-0 bg-[linear-gradient(180deg,rgb(255_255_255/0.18),rgb(255_255_255/0)_40%,rgb(0_0_0/0.14))]" />
+        <div class="absolute inset-0 opacity-[0.04] mix-blend-soft-light" style={{ 'background-image': GRAIN }} />
+        <div class="absolute inset-0 rounded-[inherit] shadow-[inset_0_1px_0_rgb(255_255_255/0.38),inset_0_0_0_1px_rgb(255_255_255/0.1),inset_0_-14px_26px_-18px_rgb(0_0_0/0.45)]" />
+      </div>
+    </Show>
   );
 }
 

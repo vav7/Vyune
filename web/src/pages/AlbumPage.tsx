@@ -13,8 +13,6 @@ import { api } from '@/lib/api';
 import { useArtworkColor } from '@/lib/artworkColor';
 import { usePageTint } from '@/lib/usePageTint';
 import { detailFooter } from '@/pages/pageStyles';
-import { AlbumSkeleton } from '@/skeletons/PageSkeletons';
-import { DetailSkeleton } from '@/skeletons/DetailSkeleton';
 import { getNavHint } from '@/lib/navHint';
 
 export default function AlbumPage() {
@@ -51,7 +49,7 @@ export default function AlbumPage() {
 
   return (
     <Show when={query.isError} fallback={
-      <Show when={hasContent()} fallback={<AlbumSkeleton />}>
+      <Show when={hasContent()}>
         <AlbumVideoBackdrop tracks={tracks()} />
         <div class="relative z-[1]">
           <DetailHeader
@@ -67,7 +65,7 @@ export default function AlbumPage() {
             onPlay={() => playList(tracks(), 0, { type: 'album', title: title() })}
             onShuffle={() => shuffleList(tracks(), { type: 'album', title: title() })}
           />
-          <Show when={tracks().length > 0} fallback={<DetailSkeleton header={false} rows={10} />}>
+          <Show when={tracks().length > 0}>
             <TrackList
               tracks={tracks()}
               variant="album"

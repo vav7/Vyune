@@ -1,22 +1,16 @@
-import { lazy, Suspense, type Component, type JSX } from 'solid-js';
+import { lazy, Suspense, type Component } from 'solid-js';
 import { api } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { matchPath } from '@/lib/matchPath';
 import HomePage from '@/pages/HomePage';
 import PlaylistPage from '@/pages/PlaylistPage';
 import AlbumPage from '@/pages/AlbumPage';
-import {
-  ArtistSkeleton,
-  PlainSkeleton,
-  SearchSkeleton,
-} from '@/skeletons/PageSkeletons';
 
 type PageModule = { default: Component<Record<string, never>> };
 
 export interface PageRoute {
   path: string;
   load: () => Promise<PageModule>;
-  skeleton?: JSX.Element;
   /** The route component, built ONCE at module scope. */
   component: Component<Record<string, never>>;
 }
@@ -24,14 +18,13 @@ export interface PageRoute {
 interface PageDefinition {
   path: string;
   load: () => Promise<PageModule>;
-  skeleton?: JSX.Element;
   component?: Component<Record<string, never>>;
 }
 
 /**
  * Core pages (Home, Playlist, Album) are mounted directly for instant, zero-delay
  * frame-1 transitions with no black screens or chunk-loading suspense.
- * Heavy secondary pages (Search, Artist, Browse) are lazy-loaded behind skeletons.
+ * Heavy secondary pages (Search, Artist, Browse) load cleanly without flashing skeletons.
  */
 const definitions: PageDefinition[] = [
   {
@@ -39,12 +32,11 @@ const definitions: PageDefinition[] = [
     load: () => Promise.resolve({ default: HomePage }),
     component: HomePage,
   },
-  { path: '/search', load: () => import('@/pages/SearchPage') as Promise<PageModule>, skeleton: <SearchSkeleton /> },
-  { path: '/browse', load: () => import('@/pages/BrowsePage') as Promise<PageModule>, skeleton: <PlainSkeleton /> },
+  { path: '/search', load: () => import('@/pages/SearchPage') as Promise<PageModule> },
+  { path: '/browse', load: () => import('@/pages/BrowsePage') as Promise<PageModule> },
   {
     path: '/genre/:params/:label',
     load: () => import('@/pages/GenrePage') as Promise<PageModule>,
-    skeleton: <PlainSkeleton />,
   },
   {
     path: '/album/:id',
@@ -54,36 +46,33 @@ const definitions: PageDefinition[] = [
   {
     path: '/artist/:id',
     load: () => import('@/pages/ArtistPage') as Promise<PageModule>,
-    skeleton: <ArtistSkeleton />,
   },
   {
     path: '/playlist/:id',
     load: () => Promise.resolve({ default: PlaylistPage }),
     component: PlaylistPage,
   },
-  { path: '/queue', load: () => import('@/pages/QueuePage') as Promise<PageModule>, skeleton: <PlainSkeleton /> },
+  { path: '/queue', load: () => import('@/pages/QueuePage') as Promise<PageModule> },
   {
     path: '/favorites',
     load: () => import('@/pages/FavoritesPage') as Promise<PageModule>,
-    skeleton: <PlainSkeleton />,
   },
   {
     path: '/t/:id',
     load: () => import('@/pages/TrackSharePage') as Promise<PageModule>,
-    skeleton: <PlainSkeleton />,
   },
 ];
 
 /**
  * The route component, built ONCE at module scope: direct components mount on frame 1;
- * lazy components use Suspense only while their secondary bundle arrives.
+ * lazy components use Suspense only while their secondary bundle arrives with no flashing skeletons.
  */
 function routeComponent(def: PageDefinition): Component<Record<string, never>> {
   if (def.component) return def.component;
   const Page = lazy(def.load);
   return function PageRoute() {
     return (
-      <Suspense fallback={def.skeleton}>
+      <Suspense fallback={null}>
         <Page />
       </Suspense>
     );

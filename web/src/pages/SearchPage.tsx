@@ -16,7 +16,6 @@ import { useQuery } from '@tanstack/solid-query';
 import { useNavigate, useSearchParams } from '@solidjs/router';
 import { ListEnd, Play, X } from 'lucide-solid';
 import { PrefetchLink } from '@/components/PrefetchLink';
-import { SkeletonBlock, SkeletonLine } from '@/components/Skeleton';
 import { Artwork } from '@/components/music/Artwork';
 import { TrackMenu } from '@/components/music/TrackMenu';
 import { formatDuration, hrefFor } from '@/components/music/links';
@@ -137,24 +136,6 @@ function BrowseRow(props: { item: BrowseItem; onOpen?: () => void }) {
     </PrefetchLink>
   );
 }
-
-function SongSkeletonRow() {
-  return (
-    <div class="flex items-center gap-3.5 px-2 py-2" aria-hidden="true">
-      <SkeletonBlock width="48px" height="48px" radius="6px" />
-      <div class="flex flex-1 flex-col gap-1.5">
-        <SkeletonLine lineHeight={18} fontSize={15} width="55%" />
-        <SkeletonLine lineHeight={15} fontSize={12} width="35%" />
-      </div>
-    </div>
-  );
-}
-
-const Skeletons = (props: { count: number }) => (
-  <div aria-busy="true">
-    <For each={Array.from({ length: props.count }, (_, i) => i)}>{() => <SongSkeletonRow />}</For>
-  </div>
-);
 
 const SectionTitle = (props: { children: JSX.Element }) => (
   <h2 class="mx-2 mb-1 mt-5 type-title-3-emphasized">{props.children}</h2>
@@ -436,14 +417,16 @@ export default function SearchPage() {
           <button class="mt-4 inline-flex h-9 items-center rounded-pill bg-key-bg px-5 type-body-emphasized text-white" onClick={() => void first.refetch()}>Try Again</button>
         </div>
       }>
-        <Show when={!first.isPending} fallback={<Skeletons count={8} />}>
+        <Show when={!first.isPending || rows().length > 0}>
           <Show
             when={rows().length > 0}
             fallback={
-              <div class="mx-2 mt-10 text-center">
-                <p class="type-title-3">No results</p>
-                <p class="mt-1 type-callout text-secondary">Try a different spelling, or another filter.</p>
-              </div>
+              <Show when={!first.isPending}>
+                <div class="mx-2 mt-10 text-center">
+                  <p class="type-title-3">No results</p>
+                  <p class="mt-1 type-callout text-secondary">Try a different spelling, or another filter.</p>
+                </div>
+              </Show>
             }
           >
             <Show
@@ -484,9 +467,6 @@ export default function SearchPage() {
               </For>
             </Show>
             <div ref={setSentinelEl} class="h-px" aria-hidden="true" />
-            <Show when={loadingMore()}>
-              <Skeletons count={3} />
-            </Show>
           </Show>
         </Show>
       </Show>

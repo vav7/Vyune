@@ -16,7 +16,6 @@ import { api } from '@/lib/api';
 import { useArtworkColor } from '@/lib/artworkColor';
 import { usePageTint } from '@/lib/usePageTint';
 import { playerStore } from '@/store/player';
-import { ArtistSkeleton } from '@/skeletons/PageSkeletons';
 import type { DiscoItem } from '@/lib/types';
 import { AppleArtistBanner } from '@/components/music/AppleArtistBanner';
 import { MotionFrost } from '@/components/music/MotionFrost';
@@ -116,7 +115,7 @@ export default function ArtistPage() {
   });
 
   return (
-    <Show when={query.data?.id === id() ? query.data : undefined} keyed fallback={<Show when={query.isError} fallback={<ArtistSkeleton />}><LoadError error={query.error} onRetry={() => void query.refetch()} /></Show>}>
+    <Show when={query.data?.id === id() ? query.data : undefined} keyed fallback={<Show when={query.isError}><LoadError error={query.error} onRetry={() => void query.refetch()} /></Show>}>
       {(artist) => {
         const audience = [artist.listeners ? `${artist.listeners} monthly listeners` : null, artist.subscribers ? `${artist.subscribers} subscribers` : null]
           .filter(Boolean)

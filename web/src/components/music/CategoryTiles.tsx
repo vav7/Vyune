@@ -306,21 +306,21 @@ export function CustomCurator() {
 
       {/* Playlist results scroller */}
       <div class="mt-5">
-        <Show when={query.isPending}>
+        <Show when={query.isPending && items().length === 0}>
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5" aria-busy="true">
             <For each={[1, 2, 3, 4, 5, 6]}>
               {() => (
                 <div class="flex flex-col gap-2">
-                  <div class="aspect-square w-full rounded-[14px] bg-white/5 animate-pulse" />
-                  <div class="h-3.5 w-3/4 rounded bg-white/5 animate-pulse" />
-                  <div class="h-3 w-1/2 rounded bg-white/5 animate-pulse" />
+                  <div class="aspect-square w-full rounded-[14px] bg-white/5" />
+                  <div class="h-3.5 w-3/4 rounded bg-white/5" />
+                  <div class="h-3 w-1/2 rounded bg-white/5" />
                 </div>
               )}
             </For>
           </div>
         </Show>
 
-        <Show when={!query.isPending && items().length > 0}>
+        <Show when={items().length > 0}>
           <ShelfScroller kind="square">
             <For each={items()}>
               {(card) => (

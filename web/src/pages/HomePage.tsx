@@ -10,7 +10,6 @@ import { cardItem } from '@/components/music/types';
 import { api } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { playerStore } from '@/store/player';
-import { ShelfSkeleton } from '@/skeletons/ShelfSkeleton';
 import { setNavHint } from '@/lib/navHint';
 import { prewarmArtworkColor } from '@/lib/artworkColor';
 
@@ -87,7 +86,6 @@ export default function HomePage() {
     });
   });
 
-  const loading = createMemo(() => home.isPending);
   const shelves = createMemo(() =>
     !home.isPending && curated().length === 0 && chartPlaylists().length
       ? [
@@ -105,7 +103,6 @@ export default function HomePage() {
     <>
       <h1 class="sr-only">Home</h1>
       <HomeHero tracks={[...globalTracks(), ...(charts()?.tracks || [])]} />
-      {loading() && curated().length === 0 && <ShelfSkeleton kind="tracks" />}
       <Shelves shelves={curated()} />
       <Shelves shelves={shelves()} />
       {recent().length > 0 && <TrackShelf title="Recently Played" to="/queue" tracks={recent()} />}

@@ -9289,16 +9289,7 @@ export class AmLyrics extends LitElement {
 
     const renderContent = () => {
       if (this.isLoading) {
-        // Render stylized skeleton lines
-        return html`
-          <div class="skeleton-line"></div>
-          <div class="skeleton-line"></div>
-          <div class="skeleton-line"></div>
-          <div class="skeleton-line"></div>
-          <div class="skeleton-line"></div>
-          <div class="skeleton-line"></div>
-          <div class="skeleton-line"></div>
-        `;
+        return html``;
       }
       if (!this.lyrics || this.lyrics.length === 0) {
         return html`<div class="no-lyrics">No lyrics found.</div>`;

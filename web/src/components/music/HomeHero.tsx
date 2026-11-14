@@ -52,7 +52,7 @@ export function HomeHero(props: { tracks: Track[] }) {
   const artists = (t: Track) => (t.artists || []).join(', ');
 
   return (
-    <Show when={current()} fallback={<div class="hero-skeleton" aria-hidden="true"><i /><i /><i /></div>}>
+    <Show when={current()} fallback={<div class="min-h-[clamp(340px,50vh,500px)]" aria-hidden="true" />}>
       <section
         class="hero-stage relative isolate -mt-8 overflow-hidden max-sm:-mt-[var(--mobile-top-bar-height)]"
         aria-roledescription="carousel"

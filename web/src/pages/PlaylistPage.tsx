@@ -14,8 +14,6 @@ import { api } from '@/lib/api';
 import { useArtworkColor } from '@/lib/artworkColor';
 import { usePageTint } from '@/lib/usePageTint';
 import { detailFooter } from '@/pages/pageStyles';
-import { PlaylistSkeleton } from '@/skeletons/PageSkeletons';
-import { DetailSkeleton } from '@/skeletons/DetailSkeleton';
 import { getNavHint } from '@/lib/navHint';
 import { queryClient } from '@/lib/queryClient';
 import { createEffect } from 'solid-js';
@@ -74,7 +72,7 @@ export default function PlaylistPage() {
 
   return (
     <Show when={query.isError} fallback={
-      <Show when={hasContent()} fallback={<PlaylistSkeleton />}>
+      <Show when={hasContent()}>
         <AlbumVideoBackdrop tracks={tracks()} />
         <div class="relative z-[1]">
           <DetailHeader
@@ -88,7 +86,7 @@ export default function PlaylistPage() {
             onPlay={() => playList(tracks(), 0, { type: 'playlist', title: title() })}
             onShuffle={() => shuffleList(tracks(), { type: 'playlist', title: title() })}
           />
-          <Show when={tracks().length > 0} fallback={<DetailSkeleton header={false} rowArtwork rows={8} />}>
+          <Show when={tracks().length > 0}>
             <TrackList
               tracks={tracks()}
               variant="playlist"
