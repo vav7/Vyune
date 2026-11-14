@@ -547,8 +547,11 @@ export function LyricPreview() {
           )}
         </Show>
         <Show when={state() === 'instrumental'}>
-          <div class="inline-flex items-center gap-2 text-white/90 font-semibold">
-            <span class="text-[14px]">🎵 Instrumental</span>
+          <div class="inline-flex items-center gap-2 text-white font-semibold">
+            <svg class="size-4 text-white inline-block -mt-0.5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+            </svg>
+            <span class="text-[14px] text-white">Instrumental</span>
           </div>
         </Show>
         <Show when={state() === 'vocals' || state() === 'loading'}>

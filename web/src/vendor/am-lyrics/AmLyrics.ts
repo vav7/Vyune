@@ -1069,8 +1069,16 @@ export class AmLyrics extends LitElement {
     /* Paint the glow once, then composite its opacity. Animating text-shadow
        on every glyph forces text rasterization throughout the rise. */
     .lyrics-line.active .char.native-motion[data-glow]::after {
-      display: none !important;
-      content: none !important;
+      content: attr(data-glyph);
+      position: absolute;
+      inset: 0;
+      padding-inline: 0.04em;
+      pointer-events: none;
+      color: transparent;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 0.35em rgba(255, 255, 255, 0.75);
+      animation: char-glow var(--char-glow-duration) linear
+        var(--char-glow-delay) both;
     }
 
     @keyframes char-glow {
@@ -5772,8 +5780,9 @@ export class AmLyrics extends LitElement {
     // 0x2f4080 detects Chinese/Japanese; Hangul is not part of that predicate.
     // Keep connected RTL scripts intact in the browser renderer.
     if (/[\u0590-\u08ff]/.test(text)) return 'none';
-    // Allow Devanagari (\u0900-\u097f) by grapheme clusters; protect other complex scripts:
-    if (/[\u0980-\u0dff\u0e00-\u0fff\u1000-\u109f\u1780-\u17ff\u200c\u200d]/.test(text)) return 'none';
+    // Indic, Thai, Lao, Tibetan, Myanmar, Khmer shape vowel signs (matras) and conjuncts
+    // around their base letter. Keep whole words intact so shirorekha and ligatures never collide or break.
+    if (/[\u0900-\u0fff\u1000-\u109f\u1780-\u17ff\u200c\u200d]/.test(text)) return 'none';
     const count = AmLyrics.getGraphemes(text.trim()).length;
     if (!count) return 'none';
     if (/[\u3400-\u4dbf\u4e00-\u9fff\u3040-\u30ff]/.test(text)) {
@@ -8657,7 +8666,7 @@ export class AmLyrics extends LitElement {
       const hold = (2 * duration) / count;
       const response = Math.min(3, duration);
       const emphasis = cjk ? 0 : AmLyrics.clamp((duration - 0.5) / 0.8, 0.4, 1.2);
-      const glow = 0;
+      const glow = cjk ? 0 : 0.5 * AmLyrics.clamp((duration - 0.5) / 0.8, 0, 1);
       const spanDuration = Math.max(hold + response * 2, cjk ? 3 : 0);
       chars.forEach((char, index) => {
         const startDelay = (index + 1) * delayMs;
@@ -8691,11 +8700,12 @@ export class AmLyrics extends LitElement {
               const maxSpread = 0.14 * noteFactor;
               const step = count > 1 ? Math.min(0.035 * noteFactor, maxSpread / (count - 1)) : 0;
               const x = (index - (count - 1) / 2) * step * envelope;
-              const lift = (1.8 + 2.0 * noteFactor) * envelope;
-              const scale = 1 + (0.03 + 0.04 * noteFactor) * envelope;
+              const tilt = (index - (count - 1) / 2) * 1.2 * noteFactor * envelope;
+              const lift = (2.2 + 2.0 * noteFactor) * envelope;
+              const scale = 1 + (0.04 + 0.05 * noteFactor) * envelope;
               return {
                 offset: frame / 60,
-                transform: `translate(calc(${x}em * var(--am-lyrics-lift)), calc((var(--char-rise-y) * ${rise} - ${lift}px) * var(--am-lyrics-lift))) scale(${scale})`,
+                transform: `translate(calc(${x}em * var(--am-lyrics-lift)), calc((var(--char-rise-y) * ${rise} - ${lift}px) * var(--am-lyrics-lift))) rotate(${tilt}deg) scale(${scale})`,
               };
             });
             if (AmLyrics.characterFrames.size >= 64) {

@@ -207,10 +207,12 @@
   position: relative;
   display: flex;
   align-items: center;
-  height: 30px;
-  margin: 10px 0 2px;
+  height: 26px;
+  margin: 0 0 -2px;
   overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", "SF Pro Text", "SF Pro", -apple-system-body, "Helvetica Neue", system-ui, sans-serif !important;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 .fs-oneline[data-overflow='true'] {
   -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
@@ -222,7 +224,7 @@
   font-weight: 700;
   line-height: 1.5;
   letter-spacing: -0.022em;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", "SF Pro Text", "SF Pro", -apple-system-body, "Helvetica Neue", system-ui, sans-serif !important;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif !important;
   white-space: nowrap;
   will-change: transform, opacity;
 }
@@ -230,7 +232,7 @@
   margin: 0;
   white-space: nowrap;
   font-weight: 700;
-  font-family: inherit;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif !important;
 }
 .fs-oneline-words--solid {
   color: rgb(255 255 255 / 0.95);

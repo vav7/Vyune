@@ -46,7 +46,7 @@ function useBrowserFullScreen() {
 function Scrubber() {
   const { setBarRef, setElapsedRef, setRemainingRef, dragging, handlers } = useScrubber();
   return (
-    <div class="group/scrub mt-3.5" data-dragging={dragging() || undefined}>
+    <div class="group/scrub mt-1" data-dragging={dragging() || undefined}>
       {/* A taller hit area than the line it carries. */}
       <div class="group/hit flex h-4 cursor-pointer touch-none items-center" {...handlers}>
         <div
@@ -503,7 +503,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
               {/* Not in lyrics or Up Next: the track's names, the line being sung, the seek bar and the transport, beside the artwork. */}
               <Show when={!column()}>
                 <section class="flex min-h-0 min-w-0 animate-fade-in flex-col justify-center" aria-label="Now playing controls">
-                  <div class="mb-3 flex items-start justify-between gap-4">
+                  <div class="mb-2 flex items-start justify-between gap-4">
                     <div class="min-w-0 flex-1">
                       <h1 class="flex min-w-0 items-center gap-2 text-[clamp(28px,3vw,40px)] leading-[1.15] font-bold tracking-[-0.038em] [font-family:var(--font-family)]">
                         <SongTitle

@@ -68,17 +68,21 @@
  *   • a soft drop shadow.
  */
 .sidebar-glass,
-.search-glass {
+.search-glass,
+.panel-glass,
+.mc-col-panel > aside {
   isolation: isolate;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.01) 40%, transparent 100%),
-    rgba(20, 20, 24, 0.78);
-  backdrop-filter: blur(50px) saturate(190%);
-  -webkit-backdrop-filter: blur(50px) saturate(190%);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.02) 42%, rgba(0, 0, 0, 0.22) 100%),
+    rgba(18, 18, 22, 0.78);
+  backdrop-filter: blur(40px) saturate(200%) brightness(1.04);
+  -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.04);
   box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
-    0 20px 48px -12px rgba(0, 0, 0, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+    0 24px 60px -16px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.32),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px !important;
 }
 
@@ -86,14 +90,16 @@
 .glass-card {
   isolation: isolate;
   background:
-    linear-gradient(165deg, color-mix(in srgb, var(--amb1, #3a3a48) 26%, rgb(255 255 255 / 0.09)), rgb(255 255 255 / 0.05) 55%, color-mix(in srgb, var(--amb2, #2a2a36) 22%, rgb(255 255 255 / 0.06))),
-    rgb(22 22 28 / 0.56);
-  backdrop-filter: blur(40px) saturate(1.8);
-  -webkit-backdrop-filter: blur(40px) saturate(1.8);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 45%, rgba(0, 0, 0, 0.16) 100%),
+    rgba(22, 22, 28, 0.68);
+  backdrop-filter: blur(40px) saturate(200%) brightness(1.04);
+  -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.04);
   box-shadow:
-    inset 0 0 0 0.5px rgb(255 255 255 / 0.16),
-    inset 0 1px 0 rgb(255 255 255 / 0.22),
-    0 24px 60px -28px rgb(0 0 0 / 0.7);
+    0 20px 50px -16px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.30),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 /* Their old sheen and rim layers are retired: one box, one edge. */
 .sidebar-glass::before, .sidebar-glass::after,
@@ -126,10 +132,24 @@ html[data-dock-hover='sidebar'] .sidebar-glass {
 
 /* The big pane on the right and the docked side panel. */
 @media (min-width: 768px) {
-  .mc-col-page { border-radius: var(--r-xl); background-clip: padding-box; box-shadow: 0 0 0 0.5px var(--hairline), 0 30px 70px -36px rgb(0 0 0 / 0.7); }
+  .mc-col-page {
+    border-radius: 14px !important;
+    background-clip: padding-box;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.015) 40%, rgba(0, 0, 0, 0.18) 100%),
+      rgba(16, 16, 20, 0.74);
+    backdrop-filter: blur(40px) saturate(200%) brightness(1.04);
+    -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.04);
+    box-shadow:
+      0 24px 60px -16px rgba(0, 0, 0, 0.65),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.30),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+      inset 0 -1px 0 0 rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
 }
 @media (min-width: 1180px) {
-  .mc-col-panel > aside:not([class*='fixed']) { border-radius: var(--r-xl); }
+  .mc-col-panel > aside:not([class*='fixed']) { border-radius: 14px !important; }
 }
 
 /* Artwork and cards keep ONE shared curve across the frame, the image and the overlays on it. */
