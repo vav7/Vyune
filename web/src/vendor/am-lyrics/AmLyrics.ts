@@ -166,8 +166,8 @@ export class AmLyrics extends LitElement {
       --lyplus-padding-line: 10px;
       --lyplus-padding-gap: 0.3em;
       --lyplus-border-radius-base: 0.6em;
-      --lyplus-gap-dot-size: 0.4em;
-      --lyplus-gap-dot-margin: 0.08em;
+      --lyplus-gap-dot-size: 0.58em;
+      --lyplus-gap-dot-margin: 0.22em;
 
       --lyplus-font-size-base: 34px;
       --lyplus-font-size-base-grow: 24.5;
@@ -1351,8 +1351,11 @@ export class AmLyrics extends LitElement {
       display: inline-block;
       width: var(--lyplus-gap-dot-size);
       height: var(--lyplus-gap-dot-size);
+      min-width: 15px;
+      min-height: 15px;
+      aspect-ratio: 1 / 1;
       background-color: var(--lyplus-text-primary);
-      border-radius: 50%;
+      border-radius: 50% !important;
       margin: 0 var(--lyplus-gap-dot-margin);
     }
 
@@ -5744,6 +5747,22 @@ export class AmLyrics extends LitElement {
         : false;
   }
 
+  private static graphemeSegmenter =
+    typeof Intl !== 'undefined' && (Intl as any).Segmenter
+      ? new (Intl as any).Segmenter(undefined, { granularity: 'grapheme' })
+      : null;
+
+  public static getGraphemes(text: string): string[] {
+    if (!text) return [];
+    if (AmLyrics.graphemeSegmenter) {
+      return Array.from(
+        AmLyrics.graphemeSegmenter.segment(text),
+        (s: any) => s.segment,
+      );
+    }
+    return Array.from(text);
+  }
+
   private static characterMotionMode(
     text: string,
     durationMs: number,
@@ -5753,11 +5772,9 @@ export class AmLyrics extends LitElement {
     // 0x2f4080 detects Chinese/Japanese; Hangul is not part of that predicate.
     // Keep connected RTL scripts intact in the browser renderer.
     if (/[\u0590-\u08ff]/.test(text)) return 'none';
-    // VYUNE: Indic, Thai, Lao, Tibetan, Myanmar, Khmer shape vowel signs (matras) and conjuncts
-    // around their base letter. Splitting those into per-character spans pulls the matras
-    // apart from their letters, so they are always drawn as whole words.
-    if (/[\u0900-\u0fff\u1000-\u109f\u1780-\u17ff\u200c\u200d]/.test(text)) return 'none';
-    const count = Array.from(text.trim()).length;
+    // Allow Devanagari (\u0900-\u097f) by grapheme clusters; protect other complex scripts:
+    if (/[\u0980-\u0dff\u0e00-\u0fff\u1000-\u109f\u1780-\u17ff\u200c\u200d]/.test(text)) return 'none';
+    const count = AmLyrics.getGraphemes(text.trim()).length;
     if (!count) return 'none';
     if (/[\u3400-\u4dbf\u4e00-\u9fff\u3040-\u30ff]/.test(text)) {
       return count > 1 ? 'rise' : 'none';
@@ -7740,7 +7757,7 @@ export class AmLyrics extends LitElement {
       fragments,
       segments,
       width,
-      count: Array.from(text).length,
+      count: AmLyrics.getGraphemes(text).length,
       cjk: /[\u3400-\u4dbf\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(text),
       start,
       end,
@@ -8670,12 +8687,15 @@ export class AmLyrics extends LitElement {
                 ? 0
                 : AmLyrics.springProgress(time, response) *
                   (1 - AmLyrics.springProgress(time - hold, response));
-              const x =
-                (index - (count - 1) / 2) * 0.14 * emphasis * envelope;
-              const lift = 4.5 * emphasis * envelope;
+              const noteFactor = AmLyrics.clamp((duration - 0.4) / 1.6, 0.35, 1.0);
+              const maxSpread = 0.14 * noteFactor;
+              const step = count > 1 ? Math.min(0.035 * noteFactor, maxSpread / (count - 1)) : 0;
+              const x = (index - (count - 1) / 2) * step * envelope;
+              const lift = (1.8 + 2.0 * noteFactor) * envelope;
+              const scale = 1 + (0.03 + 0.04 * noteFactor) * envelope;
               return {
                 offset: frame / 60,
-                transform: `translate(calc(${x}em * var(--am-lyrics-lift)), calc((var(--char-rise-y) * ${rise} - ${lift}px) * var(--am-lyrics-lift))) scale(${1 + 0.15 * emphasis * envelope})`,
+                transform: `translate(calc(${x}em * var(--am-lyrics-lift)), calc((var(--char-rise-y) * ${rise} - ${lift}px) * var(--am-lyrics-lift))) scale(${scale})`,
               };
             });
             if (AmLyrics.characterFrames.size >= 64) {
@@ -9350,7 +9370,7 @@ export class AmLyrics extends LitElement {
                       backingWord.end - backingWord.start,
                       true,
                     ) !== 'none'
-                      ? Array.from(syllable.text.replace(/\s/g, ''))
+                      ? AmLyrics.getGraphemes(syllable.text.replace(/\s/g, ''))
                       : [];
                   let bgCharIndex = 0;
                   return html`<span
@@ -9379,7 +9399,7 @@ export class AmLyrics extends LitElement {
                           .length}"
                         data-wipe-ratio="1"
                         >${bgChars.length
-                          ? Array.from(syllable.text).map(char => {
+                          ? AmLyrics.getGraphemes(syllable.text).map(char => {
                               if (/\s/.test(char)) return char;
                               const index = bgCharIndex;
                               bgCharIndex += 1;
@@ -9488,7 +9508,7 @@ export class AmLyrics extends LitElement {
                 let syllableContent: any = text;
 
                 if (animateSyllable) {
-                  syllableContent = html`${Array.from(text).map(char => {
+                  syllableContent = html`${AmLyrics.getGraphemes(text).map(char => {
                     if (char === ' ') return ' ';
 
                     const charIndexInsideWord =

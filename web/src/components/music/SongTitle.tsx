@@ -47,7 +47,7 @@ export function SongTitle(props: {
           {renderMain(parts().main)}
         </span>
         <Marquee
-          class={`min-w-0 flex-1 opacity-70 ${props.tailClass ?? ''}`}
+          class={`min-w-0 flex-1 text-inherit font-normal opacity-95 ${props.tailClass ?? ''}`}
           render={() => (
             <Show when={props.href} fallback={<span>{parts().tail}</span>}>
               <PrefetchLink to={props.href!} class="hover:underline">

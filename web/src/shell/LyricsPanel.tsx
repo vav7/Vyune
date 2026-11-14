@@ -528,7 +528,7 @@ export function LyricPreview() {
         ref={box}
         class="fs-oneline-line"
         style={{
-          'font-family': "-apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'SF Pro Display', 'SF Pro Text', 'SF Pro', 'Helvetica Neue', system-ui, sans-serif !important",
+          'font-family': "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif !important",
           'font-weight': '700',
           'letter-spacing': '-0.022em',
         }}
@@ -547,19 +547,13 @@ export function LyricPreview() {
           )}
         </Show>
         <Show when={state() === 'instrumental'}>
-          <div class="inline-flex items-center gap-2 text-white/80 font-medium">
+          <div class="inline-flex items-center gap-2 text-white/90 font-semibold">
             <span class="text-[14px]">🎵 Instrumental</span>
-            <span class="mc-kinetic-note ml-1" role="img" aria-label="Instrumental">
-              <i /><i /><i />
-            </span>
           </div>
         </Show>
         <Show when={state() === 'vocals' || state() === 'loading'}>
-          <div class="inline-flex items-center gap-2 text-white/60 font-medium italic text-[14px]">
+          <div class="inline-flex items-center gap-2 text-white/70 font-semibold text-[14px]">
             <span>{annotation()}</span>
-            <span class="mc-kinetic-note ml-1" role="img" aria-label="Starting">
-              <i /><i /><i />
-            </span>
           </div>
         </Show>
       </div>

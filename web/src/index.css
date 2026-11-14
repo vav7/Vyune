@@ -757,7 +757,7 @@
   /* The player chrome stays on its own layer. */
 }
 
-@media (min-width: 1180px) {
+@media (min-width: 768px) {
   html[data-panel='open'] .mc-frame {
     grid-template-columns: var(--web-navigation-width) minmax(0, 1fr) var(--side-panel-width);
   }
@@ -803,24 +803,6 @@
 }
 
 /* Responsive breakpoints matching the tokens. */
-@media (max-width: 1179.99px) {
-  .mc-frame {
-    grid-template-columns: var(--web-navigation-width) 1fr;
-    grid-template-areas:
-      'sidebar page'
-      'sidebar panel';
-  }
-  .mc-col-sidebar { grid-area: sidebar; }
-  .mc-col-page { grid-area: page; }
-  .mc-col-panel {
-    grid-area: panel;
-    position: fixed;
-    inset: 0;
-    z-index: var(--z-web-chrome);
-  }
-  .mc-col-panel > aside { position: relative; }
-}
-
 @media (max-width: 767.99px) {
   .mc-frame {
     grid-template-columns: 0 1fr;
@@ -866,18 +848,7 @@
 
 .mc-frame { position: relative; isolation: isolate; }
 .mc-ambient {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(34vw 62vh at 4% 8%, var(--amb1), transparent 72%),
-    radial-gradient(30vw 56vh at 10% 62%, var(--amb2), transparent 72%),
-    radial-gradient(26vw 48vh at 2% 100%, var(--amb3), transparent 72%),
-    radial-gradient(22vw 40vh at 18% 30%, var(--amb4), transparent 74%),
-    #0a0a0e;
-  opacity: 0.5;
-  transition: --amb1 1s ease, --amb2 1s ease, --amb3 1s ease, --amb4 1s ease;
+  display: none !important;
 }
 
 /* ------------------------------------------------------------------ */
@@ -975,9 +946,9 @@
 /* ------------------------------------------------------------------ */
 @media (min-width: 768px) {
   .mc-col-page {
-    margin: 6px 6px 6px 0;
-    height: calc(100% - 12px);
-    border-radius: 16px;
+    margin: 4px 4px 4px 0;
+    height: calc(100% - 8px);
+    border-radius: 14px;
     /* The page IS the scroller. This rule is unlayered, so it beats Tailwind's layered
        overflow-y-auto: hiding overflow here (as before) is what killed scrolling. */
     overflow-x: hidden;
@@ -985,15 +956,14 @@
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
   }
-  html[data-sidebar='hidden'] .mc-col-page { margin-left: 6px; }
-}
-@media (min-width: 1180px) {
+  html[data-sidebar='hidden'] .mc-col-page { margin-left: 4px; }
   html[data-panel='open'] .mc-col-page { margin-right: 0px; }
   .mc-col-panel > aside:not([class*='fixed']) {
-    inset-block: 6px !important;
-    right: 6px !important;
+    inset-block: 4px !important;
+    right: 4px !important;
     height: auto;
-    width: calc(var(--side-panel-width) - 12px) !important;
+    width: calc(var(--side-panel-width) - 8px) !important;
+    border-radius: 14px !important;
   }
 }
 
