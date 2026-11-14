@@ -530,9 +530,14 @@ export default function SearchPage() {
     <Show
       when={searchHistory.entries().length}
       fallback={
-        <div class="mx-2 mt-16 text-center">
-          <p class="type-title-3">Search</p>
-          <p class="mt-1 type-callout text-secondary">Find songs, artists, albums and playlists.</p>
+        <div class="mx-2 mt-20 flex flex-col items-center justify-center text-center">
+          <div class="mb-4 grid size-16 place-items-center rounded-2xl bg-white/[0.14] text-white/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_12px_28px_-6px_rgba(0,0,0,0.4)] [backdrop-filter:blur(24px)]">
+            <svg viewBox="0 0 24 24" class="size-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" />
+            </svg>
+          </div>
+          <p class="type-title-2-emphasized text-white tracking-tight font-bold">Search</p>
+          <p class="mt-1.5 max-w-sm type-callout text-white/65">Find songs, artists, albums and playlists.</p>
         </div>
       }
     >
@@ -563,7 +568,7 @@ export default function SearchPage() {
     <Portal>
       <Show when={!playerStore.fullscreen}>
         <div
-          class="search-sheet search-glass fixed top-1 right-1 bottom-1 left-[max(4px,var(--web-navigation-width))] z-[calc(var(--z-web-chrome)-2)] flex flex-col overflow-hidden rounded-[14px] text-primary animate-[fade-in_200ms_ease-out_both] max-md:inset-0 max-md:rounded-none"
+          class="search-sheet search-glass fixed top-[3px] right-[3px] bottom-[3px] left-[max(3px,var(--web-navigation-width))] z-[calc(var(--z-web-chrome)-2)] flex flex-col overflow-hidden rounded-[14px] text-primary animate-[fade-in_200ms_ease-out_both] max-md:inset-0 max-md:rounded-none"
           role="dialog"
           aria-label="Search"
           data-search-sheet
@@ -581,7 +586,7 @@ export default function SearchPage() {
             />
             <button
               type="button"
-              class="absolute right-(--body-gutter) grid h-10 place-items-center rounded-full bg-white/[0.12] px-4 type-callout-emphasized text-white transition-all hover:bg-white/[0.22] hover:scale-[1.03] active:scale-[0.96] shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] max-sm:px-3"
+              class="absolute right-(--body-gutter) grid h-10 place-items-center rounded-full bg-white/[0.15] px-4 type-callout-emphasized text-white transition-all hover:bg-white/[0.24] hover:scale-[1.03] active:scale-[0.96] shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] max-sm:px-3"
               aria-label="Close search"
               onClick={leave}
             >

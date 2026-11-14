@@ -247,7 +247,7 @@ export function TrackList(props: TrackListProps) {
     },
     getScrollElement: () => scrollElement() as HTMLElement | null,
     estimateSize: () => ROW_HEIGHT[props.variant],
-    overscan: 50,
+    overscan: 10,
     get scrollMargin() {
       return listTop();
     },

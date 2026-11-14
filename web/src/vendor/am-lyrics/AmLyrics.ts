@@ -1076,7 +1076,7 @@ export class AmLyrics extends LitElement {
       pointer-events: none;
       color: transparent;
       -webkit-text-fill-color: transparent;
-      text-shadow: 0 0 0.35em rgba(255, 255, 255, 0.75);
+      text-shadow: 0 0 0.15em rgba(255, 255, 255, 0.65), 0 0 0.08em rgba(255, 255, 255, 0.4);
       animation: char-glow var(--char-glow-duration) linear
         var(--char-glow-delay) both;
     }
@@ -8666,7 +8666,7 @@ export class AmLyrics extends LitElement {
       const hold = (2 * duration) / count;
       const response = Math.min(3, duration);
       const emphasis = cjk ? 0 : AmLyrics.clamp((duration - 0.5) / 0.8, 0.4, 1.2);
-      const glow = cjk ? 0 : 0.5 * AmLyrics.clamp((duration - 0.5) / 0.8, 0, 1);
+      const glow = cjk ? 0 : 0.35 * AmLyrics.clamp((duration - 0.5) / 0.8, 0, 1);
       const spanDuration = Math.max(hold + response * 2, cjk ? 3 : 0);
       chars.forEach((char, index) => {
         const startDelay = (index + 1) * delayMs;

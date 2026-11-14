@@ -25,7 +25,7 @@ export function SearchBar(props: {
   return (
     <form
       role="search"
-      class="sr-field flex h-11 w-full max-w-[640px] items-center gap-2 rounded-full bg-white/[0.12] border border-white/25 [backdrop-filter:blur(40px)_saturate(220%)] px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.38),0_12px_32px_-6px_rgba(0,0,0,0.55)] transition-all duration-200 focus-within:bg-white/[0.2] focus-within:border-white/50 focus-within:shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_16px_40px_-6px_rgba(0,0,0,0.7)]"
+      class="sr-field flex h-11 w-full max-w-[640px] items-center gap-2 rounded-full bg-white/[0.15] border border-white/30 [backdrop-filter:blur(44px)_saturate(220%)] px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_12px_32px_-6px_rgba(0,0,0,0.55)] transition-all duration-200 focus-within:bg-white/[0.24] focus-within:border-white/60 focus-within:shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_16px_40px_-6px_rgba(0,0,0,0.7)]"
       onSubmit={(event) => {
         event.preventDefault();
         props.onSubmit(input.value);

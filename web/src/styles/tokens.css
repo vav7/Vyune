@@ -46,11 +46,11 @@
   --mini-player-height: 52px;
 
   /* ---- Radii ------------------------------------------------------------- */
-  --radius-artwork-small: 10px; /* 40px track rows, horizontal lockups */
-  --radius-artwork-medium: 14px; /* square lockups */
-  --radius-artwork-large: 20px; /* album header, editorial cards */
-  --radius-nav-item: 14px;
-  --radius-track-row: 14px;
+  --radius-artwork-small: 4px; /* 40px track rows, horizontal lockups */
+  --radius-artwork-medium: 6px; /* square lockups */
+  --radius-artwork-large: 8px; /* album header, editorial cards */
+  --radius-nav-item: 8px;
+  --radius-track-row: 8px;
   --radius-pill: 1000px;
 
   /* ---- Motion ------------------------------------------------------------ */

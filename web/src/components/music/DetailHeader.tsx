@@ -45,7 +45,7 @@ export function DetailHeader(props: DetailHeaderProps) {
       <div class="relative w-[270px] self-start rounded-artwork-lg shadow-[0_10px_20px_0_var(--radiosityShadowColor)] [grid-area:artwork] max-lg:w-[220px] max-md:w-[min(270px,70vw)]">
         <Show when={props.thumbnail}>
           {/* A blurred copy behind the artwork: Apple's radiosity glow. */}
-          <div class="absolute inset-0 -z-1 scale-95 opacity-50 blur-[36px] saturate-[2.5]" aria-hidden="true">
+          <div class="absolute inset-0 -z-1 scale-88 opacity-30 blur-[20px] saturate-200" aria-hidden="true">
             <Artwork src={props.thumbnail} displayWidth={80} radius="var(--radius-artwork-large)" />
           </div>
         </Show>

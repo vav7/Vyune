@@ -10,12 +10,12 @@
  */
 
 :root {
-  /* ---- Radii: continuous-corner steps ---- */
-  --r-xs: 6px;   /* progress bars, badges */
-  --r-sm: 10px;  /* thumbnails, chips */
-  --r-md: 14px;  /* rows, inputs, nav items, inner cards */
-  --r-lg: 20px;  /* cards, artwork, popovers */
-  --r-xl: 14px;  /* panes, sheets, middle page, side panel */
+  /* ---- Radii: continuous-corner steps (Apple standard squircle tokens) ---- */
+  --r-xs: 4px;   /* small row art (40px) */
+  --r-sm: 6px;   /* lockup cards, square art */
+  --r-md: 8px;   /* track rows, nav items, album art large */
+  --r-lg: 10px;  /* popovers, chips, playlist rows */
+  --r-xl: 14px;  /* outer panes: sidebar, sheet, main page */
 
   /* ---- Surfaces ---- */
   --surface-1: #121215;
@@ -67,7 +67,6 @@
  *   • inset hairline rim light and refraction highlights.
  */
 .sidebar-glass,
-.search-glass,
 .panel-glass,
 .mc-col-panel > aside {
   isolation: isolate;
@@ -78,10 +77,24 @@
   -webkit-backdrop-filter: blur(50px) saturate(220%) brightness(1.06);
   box-shadow:
     0 24px 60px -16px rgba(0, 0, 0, 0.65),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.35),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
     inset 0 -1px 0 0 rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: none !important;
+  border-radius: 14px !important;
+}
+
+/* Apple Dialog & Search Sheet: luminous frosted white liquid glass */
+.search-glass {
+  isolation: isolate;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.07) 35%, rgba(255, 255, 255, 0.02) 100%),
+    rgba(24, 24, 32, 0.65);
+  backdrop-filter: blur(55px) saturate(220%) brightness(1.12);
+  -webkit-backdrop-filter: blur(55px) saturate(220%) brightness(1.12);
+  box-shadow:
+    0 32px 80px -20px rgba(0, 0, 0, 0.75),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.45);
+  border: none !important;
   border-radius: 14px !important;
 }
 
@@ -95,10 +108,9 @@
   -webkit-backdrop-filter: blur(40px) saturate(210%) brightness(1.05);
   box-shadow:
     0 20px 50px -16px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.32),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.28),
     inset 0 -1px 0 0 rgba(0, 0, 0, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: none !important;
 }
 /* Their old sheen and rim layers are retired: one box, one edge. */
 .sidebar-glass::before, .sidebar-glass::after,
@@ -141,21 +153,40 @@ html[data-dock-hover='sidebar'] .sidebar-glass {
     -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.04);
     box-shadow:
       0 24px 60px -16px rgba(0, 0, 0, 0.65),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.30),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.25),
       inset 0 -1px 0 0 rgba(0, 0, 0, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: none !important;
   }
 }
 @media (min-width: 1180px) {
   .mc-col-panel > aside:not([class*='fixed']) { border-radius: 14px !important; }
 }
 
-/* Artwork and cards keep ONE shared curve across the frame, the image and the overlays on it. */
-.lockup-frame, .lockup-art, .lockup-frame img, .lockup-scrim, .row-art, .row-art-scrim, .track-row { border-radius: var(--r-sm); }
-.lockup-frame, .lockup-frame img, .lockup-scrim { border-radius: var(--r-lg); }
-.curated-row .lockup-frame, .curated-row .lockup-art, .curated-row .lockup-frame img, .curated-row .lockup-scrim { border-radius: var(--r-xl); }
-.track-row { border-radius: var(--r-md); }
+/* Artwork and cards keep ONE shared squircle curve across the frame, the image and the overlays on it. */
+.lockup-frame, .lockup-art, .lockup-frame img, .lockup-scrim {
+  border-radius: var(--radius-artwork-medium, 6px);
+  corner-shape: squircle;
+}
+.row-art, .row-art-scrim, [data-variant='playlist'] .artwork-stroke {
+  border-radius: var(--radius-artwork-small, 4px);
+  corner-shape: squircle;
+}
+.track-row {
+  border-radius: var(--radius-track-row, 8px);
+  corner-shape: squircle;
+}
+.rounded-artwork-lg {
+  border-radius: var(--radius-artwork-large, 8px) !important;
+  corner-shape: squircle;
+}
+.rounded-artwork-sm {
+  border-radius: var(--radius-artwork-small, 4px) !important;
+  corner-shape: squircle;
+}
+.curated-row .lockup-frame, .curated-row .lockup-art, .curated-row .lockup-frame img, .curated-row .lockup-scrim {
+  border-radius: var(--radius-artwork-large, 8px);
+  corner-shape: squircle;
+}
 
 .sq-pill { border-radius: var(--r-lg); }
 /* Anything that borrows its parent's radius borrows the parent's curve too (already true now that corner-shape is universal). */
