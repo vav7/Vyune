@@ -675,6 +675,7 @@ function PlainLyrics(props: { lines: LyricsLine[]; source: string; full: boolean
           class={`mx-auto w-full ${props.full ? 'max-w-[46rem]' : 'max-w-[34rem]'} px-6 sm:px-8 ${
             props.full ? 'pt-12 pb-40' : 'pt-5 pb-24'
           }`}
+          style={{ 'font-family': "-apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'SF Pro Display', 'SF Pro Text', 'SF Pro', 'Helvetica Neue', system-ui, sans-serif" }}
         >
           {props.lines.map((line, index) => {
             const text = line.text.map((part) => part.text).join('').trim();
@@ -701,9 +702,7 @@ function PlainLyrics(props: { lines: LyricsLine[]; source: string; full: boolean
               </p>
             );
           })}
-          <p class="pt-10 text-[11px] tracking-wide text-secondary/45">
-            Lyrics from <span class="text-secondary/70">{props.source}</span> · not synced
-          </p>
+
         </div>
       </div>
     </div>

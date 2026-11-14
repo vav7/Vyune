@@ -193,7 +193,7 @@ export function TrackLockup(props: { item: MusicItem; onPlay?: () => void }) {
     // own clicks.
     <div
       class={`track-row group/track grid h-[72px] cursor-pointer grid-cols-[56px_minmax(0,1fr)] items-center gap-x-3 rounded-[10px] border-y-[3px] border-transparent bg-card bg-clip-padding py-1.5 pr-3.5 pl-2 [box-shadow:inset_0_0_0_0.5px_var(--cardStroke)] transition-[background-color] duration-150 ease-out hover:-translate-y-px hover:bg-card-hover hover:shadow-[0_10px_26px_-16px_#000,inset_0_0_0_0.5px_var(--cardStroke)] ${
-        isCurrent() ? 'bg-[rgba(250,45,79,0.14)] shadow-[inset_0_0_0_1px_rgba(250,45,79,0.32)]' : ''
+        isCurrent() ? 'bg-[radial-gradient(ellipse_at_50%_50%,rgba(250,45,79,0.22)_0%,rgba(250,45,79,0.09)_70%)] shadow-[inset_0_0_0_1px_rgba(250,45,79,0.36),0_0_28px_-4px_rgba(250,45,79,0.22)]' : ''
       }`}
       data-current={isCurrent() || undefined}
       onPointerEnter={() => prewarmArtworkColor(item().thumbnail)}

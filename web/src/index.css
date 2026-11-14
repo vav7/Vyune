@@ -428,8 +428,9 @@
 /* Apple-like lyric typography, shared by words, instrumental labels and
    warm-up copy so the player never jumps between font sizes or families. */
 .lyric-preview-lead,
-.lyric-preview-next {
-  font-family: var(--font-family);
+.lyric-preview-next,
+.lyric-preview-copy {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", "SF Pro Text", "SF Pro", "Helvetica Neue", system-ui, sans-serif !important;
   font-kerning: normal;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -455,7 +456,7 @@
   color: rgb(255 255 255 / 0.36);
 }
 .lyric-preview-copy {
-  font-family: var(--font-family);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", "SF Pro Text", "SF Pro", "Helvetica Neue", system-ui, sans-serif !important;
   font-size: 19px;
   font-weight: 600;
   line-height: 1.5;

@@ -26,7 +26,7 @@ function Row(props: {
   return (
     <li
       class={`track-row group/row relative grid h-[55px] grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-x-3 rounded-row px-2.5 hover:bg-quinary data-dragging:opacity-40 data-over:before:absolute data-over:before:inset-x-2.5 data-over:before:-top-px data-over:before:border-t-2 data-over:before:border-t-key ${
-        isCurrent() ? 'bg-[rgba(250,45,79,0.14)] shadow-[inset_0_0_0_1px_rgba(250,45,79,0.32)]' : ''
+        isCurrent() ? 'bg-[radial-gradient(ellipse_at_50%_50%,rgba(250,45,79,0.22)_0%,rgba(250,45,79,0.09)_70%)] shadow-[inset_0_0_0_1px_rgba(250,45,79,0.36),0_0_28px_-4px_rgba(250,45,79,0.22)]' : ''
       }`}
       data-current={isCurrent() || undefined}
       data-over={over() || undefined}

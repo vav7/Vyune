@@ -76,7 +76,7 @@ function SongRow(props: { track: Track; onPlay: () => void }) {
   const meta = () => [artists(), formatDuration(props.track.duration)].filter(Boolean).join(' · ');
   return (
     <div
-      class={`${rowBase} ${current() ? 'bg-[rgba(250,45,79,0.14)] shadow-[inset_0_0_0_1px_rgba(250,45,79,0.32)]' : ''}`}
+      class={`${rowBase} ${current() ? 'bg-[radial-gradient(ellipse_at_50%_50%,rgba(250,45,79,0.22)_0%,rgba(250,45,79,0.09)_70%)] shadow-[inset_0_0_0_1px_rgba(250,45,79,0.36),0_0_28px_-4px_rgba(250,45,79,0.22)]' : ''}`}
       onPointerEnter={() => playerStore.prefetch(props.track)}
       onFocusIn={() => playerStore.prefetch(props.track)}
     >
@@ -568,7 +568,7 @@ export default function SearchPage() {
   return (
     <Portal>
       <div
-        class="search-sheet search-glass fixed top-1.5 right-1.5 bottom-1.5 left-[max(6px,var(--web-navigation-width))] z-[calc(var(--z-web-chrome)-2)] flex flex-col overflow-hidden rounded-[16px] bg-[rgb(12_12_22/0.16)] text-primary animate-[fade-in_200ms_ease-out_both] max-md:inset-0 max-md:rounded-none"
+        class="search-sheet search-glass fixed top-1.5 right-1.5 bottom-1.5 left-[max(6px,var(--web-navigation-width))] z-[calc(var(--z-web-chrome)-2)] flex flex-col overflow-hidden rounded-[16px] text-primary animate-[fade-in_200ms_ease-out_both] max-md:inset-0 max-md:rounded-none [background:linear-gradient(145deg,rgb(14_14_22/0.88),rgb(10_10_18/0.84))] [backdrop-filter:saturate(240%)_blur(44px)_brightness(0.9)] border border-white/[0.07] shadow-[0_30px_80px_-20px_rgb(0_0_0/0.85),inset_0_1px_0_rgb(255_255_255/0.07)]"
         role="dialog"
         aria-label="Search"
         data-search-sheet

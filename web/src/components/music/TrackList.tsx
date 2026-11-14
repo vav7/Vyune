@@ -45,7 +45,7 @@ const link = 'text-inherit hover:underline group-data-current/row:text-primary';
 const row = [
   'group/row track-row relative grid items-center border-y-2 border-transparent bg-card bg-clip-padding hover:bg-card-hover [content-visibility:auto] [contain-intrinsic-size:auto_54px]',
   '[box-shadow:inset_0_0_0_0.5px_var(--cardStroke)] transition-[background-color] duration-150 ease-out',
-  'data-current:bg-[rgba(250,45,79,0.14)] data-current:shadow-[inset_0_0_0_1px_rgba(250,45,79,0.32)]',
+  'data-current:bg-[radial-gradient(ellipse_at_50%_50%,rgba(250,45,79,0.22)_0%,rgba(250,45,79,0.09)_70%)] data-current:shadow-[inset_0_0_0_1px_rgba(250,45,79,0.36),0_0_28px_-4px_rgba(250,45,79,0.22)]',
 ].join(' ');
 
 const rowVariant: Record<Variant, string> = {
