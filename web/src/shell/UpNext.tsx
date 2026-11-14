@@ -26,7 +26,7 @@ function Row(props: {
   return (
     <li
       class={`track-row group/row relative grid h-[55px] grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-x-3 rounded-row px-2.5 hover:bg-quinary data-dragging:opacity-40 data-over:before:absolute data-over:before:inset-x-2.5 data-over:before:-top-px data-over:before:border-t-2 data-over:before:border-t-key ${
-        isCurrent() ? 'bg-[radial-gradient(ellipse_at_50%_50%,rgba(250,45,79,0.22)_0%,rgba(250,45,79,0.09)_70%)] shadow-[inset_0_0_0_1px_rgba(250,45,79,0.36),0_0_28px_-4px_rgba(250,45,79,0.22)]' : ''
+        isCurrent() ? 'bg-white/[0.08] shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.12)]' : ''
       }`}
       data-current={isCurrent() || undefined}
       data-over={over() || undefined}
@@ -64,7 +64,7 @@ function Row(props: {
         onClick={() => playerStore.jump(props.at)}
         aria-label={`Play ${props.track.title}`}
       >
-        <span class={`truncate type-body ${isCurrent() ? 'text-[#fa2d4f] font-semibold' : 'text-primary'}`}>{props.track.title}</span>
+        <span class={`truncate type-body ${isCurrent() ? 'text-primary font-semibold' : 'text-primary'}`}>{props.track.title}</span>
         <span class="truncate type-body text-secondary">{(props.track.artists || []).join(', ')}</span>
       </button>
       <div class="relative grid items-center justify-items-end">

@@ -375,10 +375,12 @@ export function LyricPreview() {
     (primary()?.lines || []).filter((line) => !line.section && line.text?.some((part) => part.text?.trim())),
   );
 
+  const effectiveMs = () => timeMs() + (lyricsStore.syncOffsetMs || 0);
+
   const state = createMemo<'lyric' | 'instrumental' | 'vocals' | 'loading' | 'unavailable' | null>(() => {
     const sheet = primary();
     const all = lines();
-    const ms = timeMs();
+    const ms = effectiveMs();
     if (!trackId()) return null;
     const activeIndex = sheet?.isSynced
       ? all.findIndex((line) => line.timestamp <= ms && (!line.endtime || line.endtime > ms))
@@ -403,7 +405,7 @@ export function LyricPreview() {
   const lineIndex = createMemo(() => {
     const sheet = primary();
     const all = lines();
-    const ms = timeMs();
+    const ms = effectiveMs();
     if (!sheet?.isSynced) return all.length ? 0 : -1;
     const activeIndex = all.findIndex((line) => line.timestamp <= ms && (!line.endtime || line.endtime > ms));
     if (activeIndex >= 0) return activeIndex;
@@ -430,7 +432,7 @@ export function LyricPreview() {
     let frame = 0;
     const draw = () => {
       frame = 0;
-      const ms = audio.currentTime * 1000;
+      const ms = audio.currentTime * 1000 + (lyricsStore.syncOffsetMs || 0);
       list.forEach((part, i) => {
         const start = part.timestamp || current.timestamp;
         const end = part.endtime > start ? part.endtime : start + 1;

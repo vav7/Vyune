@@ -109,12 +109,12 @@ export function SidePanel() {
     onCleanup(end);
   };
 
-  const tint = createMemo(() => artwork()?.background ?? '#29253e');
+  const tint = createMemo(() => artwork()?.background ?? '#202025');
   const lyricsStyle = createMemo<Record<string, string>>(() => {
     const base = tint();
     return {
       '--page-tint': base,
-      '--glassMaterialBackground': `color-mix(in srgb, ${base} 24%, #171620 76%)`,
+      '--glassMaterialBackground': `color-mix(in srgb, ${base} 22%, #131317 78%)`,
       '--systemPrimary': '#ffffffeb',
       '--systemSecondary': '#ffffffa3',
       '--systemTertiary': '#ffffff66',
@@ -129,8 +129,8 @@ export function SidePanel() {
           ref={shell}
           class={
             floating()
-              ? 'fixed z-[70] isolate flex h-[min(640px,78dvh)] min-h-[260px] w-[400px] min-w-[280px] max-h-[calc(100dvh-16px)] max-w-[calc(100vw-16px)] resize flex-col overflow-hidden rounded-[16px] border border-white/12 glass-material shadow-[0_30px_80px_-20px_#000d] animate-[fade-in_160ms_ease-out_both] [&::-webkit-resizer]:bg-transparent max-sm:inset-0 max-sm:h-auto max-sm:w-full max-sm:max-w-none max-sm:resize-none max-sm:rounded-none max-sm:border-0'
-              : 'absolute top-1.5 bottom-1.5 right-1.5 z-(--z-web-chrome) isolate flex w-[calc(var(--side-panel-width)-9px)] animate-slide-in flex-col overflow-hidden rounded-[16px] border border-white/10 glass-material shadow-glass max-sm:inset-0 max-sm:w-full max-sm:rounded-none max-sm:border-0'
+              ? 'fixed z-[70] isolate flex h-[min(640px,78dvh)] min-h-[260px] w-[400px] min-w-[280px] max-h-[calc(100dvh-16px)] max-w-[calc(100vw-16px)] resize flex-col overflow-hidden rounded-[16px] border border-white/[0.08] glass-material shadow-[inset_0_1px_0_0_rgba(255,255,255,0.14),0_24px_60px_-18px_rgba(0,0,0,0.85)] animate-[fade-in_160ms_ease-out_both] [&::-webkit-resizer]:bg-transparent max-sm:inset-0 max-sm:h-auto max-sm:w-full max-sm:max-w-none max-sm:resize-none max-sm:rounded-none max-sm:border-0'
+              : 'absolute top-1.5 bottom-1.5 right-1.5 z-(--z-web-chrome) isolate flex w-[calc(var(--side-panel-width)-12px)] animate-slide-in flex-col overflow-hidden rounded-[16px] border border-white/[0.06] glass-material shadow-[inset_0_1px_0_0_rgba(255,255,255,0.14),0_20px_48px_-12px_rgba(0,0,0,0.65)] max-sm:inset-0 max-sm:w-full max-sm:rounded-none max-sm:border-0'
           }
           aria-label={active === 'up-next' ? 'Up Next' : 'Lyrics'}
           style={{

@@ -76,7 +76,7 @@ function SongRow(props: { track: Track; onPlay: () => void }) {
   const meta = () => [artists(), formatDuration(props.track.duration)].filter(Boolean).join(' · ');
   return (
     <div
-      class={`${rowBase} ${current() ? 'bg-[radial-gradient(ellipse_at_50%_50%,rgba(250,45,79,0.22)_0%,rgba(250,45,79,0.09)_70%)] shadow-[inset_0_0_0_1px_rgba(250,45,79,0.36),0_0_28px_-4px_rgba(250,45,79,0.22)]' : ''}`}
+      class={`${rowBase} ${current() ? 'bg-white/[0.08] shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.12)]' : ''}`}
       onPointerEnter={() => playerStore.prefetch(props.track)}
       onFocusIn={() => playerStore.prefetch(props.track)}
     >
@@ -100,7 +100,7 @@ function SongRow(props: { track: Track; onPlay: () => void }) {
         </div>
         <div class="flex min-w-0 flex-1 flex-col">
           <span class="flex items-center gap-1.5">
-            <span class={`truncate type-body ${current() ? 'text-[#fa2d4f] font-semibold' : ''}`}>{props.track.title}</span>
+            <span class={`truncate type-body ${current() ? 'text-primary font-semibold' : ''}`}>{props.track.title}</span>
             <Show when={props.track.explicit}>
               <span class="grid h-[14px] w-[14px] flex-none place-items-center rounded-[3px] bg-white/[0.28] text-[9px] font-bold leading-none text-black/80" title="Explicit">E</span>
             </Show>
@@ -168,13 +168,13 @@ function TopResultCard(props: { track: Track; onPlay: () => void }) {
   const isCurrent = () => playerStore.current?.id === props.track.id;
   const artists = () => (props.track.artists || []).join(', ');
   return (
-    <div class={`mt-3 rounded-[16px] glass-card p-4 transition-all duration-200 ${isCurrent() ? 'ring-1 ring-[#fa2d4f]/60 bg-[rgba(250,45,79,0.08)]' : ''}`}>
+    <div class={`mt-3 rounded-[16px] glass-card p-4 transition-all duration-200 ${isCurrent() ? 'bg-white/[0.08] shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.12)]' : ''}`}>
       <div class="flex items-center gap-4">
         <div class="w-[72px] flex-none">
           <Artwork src={props.track.thumb} track={props.track} displayWidth={72} radius="8px" />
         </div>
         <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span class={`line-clamp-2 type-title-3 ${isCurrent() ? 'text-[#fa2d4f] font-semibold' : ''}`}>{props.track.title}</span>
+          <span class={`line-clamp-2 type-title-3 ${isCurrent() ? 'text-primary font-semibold' : ''}`}>{props.track.title}</span>
           <span class="truncate type-callout text-secondary">
             {['Song', artists()].filter(Boolean).join(' · ')}
           </span>
@@ -569,7 +569,7 @@ export default function SearchPage() {
     <Portal>
       <Show when={!playerStore.fullscreen}>
         <div
-          class="search-sheet search-glass fixed top-1.5 right-1.5 bottom-1.5 left-[max(6px,var(--web-navigation-width))] z-[calc(var(--z-web-chrome)-2)] flex flex-col overflow-hidden rounded-[16px] text-primary animate-[fade-in_200ms_ease-out_both] max-md:inset-0 max-md:rounded-none [background:radial-gradient(100%_80%_at_10%_0%,rgba(255,255,255,0.11)_0%,transparent_68%),linear-gradient(145deg,rgba(20,20,32,0.88)_0%,rgba(11,11,19,0.92)_100%)] [backdrop-filter:saturate(240%)_blur(52px)_brightness(0.95)] border border-white/[0.12] shadow-[0_32px_80px_-20px_rgb(0_0_0/0.9),inset_0_1px_0_0.5px_rgb(255_255_255/0.25)]"
+          class="search-sheet search-glass fixed top-1.5 right-1.5 bottom-1.5 left-[max(6px,var(--web-navigation-width))] z-[calc(var(--z-web-chrome)-2)] flex flex-col overflow-hidden rounded-[16px] text-primary animate-[fade-in_200ms_ease-out_both] max-md:inset-0 max-md:rounded-none"
           role="dialog"
           aria-label="Search"
           data-search-sheet

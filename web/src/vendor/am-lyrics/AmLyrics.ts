@@ -1069,16 +1069,8 @@ export class AmLyrics extends LitElement {
     /* Paint the glow once, then composite its opacity. Animating text-shadow
        on every glyph forces text rasterization throughout the rise. */
     .lyrics-line.active .char.native-motion[data-glow]::after {
-      content: attr(data-glyph);
-      position: absolute;
-      inset: 0;
-      padding-inline: 0.04em;
-      pointer-events: none;
-      color: transparent;
-      -webkit-text-fill-color: transparent;
-      text-shadow: 0 0 0.3em var(--lyplus-text-primary);
-      animation: char-glow var(--char-glow-duration) linear
-        var(--char-glow-delay) both;
+      display: none !important;
+      content: none !important;
     }
 
     @keyframes char-glow {
@@ -5770,7 +5762,7 @@ export class AmLyrics extends LitElement {
     if (/[\u3400-\u4dbf\u4e00-\u9fff\u3040-\u30ff]/.test(text)) {
       return count > 1 ? 'rise' : 'none';
     }
-    return !background && durationMs >= 650 && count <= 10
+    return !background && durationMs >= 550 && count <= 12
       ? 'emphasis'
       : 'none';
   }
@@ -5864,7 +5856,7 @@ export class AmLyrics extends LitElement {
         ),
         groupGrowable: words.map(word => word.mode === 'emphasis'),
         groupGlowing: words.map(word => word.mode === 'emphasis'),
-        groupCharRise: words.map(word => word.mode === 'rise' || (word.mode === 'emphasis' && word.duration >= 650)),
+        groupCharRise: words.map(word => word.mode === 'rise'),
         groupCharDrag: words.map(() => false),
         vwFullDuration: words.map(word => word.duration),
         vwCharOffset: words.map(() => 0),
@@ -8647,8 +8639,8 @@ export class AmLyrics extends LitElement {
         : Math.min(staggerMs, 350);
       const hold = (2 * duration) / count;
       const response = Math.min(3, duration);
-      const emphasis = cjk ? 0 : AmLyrics.clamp(duration - 1, 0, 1);
-      const glow = cjk ? 0 : 0.45 * AmLyrics.clamp((duration - 1) / 0.5, 0, 1);
+      const emphasis = cjk ? 0 : AmLyrics.clamp((duration - 0.5) / 0.8, 0.4, 1.2);
+      const glow = 0;
       const spanDuration = Math.max(hold + response * 2, cjk ? 3 : 0);
       chars.forEach((char, index) => {
         const startDelay = (index + 1) * delayMs;
@@ -8679,11 +8671,11 @@ export class AmLyrics extends LitElement {
                 : AmLyrics.springProgress(time, response) *
                   (1 - AmLyrics.springProgress(time - hold, response));
               const x =
-                (index - (count - 1) / 2) * 0.5 * 0.1 * emphasis * envelope;
-              const lift = 2.5 * emphasis * envelope;
+                (index - (count - 1) / 2) * 0.14 * emphasis * envelope;
+              const lift = 4.5 * emphasis * envelope;
               return {
                 offset: frame / 60,
-                transform: `translate(calc(${x}em * var(--am-lyrics-lift)), calc((var(--char-rise-y) * ${rise} - ${lift}px) * var(--am-lyrics-lift))) scale(${1 + 0.1 * emphasis * envelope})`,
+                transform: `translate(calc(${x}em * var(--am-lyrics-lift)), calc((var(--char-rise-y) * ${rise} - ${lift}px) * var(--am-lyrics-lift))) scale(${1 + 0.15 * emphasis * envelope})`,
               };
             });
             if (AmLyrics.characterFrames.size >= 64) {

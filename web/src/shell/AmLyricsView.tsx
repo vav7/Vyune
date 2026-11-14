@@ -257,6 +257,12 @@ export function AmLyricsView(props: {
   // A different sheet is a different element: nothing of the old song is left in it.
   createEffect(on(ttml, () => el && mount(), { defer: true }));
   createEffect(on([() => props.translation, () => props.romanization], apply, { defer: true }));
+  // When user adjusts lyrics timing offset (+50ms / -50ms / reset), immediately force clock jump & redraw
+  createEffect(on(() => lyricsStore.syncOffsetMs, () => {
+    discontinuity++;
+    lastMs = Number.NaN;
+    wake();
+  }, { defer: true }));
 
   return <div ref={host} class="am-lyrics-host h-full min-h-0 w-full flex-1" />;
 }

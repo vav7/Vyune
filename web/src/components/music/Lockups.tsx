@@ -112,20 +112,15 @@ function LockupArtwork(props: { item: MusicItem; width: number; aspect: number }
 export function SquareLockup(props: { item: MusicItem; width?: number }) {
   const item = () => props.item;
   const href = () => (isPlayable(item()) ? null : hrefFor(item().kind, item().id));
-  const isCurrent = () => {
-    const cur = playerStore.current;
-    if (!cur) return false;
-    return cur.id === item().id || (item().track && cur.id === item().track?.id);
-  };
   return (
     <div class={lockup}>
       <LockupArtwork item={item()} width={props.width ?? 300} aspect={1} />
       <div class={caption}>
         <div class={title}>
-          <Show when={href()} fallback={<span class={isCurrent() ? 'text-[#fa2d4f] font-semibold' : ''}>{item().title}</span>}>
+          <Show when={href()} fallback={<span>{item().title}</span>}>
             <PrefetchLink
               to={href()!}
-              class={`hover:underline ${isCurrent() ? 'text-[#fa2d4f] font-semibold' : ''}`}
+              class="hover:underline"
               hint={{ title: item().title, thumb: item().thumbnail, subtitle: item().subtitle }}
             >
               {item().title}
@@ -193,7 +188,7 @@ export function TrackLockup(props: { item: MusicItem; onPlay?: () => void }) {
     // own clicks.
     <div
       class={`track-row group/track grid h-[72px] cursor-pointer grid-cols-[56px_minmax(0,1fr)] items-center gap-x-3 rounded-[10px] border-y-[3px] border-transparent bg-card bg-clip-padding py-1.5 pr-3.5 pl-2 [box-shadow:inset_0_0_0_0.5px_var(--cardStroke)] transition-[background-color] duration-150 ease-out hover:-translate-y-px hover:bg-card-hover hover:shadow-[0_10px_26px_-16px_#000,inset_0_0_0_0.5px_var(--cardStroke)] ${
-        isCurrent() ? 'bg-[radial-gradient(ellipse_at_50%_50%,rgba(250,45,79,0.22)_0%,rgba(250,45,79,0.09)_70%)] shadow-[inset_0_0_0_1px_rgba(250,45,79,0.36),0_0_28px_-4px_rgba(250,45,79,0.22)]' : ''
+        isCurrent() ? 'bg-white/[0.08] shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.12)]' : ''
       }`}
       data-current={isCurrent() || undefined}
       onPointerEnter={() => prewarmArtworkColor(item().thumbnail)}
@@ -207,7 +202,7 @@ export function TrackLockup(props: { item: MusicItem; onPlay?: () => void }) {
         <span
           class={`absolute inset-0 grid place-items-center rounded-[inherit] transition-opacity duration-150 ease-out ${
             isCurrent()
-              ? 'bg-black/50 text-[#fa2d4f] opacity-100'
+              ? 'bg-black/50 text-white opacity-100'
               : 'bg-black/45 text-white opacity-0 group-hover/track:opacity-100 group-focus-visible/art:opacity-100'
           }`}
           aria-hidden="true"
@@ -217,7 +212,7 @@ export function TrackLockup(props: { item: MusicItem; onPlay?: () => void }) {
       </button>
       <div class="flex min-w-0 flex-col gap-px px-1">
         <div class="flex min-w-0 items-center type-body">
-          <button class={`min-w-0 truncate text-left ${isCurrent() ? 'text-[#fa2d4f] font-semibold' : ''}`} onClick={play}>
+          <button class="min-w-0 truncate text-left text-primary font-medium" onClick={play}>
             {item().title}
           </button>
           <Show when={item().explicit}>

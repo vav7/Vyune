@@ -76,7 +76,7 @@ export function Sidebar() {
     <>
       {/* Below 484px the sidebar is a drawer opened from the top bar's menu button. */}
       <nav
-        class="sidebar-glass absolute top-1.5 bottom-1.5 left-1.5 z-(--z-web-chrome) flex w-[calc(var(--web-navigation-width)-9px)] flex-col overflow-hidden rounded-[16px] max-sm:inset-y-0 max-sm:left-0 max-sm:w-[min(300px,82vw)] max-sm:-translate-x-full max-sm:rounded-none max-sm:rounded-r-[16px] max-sm:transition-transform max-sm:duration-(--duration-panel) max-sm:ease-panel max-sm:data-[open=true]:translate-none"
+        class="sidebar-glass absolute top-1.5 bottom-1.5 left-1.5 z-(--z-web-chrome) flex w-[calc(var(--web-navigation-width)-12px)] flex-col overflow-hidden rounded-[16px] max-sm:inset-y-0 max-sm:left-0 max-sm:w-[min(300px,82vw)] max-sm:-translate-x-full max-sm:rounded-none max-sm:rounded-r-[16px] max-sm:transition-transform max-sm:duration-(--duration-panel) max-sm:ease-panel max-sm:data-[open=true]:translate-none"
         data-open={drawerOpen}
         aria-label="Main"
         data-sidebar

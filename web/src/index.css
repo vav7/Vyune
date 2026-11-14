@@ -942,6 +942,20 @@
 @keyframes sr-bar{0%,100%{transform:scaleY(0.3)}50%{transform:scaleY(1)}}
 @media (prefers-reduced-motion:reduce){.sr-bars i{animation:none;transform:scaleY(0.7)}}
 
+/* Apple Music 3-bar playing equalizer animation */
+@keyframes eq1 {
+  0%, 100% { height: 4px; }
+  50% { height: 14px; }
+}
+@keyframes eq2 {
+  0%, 100% { height: 14px; }
+  50% { height: 5px; }
+}
+@keyframes eq3 {
+  0%, 100% { height: 7px; }
+  50% { height: 12px; }
+}
+
 /* The search pill shows focus itself; the global input outline would box the text inside it. */
 .sr-field input { border: 0; padding: 0; margin: 0; appearance: none; -webkit-appearance: none; border-radius: 0; box-shadow: none; }
 .sr-field input:focus-visible { outline: none; }
@@ -974,12 +988,12 @@
   html[data-sidebar='hidden'] .mc-col-page { margin-left: 6px; }
 }
 @media (min-width: 1180px) {
-  html[data-panel='open'] .mc-col-page { margin-right: 6px; }
+  html[data-panel='open'] .mc-col-page { margin-right: 0px; }
   .mc-col-panel > aside:not([class*='fixed']) {
     inset-block: 6px !important;
     right: 6px !important;
     height: auto;
-    width: calc(var(--side-panel-width) - 9px) !important;
+    width: calc(var(--side-panel-width) - 12px) !important;
   }
 }
 
@@ -1026,7 +1040,7 @@
 /* Search sits BESIDE the open side panel (lyrics, queue) and BEHIND the bottom player, so a song
    started from search shows up in both at once instead of being hidden under the sheet. */
 @media (min-width: 768px) {
-  html[data-panel='open'] .search-sheet { right: calc(var(--side-panel-width) + 6px) !important; }
+  html[data-panel='open'] .search-sheet { right: var(--side-panel-width) !important; }
   .search-sheet { transition: right var(--duration-panel, 300ms) var(--ease-panel, ease); }
 }
 .search-sheet { padding-bottom: calc(var(--player-pill-height, 56px) + var(--player-bottom-offset, 12px) + 12px); }
