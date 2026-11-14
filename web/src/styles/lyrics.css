@@ -27,7 +27,7 @@
   overflow: hidden;
   overscroll-behavior: contain;
   touch-action: none;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'SF Pro Display', 'SF Pro Text', 'SF Pro', 'Helvetica Neue', 'Inter Variable', 'Hind', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Gurmukhi', 'Noto Sans Gujarati', 'Noto Sans Oriya', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Kannada', 'Noto Sans Malayalam', 'Nirmala UI', 'Mangal', 'Kohinoor Devanagari', 'Devanagari Sangam MN', 'Noto Sans Arabic', 'Noto Sans Thai', system-ui, sans-serif;
+  font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'SF Pro Display', 'SF Pro Text', 'SF Pro', 'Helvetica Neue', 'Hind', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Gurmukhi', 'Noto Sans Gujarati', 'Noto Sans Oriya', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Kannada', 'Noto Sans Malayalam', 'Nirmala UI', 'Mangal', 'Kohinoor Devanagari', 'Devanagari Sangam MN', 'Noto Sans Arabic', 'Noto Sans Thai', system-ui, sans-serif;
 }
 .mc-kinetic-viewport[data-full='true'] {
   --mc-lyric-size: 30px;
@@ -213,7 +213,7 @@
   margin: 0;
   padding-bottom: 2px;
   overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif !important;
+  font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -227,7 +227,7 @@
   font-weight: 700;
   line-height: 1.5;
   letter-spacing: -0.022em;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif !important;
+  font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif !important;
   white-space: nowrap;
   will-change: transform, opacity;
 }
@@ -235,7 +235,7 @@
   margin: 0;
   white-space: nowrap;
   font-weight: 700;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif !important;
+  font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif !important;
 }
 .fs-oneline-words--solid {
   color: rgb(255 255 255 / 0.95);

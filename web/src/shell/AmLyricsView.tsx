@@ -46,9 +46,9 @@ const CHROME = `
     --am-lyrics-background-vocal-exit-duration: 140ms;
   }
 
-  /* ---- Premium type: pure white paint, crisp HD glyphs, nothing cropped ---- */
+  /* ---- Premium type: Inter Variable font for lyrics, crisp HD glyphs ---- */
   :host, .lyrics-container, .lyrics-line, .lyrics-syllable, .lyrics-word, span.char, span.word {
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", "SF Pro Text", "SF Pro", "Helvetica Neue", system-ui, sans-serif !important;
+    font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", "SF Pro Text", "SF Pro", "Helvetica Neue", system-ui, sans-serif !important;
     -webkit-font-smoothing: antialiased !important;
     -moz-osx-font-smoothing: grayscale !important;
     font-synthesis: none !important;
@@ -138,8 +138,6 @@ const CHROME = `
     box-sizing: border-box !important;
     width: 100% !important;
     max-width: 100% !important;
-    padding-inline-start: 0 !important;
-    padding-inline-end: 28px !important;
     text-rendering: optimizeLegibility;
     font-kerning: normal;
     letter-spacing: -0.015em;
@@ -152,6 +150,39 @@ const CHROME = `
     overflow: visible !important;
     word-break: normal !important;
     overflow-wrap: break-word !important;
+  }
+  .lyrics-line:not(.singer-right) {
+    padding-inline-start: 0 !important;
+    padding-inline-end: 28px !important;
+  }
+  /* Duet songs: align the other singer's voice clearly to the right side */
+  .lyrics-line.singer-right,
+  .lyrics-container .lyrics-line.singer-right,
+  .lyrics-container.has-duet-lines .lyrics-line.singer-right {
+    text-align: right !important;
+    text-align: end !important;
+    padding-inline-start: 22% !important;
+    padding-inline-end: 8px !important;
+  }
+  .lyrics-line.singer-right .lyrics-line-container,
+  .lyrics-line.singer-right .main-vocal-container {
+    text-align: right !important;
+    text-align: end !important;
+    transform-origin: right center !important;
+  }
+  .lyrics-line.singer-right .background-vocal-container,
+  .lyrics-line.singer-right .background-vocal-wrap {
+    text-align: right !important;
+    text-align: end !important;
+    margin-left: auto !important;
+    margin-right: 0 !important;
+    transform-origin: right center !important;
+  }
+  .lyrics-container.has-duet-lines .lyrics-line.singer-left {
+    padding-inline-end: 22% !important;
+    padding-inline-start: 0 !important;
+    text-align: left !important;
+    text-align: start !important;
   }
   .lyrics-line-container,
   .main-vocal-container {
@@ -281,8 +312,8 @@ export function AmLyricsView(props: {
     if (shaping) next.setAttribute('data-shaping', '');
     // A little larger than before; Indic scripts also get a taller line so the upper matras clear.
     // Devanagari and its relatives have a small x-height beside Latin at the same size, so they run larger.
-    const size = Math.round((props.full ? 34 : 22) * (shaping ? 1.12 : 1));
-    next.style.cssText = `display:block;width:100%;height:100%;--lyplus-font-size-base:${size}px;--am-lyrics-line-height:${shaping ? 1.48 : 1.38};--am-lyrics-line-spacing:${shaping ? 28 : 24}px;`;
+    const size = Math.round((props.full ? 40 : 25) * (shaping ? 1.15 : 1));
+    next.style.cssText = `display:block;width:100%;height:100%;--lyplus-font-size-base:${size}px;--am-lyrics-line-height:${shaping ? 1.48 : 1.38};--am-lyrics-line-spacing:${shaping ? 30 : 26}px;`;
     next.ttml = ttml();
     next.addEventListener('line-click', (event) => {
       const at = (event as CustomEvent<{ timestamp: number }>).detail?.timestamp;

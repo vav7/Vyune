@@ -43,7 +43,7 @@ function LoadingDots(props: { small?: boolean }) {
  * so a missing bundled family does not split lyrics into inconsistent faces.
  */
 const LYRIC_FONT =
-  "-apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'SF Pro Display', 'SF Pro Text', 'SF Pro', 'Helvetica Neue', 'Inter Variable', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Gurmukhi', " +
+  "'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'SF Pro Display', 'SF Pro Text', 'SF Pro', 'Helvetica Neue', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Gurmukhi', " +
   "'Noto Sans Gujarati', 'Noto Sans Oriya', 'Noto Sans Tamil', 'Noto Sans Telugu', " +
   "'Noto Sans Kannada', 'Noto Sans Malayalam', 'Nirmala UI', 'Mangal', 'Kohinoor Devanagari', " +
   "'Devanagari Sangam MN', 'Noto Sans Arabic', 'Noto Sans Thai', " +
@@ -528,7 +528,7 @@ export function LyricPreview() {
         ref={box}
         class="fs-oneline-line"
         style={{
-          'font-family': "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif !important",
+          'font-family': "'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif !important",
           'font-weight': '700',
           'letter-spacing': '-0.022em',
         }}
