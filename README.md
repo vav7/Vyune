@@ -1,4 +1,4 @@
-# VYUNE — Feel Every Frequency
+# VYUNE - Feel Every Frequency
 
 **Premium music player with a vinyl-inspired identity.** Streaming via **YouTube.js (InnerTube)**
 with a **JioSaavn** fallback, a multi-provider lyrics engine with word-, line- and plain-text
