@@ -3,14 +3,75 @@
  * One search per song, shared by this provider and the AMLL lookup.
  */
 
+import https from 'node:https';
 import { TTLCache } from '../../cache.js';
 import { parseLrc } from '../parse/lrc.js';
 import { parseYrc } from '../parse/karaoke.js';
 import { normKey } from '../text.js';
 import { isThisSong } from '../verify.js';
 
-const HEADERS = { Referer: 'https://music.163.com/' };
+const NETEASE_VIP = '103.135.240.78';
+const NETEASE_HEADERS = {
+  Host: 'music.163.com',
+  Referer: 'https://music.163.com/',
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36',
+  Accept: 'application/json, text/plain, */*',
+};
+
 const finds = new TTLCache({ max: 200, ttl: 30 * 60_000 });
+
+/**
+ * Fetch a NetEase JSON API endpoint reliably worldwide.
+ * Bypasses local ISP DNS poisoning / blackholes (such as in India) by connecting
+ * to NetEase's primary international VIP with SNI serverName: 'music.163.com'.
+ */
+export async function neteaseGetJson(path) {
+  if (typeof Bun !== 'undefined') {
+    try {
+      const res = await fetch(`https://${NETEASE_VIP}${path}`, {
+        headers: NETEASE_HEADERS,
+        tls: { serverName: 'music.163.com', rejectUnauthorized: false },
+        signal: AbortSignal.timeout(4500),
+      });
+      if (res.ok) return await res.json();
+    } catch {
+      // Fall through to https.request
+    }
+  }
+
+  return new Promise((resolve) => {
+    const req = https.request(
+      {
+        host: NETEASE_VIP,
+        port: 443,
+        path,
+        method: 'GET',
+        servername: 'music.163.com',
+        headers: NETEASE_HEADERS,
+        rejectUnauthorized: false,
+        timeout: 4500,
+      },
+      (res) => {
+        let body = '';
+        res.on('data', (chunk) => (body += chunk));
+        res.on('end', () => {
+          try {
+            resolve(JSON.parse(body));
+          } catch {
+            resolve(null);
+          }
+        });
+      },
+    );
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(null);
+    });
+    req.end();
+  });
+}
 
 /** The NetEase song that is this recording, or null. Memoised: the promise is cached, so concurrent callers share it. */
 export function neteaseFind(ctx, io) {
@@ -19,18 +80,20 @@ export function neteaseFind(ctx, io) {
   if (hit) return hit;
   const pending = (async () => {
     const keyword = ctx.artist ? `${ctx.title} ${ctx.artist}` : ctx.title;
-    const data = await io.json(
-      `https://music.163.com/api/search/get/web?csrf_token=&s=${encodeURIComponent(keyword)}&type=1&offset=0&limit=8`,
-      { timeout: 5000, headers: HEADERS },
+    // Use cloudsearch/pc which returns unencrypted results worldwide (unlike deprecated search/get/web)
+    const data = await neteaseGetJson(
+      `/api/cloudsearch/pc?s=${encodeURIComponent(keyword)}&type=1&offset=0&limit=8`,
     );
     const songs = Array.isArray(data?.result?.songs) ? data.result.songs : [];
     return (
-      songs.find((s) =>
-        isThisSong(
-          { title: s.name, artist: (s.artists || []).map((a) => a.name).join(', '), durationSec: s.duration ? s.duration / 1000 : null },
+      songs.find((s) => {
+        const artists = (s.ar || s.artists || []).map((a) => a.name).join(', ');
+        const durationSec = s.dt ? s.dt / 1000 : s.duration ? s.duration / 1000 : null;
+        return isThisSong(
+          { title: s.name, artist: artists, durationSec },
           ctx,
-        ),
-      ) || null
+        );
+      }) || null
     );
   })();
   finds.set(key, pending);
@@ -44,7 +107,7 @@ export default {
     if (!ctx.title) return null;
     const found = await neteaseFind(ctx, io);
     if (!found) return null;
-    const data = await io.json(`https://music.163.com/api/song/lyric?id=${found.id}&lv=-1&kv=-1&tv=-1&yv=-1`, { timeout: 5000, headers: HEADERS });
+    const data = await neteaseGetJson(`/api/song/lyric?id=${found.id}&lv=-1&kv=-1&tv=-1&yv=-1`);
     const word = typeof data?.yrc?.lyric === 'string' ? parseYrc(data.yrc.lyric) : [];
     if (word.length) return { lines: word };
     const line = typeof data?.lrc?.lyric === 'string' ? parseLrc(data.lrc.lyric) : [];
