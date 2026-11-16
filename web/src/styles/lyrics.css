@@ -13,7 +13,7 @@
 }
 
 .mc-kinetic-viewport {
-  --mc-lyric-size: 30px;
+  --mc-lyric-size: 21px;
   --word-sung: #fff;
   --word-ahead: rgb(255 255 255 / 0.62);
   --lyric-ease: cubic-bezier(0.22, 0.9, 0.24, 1);

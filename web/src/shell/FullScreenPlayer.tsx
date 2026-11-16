@@ -528,7 +528,12 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                 {/* With Up Next open the controls sit under the poster in the same style as the main view. */}
                 <Show when={showQueue()}>
                   <div class={`${fades} mt-[clamp(24px,4vh,44px)] max-md:mt-0 flex flex-col gap-2`}>
-                    <SongTitle title={current().title} class="text-[clamp(18px,1.6vw,22px)] leading-[1.15] font-bold tracking-[-0.03em] [font-family:var(--font-family)]" />
+                    <SongTitle
+                      title={current().title}
+                      href={current().albumId ? albumHref(current().albumId) : (current().album ? `/search?q=${encodeURIComponent(current().album)}&filter=albums` : undefined)}
+                      onClick={() => playerStore.setFullscreen(false)}
+                      class="text-[clamp(18px,1.6vw,22px)] leading-[1.15] font-bold tracking-[-0.03em] [font-family:var(--font-family)]"
+                    />
                     <Marquee class="mt-0.5 text-[15px] leading-[1.3] font-medium tracking-[-0.014em] text-secondary [font-family:var(--font-family)]" render={() => <Credits />} />
                     <div class="mt-3 flex flex-col gap-2">
                       <Scrubber />
@@ -551,7 +556,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                       {playingFromHeader()}
                     </span>
                     <Show when={playingFromTitle()}>
-                      <span class="text-[13px] font-bold text-white/40 select-none">−</span>
+                      <span class="text-[14px] font-bold text-white/50 select-none mx-0.5">•</span>
                       <span class="truncate text-[13px] font-bold tracking-[0.08em] uppercase text-white/55 [font-family:var(--font-display)]">
                         {playingFromTitle()}
                       </span>
@@ -565,7 +570,8 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                         <h1 class="flex min-w-0 items-center gap-2 text-[clamp(28px,3vw,40px)] leading-[1.15] font-bold tracking-[-0.038em] [font-family:var(--font-family)]">
                           <SongTitle
                             title={current().title}
-                            href={current().albumId ? albumHref(current().albumId) : undefined}
+                            href={current().albumId ? albumHref(current().albumId) : (current().album ? `/search?q=${encodeURIComponent(current().album)}&filter=albums` : undefined)}
+                            onClick={() => playerStore.setFullscreen(false)}
                             class="flex-1"
                           />
                           <Show when={current().explicit}>

@@ -312,7 +312,7 @@ export function AmLyricsView(props: {
     if (shaping) next.setAttribute('data-shaping', '');
     // A little larger than before; Indic scripts also get a taller line so the upper matras clear.
     // Devanagari and its relatives have a small x-height beside Latin at the same size, so they run larger.
-    const size = Math.round((props.full ? 40 : 25) * (shaping ? 1.15 : 1));
+    const size = Math.round((props.full ? 40 : 20) * (shaping ? 1.15 : 1));
     next.style.cssText = `display:block;width:100%;height:100%;--lyplus-font-size-base:${size}px;--am-lyrics-line-height:${shaping ? 1.48 : 1.38};--am-lyrics-line-spacing:${shaping ? 30 : 26}px;`;
     next.ttml = ttml();
     next.addEventListener('line-click', (event) => {

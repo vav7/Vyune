@@ -18,7 +18,7 @@ import { usePageTint } from '@/lib/usePageTint';
 import { playerStore } from '@/store/player';
 import type { DiscoItem } from '@/lib/types';
 import { AppleArtistBanner } from '@/components/music/AppleArtistBanner';
-import { MotionFrost } from '@/components/music/MotionFrost';
+import { setPageArtStore } from '@/lib/pageArt';
 
 const FILTERS = ['All', 'Albums', 'Singles'] as const;
 
@@ -86,11 +86,13 @@ export default function ArtistPage() {
   createEffect(() => {
     const page = document.getElementById('scrollable-page');
     const video = motionVideo();
+    setPageArtStore('motionVideo', video);
     if (!page) return;
     if (video) page.dataset.motion = 'true';
     else delete page.dataset.motion;
     onCleanup(() => {
       delete page.dataset.motion;
+      setPageArtStore('motionVideo', null);
     });
   });
 
@@ -126,14 +128,6 @@ export default function ArtistPage() {
 
         return (
           <div class="relative">
-            {/* The frosted page: a blurred, darkened copy of the motion clip that
-                stays put while the page scrolls over it. */}
-            <Show when={motionVideo()}>
-              <div class="pointer-events-none sticky top-0 z-0 -mb-[100dvh] -ml-(--web-navigation-width) h-dvh animate-[fade-in_1.6s_ease_both] max-sm:ml-0">
-                <MotionFrost video={motionVideo()!} />
-              </div>
-            </Show>
-
             <div class="relative z-[1]">
               {/* The hero: big, the whole motion in view, the name pinned bottom-left. */}
               <div class="relative -mt-8 max-sm:-mt-[var(--mobile-top-bar-height)]">

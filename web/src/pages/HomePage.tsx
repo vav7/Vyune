@@ -4,12 +4,10 @@
 import { createMemo, onCleanup, onMount } from 'solid-js';
 import { useQuery } from '@tanstack/solid-query';
 import { HomeHero } from '@/components/music/HomeHero';
-import { CategoryTiles } from '@/components/music/CategoryTiles';
 import { Shelves, TrackShelf } from '@/components/music/ShelfView';
 import { cardItem } from '@/components/music/types';
 import { api } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
-import { playerStore } from '@/store/player';
 import { setNavHint } from '@/lib/navHint';
 import { prewarmArtworkColor } from '@/lib/artworkColor';
 
@@ -51,8 +49,6 @@ export default function HomePage() {
   }));
   const charts = () => home.data?.charts;
   const globalTracks = () => home.data?.global?.tracks || [];
-  const genres = () => home.data?.genres?.categories || [];
-  const history = () => playerStore.history;
 
   // YouTube Music's own playlists, in four themed rows. The server groups and de-duplicates them.
   const curated = createMemo(() =>
@@ -64,12 +60,6 @@ export default function HomePage() {
       items: row.items.map(cardItem),
     })),
   );
-
-  // dedup history, newest first, as the phone's Recently Played shelf
-  const recent = createMemo(() => {
-    const seen = new Set<string>();
-    return history().filter((t) => !seen.has(t.id) && seen.add(t.id)).slice(0, 20);
-  });
 
   // InnerTube sometimes repeats the same playlist with variant IDs/titles in
   // adjacent chart shelves. Keep the first catalogue card for each release.
@@ -103,12 +93,9 @@ export default function HomePage() {
     <>
       <h1 class="sr-only">Home</h1>
       <HomeHero tracks={[...globalTracks(), ...(charts()?.tracks || [])]} />
+      {globalTracks().length > 0 && <TrackShelf title="Global Top 20" tracks={globalTracks()} />}
       <Shelves shelves={curated()} />
       <Shelves shelves={shelves()} />
-      {recent().length > 0 && <TrackShelf title="Recently Played" to="/queue" tracks={recent()} />}
-      {globalTracks().length > 0 && <TrackShelf title="Global Top 20" tracks={globalTracks()} />}
-      {(charts()?.tracks || []).length > 0 && <TrackShelf title="Trending Near You" to="/browse" tracks={charts()!.tracks.slice(0, 20)} />}
-      {genres().length > 0 && <CategoryTiles categories={genres()} title="Browse Categories" compact />}
     </>
   );
 }

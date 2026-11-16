@@ -2,9 +2,7 @@ import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js';
 import { proxiedImg } from '@/lib/api';
 import { artworkForPaint } from '@/lib/artwork';
 
-/** Very fine grain — just enough to hide banding without looking sandy. */
-export const GRAIN =
-  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.15' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .28 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")";
+export const GRAIN = '';
 
 interface Layer {
   url: string;
@@ -63,9 +61,8 @@ export function CoverGlass(props: {
           {(layer) => <GlassCanvas url={layer.url} />}
         </For>
         <div class="absolute inset-0" style={{ background: `rgba(8,8,14,${veil()})` }} />
-        <div class="absolute inset-0 bg-[linear-gradient(180deg,rgb(255_255_255/0.18),rgb(255_255_255/0)_40%,rgb(0_0_0/0.14))]" />
-        <div class="absolute inset-0 opacity-[0.04] mix-blend-soft-light" style={{ 'background-image': GRAIN }} />
-        <div class="absolute inset-0 rounded-[inherit] shadow-[inset_0_1px_0_rgb(255_255_255/0.38),inset_0_0_0_1px_rgb(255_255_255/0.1),inset_0_-14px_26px_-18px_rgb(0_0_0/0.45)]" />
+        <div class="absolute inset-0 bg-[linear-gradient(180deg,rgb(255_255_255/0.14),rgb(255_255_255/0)_40%,rgb(0_0_0/0.12))]" />
+        <div class="absolute inset-0 rounded-[inherit] shadow-[inset_0_1px_0_rgb(255_255_255/0.28),inset_0_0_0_1px_rgb(255_255_255/0.08),inset_0_-14px_26px_-18px_rgb(0_0_0/0.45)]" />
       </div>
     </Show>
   );
@@ -88,7 +85,7 @@ function GlassCanvas(props: { url: string }) {
       const cover = (zoom: number) => Math.max(width / image.naturalWidth, height / image.naturalHeight) * zoom;
       // Higher-res + stronger blur = clean optical glass, not grainy upscale.
       try {
-        ctx.filter = 'blur(12px) saturate(1.75) contrast(1.05) brightness(1.03)';
+        ctx.filter = 'blur(18px) saturate(1.8) contrast(1.05) brightness(1.03)';
       } catch {
         // an unfiltered paint is still softened by the upscale
       }
@@ -115,8 +112,8 @@ function GlassCanvas(props: { url: string }) {
   return (
     <canvas
       ref={canvasRef}
-      width={320}
-      height={192}
+      width={480}
+      height={320}
       class={`absolute inset-0 size-full origin-center animate-[glass-drift_32s_ease-in-out_infinite_alternate] object-cover transition-opacity duration-[1100ms] ease-out ${ready() ? 'opacity-100' : 'opacity-0'}`}
     />
   );

@@ -1,5 +1,6 @@
 import { Show } from 'solid-js';
 import { SongTitle } from '@/components/music/SongTitle';
+import { albumHref } from '@/components/music/links';
 import {
   BackwardIcon,
   ForwardIcon,
@@ -88,7 +89,12 @@ export function SidebarPlayer() {
                 </Show>
               </button>
               <div class="min-w-0 flex-1">
-                <p class="type-[700_13px/18px] [font-family:var(--font-display)]"><SongTitle title={current.title} /></p>
+                <p class="type-[700_13px/18px] [font-family:var(--font-display)]">
+                  <SongTitle
+                    title={current.title}
+                    href={current.albumId ? albumHref(current.albumId) : (current.album ? `/search?q=${encodeURIComponent(current.album)}&filter=albums` : undefined)}
+                  />
+                </p>
                 <p class="truncate type-[500_12px/16px] text-secondary">{current.artists?.join(', ')}</p>
               </div>
             </div>

@@ -1,6 +1,7 @@
 import { GripVertical } from 'lucide-solid';
 import { useLocation } from '@solidjs/router';
 import { SongTitle } from '@/components/music/SongTitle';
+import { albumHref } from '@/components/music/links';
 import { createSignal, Show } from 'solid-js';
 import {
   BackwardIcon,
@@ -201,7 +202,13 @@ export function MiniPlayer() {
             >
               <LcdArtwork track={current} />
               <span class="flex min-w-0 flex-col pb-1">
-                <span class="type-body-emphasized"><SongTitle title={current.title} /></span>
+                <span class="type-body-emphasized">
+                  <SongTitle
+                    title={current.title}
+                    href={current.albumId ? albumHref(current.albumId) : (current.album ? `/search?q=${encodeURIComponent(current.album)}&filter=albums` : undefined)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </span>
                 <span class="truncate type-callout text-secondary">{(current.artists || []).join(', ')}</span>
               </span>
             </button>

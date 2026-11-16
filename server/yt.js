@@ -1092,8 +1092,10 @@ function mapRawListItem(r) {
       r.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer
         ?.playNavigationEndpoint?.watchEndpoint?.videoId;
     if (!id) return null;
-    const col1 = flex[1]?.musicResponsiveListItemFlexColumnRenderer;
-    const subRuns = (col1?.text || col1?.title)?.runs || [];
+    const allCols = flex.slice(1);
+    const subRuns = allCols.flatMap(
+      (col) => (col?.musicResponsiveListItemFlexColumnRenderer?.text || col?.musicResponsiveListItemFlexColumnRenderer?.title)?.runs || []
+    );
     const artists = [];
     const artistIds = [];
     const plain = [];
@@ -1101,15 +1103,24 @@ function mapRawListItem(r) {
     let albumId = null;
     for (const run of subRuns) {
       const bid = run.navigationEndpoint?.browseEndpoint?.browseId;
-      if (bid && bid.startsWith('UC')) {
+      const pageType = run.navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.musicBrowseEndpointContextSupportedConfigs?.pageType || '';
+      if (bid && (bid.startsWith('UC') || pageType.includes('ARTIST'))) {
         artists.push(run.text);
         artistIds.push(bid);
-      } else if (bid && bid.startsWith('MPRE')) {
+      } else if (bid && (bid.startsWith('MPRE') || bid.startsWith('FEmusic_library_album') || pageType.includes('ALBUM'))) {
         album = run.text;
         albumId = bid;
       } else if (run.text) {
-        // no browse endpoint: plain text — the channel that uploaded it
+        // no browse endpoint: plain text — channel or album title
         plain.push(run.text);
+      }
+    }
+    // If no linked album was found, check if a 3rd flex column (flex[2]) has the album name
+    if (!album && flex[2]) {
+      const col2Runs = (flex[2]?.musicResponsiveListItemFlexColumnRenderer?.text || flex[2]?.musicResponsiveListItemFlexColumnRenderer?.title)?.runs || [];
+      const col2Text = col2Runs.map((x) => x.text).join('').trim();
+      if (col2Text && !/^\s*(?:[•·|]|\d{1,2}:\d{2}|[\d,.]+\s*views?)\s*$/i.test(col2Text)) {
+        album = col2Text;
       }
     }
     // Playlist rows carry their credit in the long byline instead of the
@@ -1489,6 +1500,25 @@ export async function getTrackWatchMeta(videoId) {
 /* ------------------------------------------------------------------ */
 
 export async function getTrackCard(videoId) {
+  try {
+    const meta = await getTrackWatchMeta(videoId);
+    if (meta?.title) {
+      return {
+        id: videoId,
+        source: 'yt',
+        title: meta.title,
+        artists: meta.artists || [],
+        artistIds: meta.artistIds || [],
+        album: meta.album || null,
+        albumId: meta.albumId || null,
+        duration: meta.duration || 0,
+        thumb: pickThumbFromVideoId(videoId),
+        explicit: false,
+      };
+    }
+  } catch {
+    /* fall through */
+  }
   // oEmbed first: public, keyless, immune to player bot-checks
   try {
     const r = await safeFetch(

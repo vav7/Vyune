@@ -22,12 +22,13 @@ export function SongTitle(props: {
   href?: string | null;
   class?: string;
   tailClass?: string;
+  onClick?: (e: MouseEvent) => void;
 }) {
   const parts = () => splitTitle(props.title);
 
   const renderMain = (text: string) => (
     <Show when={props.href} fallback={<span class="truncate">{text}</span>}>
-      <PrefetchLink to={props.href!} class="truncate hover:underline">
+      <PrefetchLink to={props.href!} class="truncate hover:underline" onClick={props.onClick}>
         {text}
       </PrefetchLink>
     </Show>
@@ -50,7 +51,7 @@ export function SongTitle(props: {
           class={`min-w-0 flex-1 text-inherit font-inherit text-[length:inherit] leading-[inherit] ${props.tailClass ?? ''}`}
           render={() => (
             <Show when={props.href} fallback={<span class="text-inherit font-inherit">{parts().tail}</span>}>
-              <PrefetchLink to={props.href!} class="truncate hover:underline text-inherit font-inherit">
+              <PrefetchLink to={props.href!} class="truncate hover:underline text-inherit font-inherit" onClick={props.onClick}>
                 {parts().tail}
               </PrefetchLink>
             </Show>

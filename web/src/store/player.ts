@@ -535,6 +535,27 @@ async function loadTrack(index: number, autoplay = true) {
   prewarmArtworkColor(track.thumb);
   updateNowPlaying(track);
   schedulePrefetch();
+
+  // If the track came from search/top-songs without an albumId, resolve it in the background
+  if (!track.albumId && track.source === 'yt') {
+    void fetch(`/api/track?id=${encodeURIComponent(track.id)}`)
+      .then((r) => (r.ok ? (r.json() as Promise<{ albumId?: string; album?: string }>) : null))
+      .then((data) => {
+        if (!data?.albumId) return;
+        track.albumId = data.albumId;
+        if (data.album && !track.album) track.album = data.album;
+        if (snap().current?.id === track.id) {
+          setPlayerStore({
+            current: {
+              ...snap().current!,
+              albumId: data.albumId,
+              album: snap().current?.album || data.album,
+            },
+          });
+        }
+      })
+      .catch(() => {});
+  }
   let streamResolved = false;
   try {
     const stream = await resolveStream(track);

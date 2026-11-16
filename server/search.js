@@ -81,7 +81,7 @@ function creditsOf(runs = []) {
     if (type.includes('ARTIST') || (!type && id.startsWith('UC'))) {
       artists.push(run.text.trim());
       artistIds.push(id);
-    } else if (type.includes('ALBUM') || id.startsWith('MPRE')) {
+    } else if (type.includes('ALBUM') || id.startsWith('MPRE') || id.startsWith('FEmusic_library_album')) {
       if (!albumId) {
         album = run.text.trim();
         albumId = id;
@@ -145,7 +145,7 @@ function parseTrackRow(renderer, fallback) {
   const columns = renderer.flexColumns || [];
   const title = runsText(columns[0]?.musicResponsiveListItemFlexColumnRenderer?.text).trim();
   if (!title) return null;
-  const byline = columns[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || [];
+  const byline = columns.slice(1).flatMap((c) => c?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || []);
   const fixedDuration = (renderer.fixedColumns || [])
     .map((column) => runsText(column?.musicResponsiveListItemFixedColumnRenderer?.text).trim())
     .find((text) => DURATION.test(text));

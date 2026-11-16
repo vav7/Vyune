@@ -99,7 +99,7 @@ export function Lcd() {
               <div class="flex min-w-0 items-center">
                 <SongTitle
                   title={current.title}
-                  href={current.albumId ? albumHref(current.albumId) : undefined}
+                  href={current.albumId ? albumHref(current.albumId) : (current.album ? `/search?q=${encodeURIComponent(current.album)}&filter=albums` : undefined)}
                   class={titleClass}
                 />
                 <Show when={current.explicit}>

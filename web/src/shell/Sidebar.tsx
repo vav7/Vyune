@@ -9,7 +9,7 @@ import {
   SearchIcon,
   type NavIconProps,
 } from '@/components/icons/NavIcons';
-import { CoverGlass } from '@/components/music/CoverGlass';
+import { useSongTint } from '@/lib/useSongTint';
 import { playerStore } from '@/store/player';
 import { uiStore } from '@/store/ui';
 
@@ -73,8 +73,7 @@ export function Sidebar() {
   const drawerOpen = uiStore.drawerOpen;
   const setDrawerOpen = uiStore.setDrawerOpen;
   const close = () => setDrawerOpen(false);
-  const cover = () => playerStore.current?.thumb ?? null;
-  const docked = () => uiStore.playerDock === 'sidebar' && playerStore.current !== null;
+  const songTint = useSongTint();
 
   return (
     <>
@@ -84,9 +83,18 @@ export function Sidebar() {
         data-open={drawerOpen}
         aria-label="Main"
         data-sidebar
+        style={songTint()}
       >
-        {/* The whole cover, blurred into the sidebar: strongest where the docked player sits, gone by the top. */}
-        <CoverGlass src={cover()} class="-z-1" fade="bottom" veil={docked() ? 0.34 : 0.5} />
+        {/* Subtle, crystal-clear HD tint when a song is playing: no pixelated canvas, no noise grain */}
+        <div
+          class="pointer-events-none absolute inset-0 -z-1 transition-opacity duration-700 ease-out"
+          style={{
+            opacity: playerStore.current ? '1' : '0',
+            background:
+              'radial-gradient(120% 70% at 50% 100%, color-mix(in srgb, var(--song-tint, transparent) 16%, transparent) 0%, color-mix(in srgb, var(--song-tint, transparent) 4%, transparent) 55%, transparent 85%), linear-gradient(180deg, color-mix(in srgb, var(--song-tint, transparent) 8%, transparent) 0%, transparent 40%)',
+          }}
+          aria-hidden="true"
+        />
         <div class="mt-2 flex h-18 items-center px-6">
           <PrefetchLink to="/" class="group inline-flex items-center gap-2.5 rounded-[6px]" aria-label="VYUNE, Home" onClick={close}>
             <span class="brand-glass grid size-11 shrink-0 place-items-center rounded-[12px] transition-transform duration-300 group-hover:scale-[1.04]"><LogoMark size={26} /></span>

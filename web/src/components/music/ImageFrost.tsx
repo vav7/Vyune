@@ -3,28 +3,7 @@ import { proxiedImg } from '@/lib/api';
 import { artworkForPaint } from '@/lib/artwork';
 import { currentTier } from '@/lib/perf';
 
-/** Kept for reference only: nothing paints grain any more, the blur is smooth by itself. */
-export const GRAIN =
-  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")";
-
-let grain = '';
-/** A 128px tile of fine noise, generated once and reused: no SVG filter, no per-frame work. */
-function frostGrain(): string {
-  if (grain) return grain;
-  const c = document.createElement('canvas');
-  c.width = c.height = 128;
-  const g = c.getContext('2d');
-  if (!g) return '';
-  const img = g.createImageData(128, 128);
-  for (let i = 0; i < img.data.length; i += 4) {
-    const v = Math.random() * 255;
-    img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
-    img.data[i + 3] = 255;
-  }
-  g.putImageData(img, 0, 0);
-  grain = c.toDataURL('image/png');
-  return grain;
-}
+export const GRAIN = '';
 
 interface Layer {
   url: string;
@@ -77,8 +56,6 @@ export function ImageFrost(props: { src: string | null; dim?: number; palette?: 
         <ColorScatter palette={props.palette!} />
       </Show>
       <div class="absolute inset-0 transition-[background-image] duration-700" style={{ 'background-image': wash(props.palette, props.dim ?? 0.4) }} />
-      {/* The frost: a still, fine grain (drawn once, never animated) that dithers the gradient so it can never band. */}
-      <div class="pointer-events-none absolute inset-0 opacity-[0.07] mix-blend-overlay" style={{ 'background-image': `url(${frostGrain()})`, 'background-size': '128px 128px' }} />
     </div>
   );
 }
@@ -135,21 +112,23 @@ function FrostCanvas(props: { url: string }) {
         fw = step.width;
         fh = step.height;
       }
-      // Cover-fit, oversized so the soft edges of the blur never show. The picture is first melted
-      // down to a 48x27 colour field and stretched back up: bilinear upscaling of so few samples is
-      // a perfectly smooth gradient, so the blur has no pixel edges left to crack or band.
+      // Cover-fit, oversized so the soft edges of the blur never show.
+      // Scaled smoothly into a 160x90 intermediate canvas: preserves smooth optical gradients
+      // without pixel cracks or low-res blockiness.
       const cover = Math.max(W / fw, H / fh) * 1.25;
-      const tiny = document.createElement('canvas');
-      tiny.width = 48;
-      tiny.height = 27;
-      const tctx = tiny.getContext('2d');
-      if (!tctx) return;
-      tctx.imageSmoothingEnabled = true;
-      tctx.imageSmoothingQuality = 'high';
-      tctx.drawImage(from, (48 - (fw * cover * 48) / W) / 2, (27 - (fh * cover * 27) / H) / 2, (fw * cover * 48) / W, (fh * cover * 27) / H);
+      const smoothW = 160;
+      const smoothH = 90;
+      const step = document.createElement('canvas');
+      step.width = smoothW;
+      step.height = smoothH;
+      const sctx = step.getContext('2d');
+      if (!sctx) return;
+      sctx.imageSmoothingEnabled = true;
+      sctx.imageSmoothingQuality = 'high';
+      sctx.drawImage(from, (smoothW - (fw * cover * smoothW) / W) / 2, (smoothH - (fh * cover * smoothH) / H) / 2, (fw * cover * smoothW) / W, (fh * cover * smoothH) / H);
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(tiny, 0, 0, W, H);
+      ctx.drawImage(step, 0, 0, W, H);
       setReady(true);
     };
     image.src = proxiedImg(artworkForPaint(source, 544));
@@ -166,7 +145,7 @@ function FrostCanvas(props: { url: string }) {
       ref={canvas}
       width={W}
       height={H}
-      class={`absolute inset-0 size-full scale-[1.12] object-cover transition-opacity duration-[1100ms] ease-out [filter:blur(30px)_saturate(2.2)_contrast(1.08)_brightness(1.06)] ${ready() ? 'opacity-100' : 'opacity-0'}`}
+      class={`absolute inset-0 size-full scale-[1.12] object-cover transition-opacity duration-[1100ms] ease-out [filter:blur(36px)_saturate(2.0)_contrast(1.05)_brightness(1.04)] ${ready() ? 'opacity-100' : 'opacity-0'}`}
     />
   );
 }

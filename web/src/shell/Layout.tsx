@@ -16,6 +16,7 @@ import { playerStore } from '@/store/player';
 import { uiStore } from '@/store/ui';
 import { PanelLeft } from 'lucide-solid';
 import { ImageFrost } from '@/components/music/ImageFrost';
+import { MotionFrost } from '@/components/music/MotionFrost';
 import { pageArtStore } from '@/lib/pageArt';
 import { useWarmLyrics } from '@/lib/lyricsWarm';
 import { MobileTopBar } from './MobileTopBar';
@@ -116,6 +117,13 @@ export function Layout(props: RouteSectionProps) {
 
   return (
     <div class="mc-frame">
+      <Show when={pageArtStore.motionVideo}>
+        {(video) => (
+          <div class="pointer-events-none absolute inset-0 z-0 overflow-hidden animate-[fade-in_1s_ease_both]">
+            <MotionFrost video={video()} />
+          </div>
+        )}
+      </Show>
       <div
         class="mc-ambient"
         aria-hidden="true"
