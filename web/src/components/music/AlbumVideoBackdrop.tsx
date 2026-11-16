@@ -50,7 +50,8 @@ export function AlbumVideoBackdrop({ tracks }: { tracks: Track[] }) {
   const urls = createMemo(() => {
     const seen = new Set<string>();
     for (const q of queries) {
-      const url = (q.data?.mvs?.find((v) => !/lyric/i.test(`${v.label ?? ''} ${v.title ?? ''}`)) ?? q.data?.mv)?.url;
+      const nonLyric = q.data?.mvs?.find((v) => !/lyric/i.test(`${v.label ?? ''} ${v.title ?? ''}`));
+      const url = (nonLyric ?? q.data?.mvs?.[0] ?? q.data?.mv)?.url;
       if (url && !seen.has(url)) seen.add(url);
     }
     return Array.from(seen);

@@ -372,8 +372,7 @@ const musicVideoCache = new AsyncResolver(new TTLCache({ max: 256, ttl: 24 * 360
 
 export function hdVideoUrl(rawUrl) {
   if (!rawUrl || typeof rawUrl !== 'string') return null;
-  // Upgrade any lower-resolution preview (e.g. .640w.) to full 1080p HD (.1920w.)
-  return rawUrl.replace(/\.\d+w\./, '.1920w.');
+  return rawUrl;
 }
 
 export function videoPreview(video, title) {
@@ -395,32 +394,56 @@ export function videoPreview(video, title) {
 export function videoLabel(name) {
   const n = String(name || '');
   if (/behind the scenes|making of|\bbts\b|teaser|trailer|interview|reaction|tutorial|dance practice/i.test(n)) return null;
+  if (/visuali[sz]er/i.test(n)) return 'Visualizer';
   if (/director'?s?\s*cut/i.test(n)) return "Director's Cut";
-  if (/alternate|alternative|\balt\b|extended|uncut|unreleased|version 2|short film/i.test(n)) return 'Alternate Version';
+  if (/alternate|alternative|\balt\b|extended|uncut|unreleased|version 2|short film|remix/i.test(n)) return 'Alternate Version';
   if (/lyric/i.test(n)) return 'Lyric Video';
   if (/\blive\b|concert|acoustic|unplugged/i.test(n)) return 'Live';
   return 'Music Video';
 }
-const LABEL_ORDER = ['Music Video', "Director's Cut", 'Alternate Version', 'Live', 'Lyric Video'];
+export const LABEL_ORDER = ['Music Video', "Director's Cut", 'Alternate Version', 'Visualizer', 'Live', 'Lyric Video'];
 
-/** "Song - From "Film"", "Song (From "Film")" and remaster/version tails, reduced to the song's own name. */
-const bareTitle = (value) =>
-  String(value || '')
-    .replace(/^[^–—\-:|]+\s*[-–—:|]\s*/, '')
-    .replace(/\s*[-–—]\s*(?:from|remaster|single|version|live|official|film version|director'?s?\s*cut|extended|alternate|alternative|uncut).*$/i, '')
-    .replace(/\s*[([](?:from|feat\.?|ft\.?|with|official|audio|video|lyrics?|remaster|director'?s?\s*cut|extended|alternate|alternative|uncut)[^)\]]*[)\]]/gi, '')
+/** Strips artist prefixes, remaster/re-release tails, version descriptors, brackets, and extraneous noise. */
+export function cleanTrackTitle(raw, artists = []) {
+  let t = String(raw || '').trim();
+  const artistList = Array.isArray(artists) ? artists : [artists];
+  for (const a of artistList) {
+    const artistStr = String(a || '').trim();
+    if (!artistStr) continue;
+    if (t.toLowerCase().startsWith(artistStr.toLowerCase())) {
+      const rest = t.slice(artistStr.length).replace(/^[\s–—\-:|]+/, '');
+      if (rest) {
+        t = rest;
+        break;
+      }
+    }
+  }
+  const cleaned = t
+    .replace(/\s*[-–—]\s*(?:[0-9]{4}\s*)?(?:remaster(?:ed)?|re-?release|single|version|live|official(?:\s*music)?\s*video|film version|director'?s?\s*cut|extended|alternate|alternative|uncut|hd|4k|mix|deluxe|anniversary|edit|mono|stereo|bonus|acoustic|visuali[sz]er).*$/i, '')
+    .replace(/\s*[([](?:from|feat\.?|ft\.?|with|official|audio|video|lyrics?|remaster(?:ed)?|[0-9]{4}\s*remaster|director'?s?\s*cut|extended|alternate|alternative|uncut|visuali[sz]er|hd|4k)[^)\]]*[)\]]/gi, '')
     .trim();
+  return cleaned || t;
+}
+
+function videoResolutionScore(url) {
+  const u = String(url || '');
+  if (/\.m3u8/i.test(u)) return 1000;
+  if (/1920w|1080/i.test(u)) return 900;
+  if (/1280w|720w|720/i.test(u)) return 700;
+  if (/640x|640w|480/i.test(u)) return 500;
+  return 300;
+}
+
+function isMatchingVideoTitle(videoTitle, targetClean, targetTitleKey) {
+  const vClean = cleanTrackTitle(videoTitle);
+  const vKey = motionTitleKey(vClean);
+  if (!vKey || !targetTitleKey) return false;
+  return vKey === targetTitleKey || motionTitleKey(videoTitle) === targetTitleKey;
+}
 
 /**
  * Every Apple music video that belongs to this song — the official one, its
- * director's cut, an alternate or extended version — most official first.
- *
- *   • all credited artists are tried (a Hindi film song is filed under its
- *     composer on one side and its singer on the other),
- *   • several search phrasings are tried, three storefronts,
- *   • queries iTunes Search API directly for official 1080p HD (.1920w.) previews,
- *   • a video qualifies when its title agrees with the song's AND (an artist
- *     is shared OR the video's album/film is the track's album).
+ * director's cut, an alternate or extended version, visualizer — most official & HD first.
  */
 export async function trackMusicVideos({ title, artists = [], album = '', channel = '' }) {
   let list = (Array.isArray(artists) ? artists : [artists]).map((a) => String(a || '').trim()).filter(Boolean);
@@ -430,121 +453,129 @@ export async function trackMusicVideos({ title, artists = [], album = '', channe
     if (dashMatch) list = [dashMatch[1].trim()];
     else if (channel) list = [channel.replace(/\s*[-–|]\s*(?:topic|vevo)\s*$/i, '').trim()];
   }
-  const bare = bareTitle(title);
+  const bare = cleanTrackTitle(title, list);
   const titleKey = motionTitleKey(bare) || motionTitleKey(title);
   if (!titleKey || !list.length) return [];
-  const albumKey = motionTitleKey(bareTitle(album));
-  const cacheKey = `mvs5:${titleKey}|${list.map(normalizeName).sort().join('+')}`;
+  const albumKey = motionTitleKey(cleanTrackTitle(album));
+  const cacheKey = `mvs7:${titleKey}|${list.map(normalizeName).sort().join('+')}`;
   return musicVideoCache.resolve(cacheKey, async () => {
     const joined = list.join(', ');
     const terms = [...new Set([
       `${list[0]} ${bare}`,
       bare,
-      album ? `${bare} ${bareTitle(album)}` : null,
+      `${list[0]} ${bare} visualizer`,
+      album ? `${bare} ${cleanTrackTitle(album)}` : null,
       list[1] ? `${list[1]} ${bare}` : null,
-      list[0],
     ].filter(Boolean))];
     const found = new Map();
 
-    // 1. iTunes Search API (fast, open, reliable, 1080p HD previews, no 429 rate limit)
-    const countries = ['us', 'in', 'gb'];
-    for (const country of countries) {
-      for (const term of terms) {
-        try {
-          const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=musicVideo&country=${country}&limit=15`;
-          const res = await safeFetch(itunesUrl, { timeout: 6000 });
-          if (!res?.ok) continue;
-          const data = await res.json().catch(() => null);
-          for (const item of data?.results || []) {
-            const rawUrl = item.previewUrl;
-            if (!rawUrl) continue;
-            const name = item.trackName;
-            const label = videoLabel(name);
-            if (!label) continue;
-            const itemKey = motionTitleKey(bareTitle(name));
-            const sameTitle =
-              itemKey === titleKey ||
-              itemKey.startsWith(titleKey) ||
-              titleKey.startsWith(itemKey) ||
-              itemKey.includes(titleKey) ||
-              titleKey.includes(itemKey);
-            if (!sameTitle) continue;
-            const sameArtist = motionMatchesArtist(joined, item.artistName);
-            const sameFilm = albumKey && motionTitleKey(bareTitle(item.collectionName)) === albumKey;
-            if (!sameArtist && !sameFilm) continue;
-            const hdUrl = hdVideoUrl(rawUrl);
-            if (hdUrl && !found.has(hdUrl)) {
-              found.set(hdUrl, {
-                url: hdUrl,
-                aspect: 16 / 9,
-                title: name || title,
-                label,
-                official: label === 'Music Video',
-                provider: 'apple',
-                storefront: country,
-              });
-            }
-          }
-        } catch {
-          // ignore network failure on this term
-        }
+    const considerItem = (name, rawUrl, artistName, collectionName, storefront) => {
+      if (!rawUrl || !name) return;
+      const label = videoLabel(name);
+      if (!label) return;
+      if (!isMatchingVideoTitle(name, bare, titleKey)) return;
+      const sameArtist = motionMatchesArtist(joined, artistName);
+      const sameFilm = albumKey && motionTitleKey(cleanTrackTitle(collectionName)) === albumKey;
+      if (!sameArtist && !sameFilm) return;
+      const finalUrl = hdVideoUrl(rawUrl);
+      if (!finalUrl) return;
+
+      const resScore = videoResolutionScore(finalUrl);
+      const existing = found.get(finalUrl);
+      if (!existing || resScore > (existing.score || 0)) {
+        found.set(finalUrl, {
+          url: finalUrl,
+          aspect: 16 / 9,
+          title: name || title,
+          label,
+          official: label === 'Music Video',
+          provider: 'apple',
+          storefront,
+          score: resScore,
+        });
       }
-      if (found.size > 0 && (country === 'us' || country === 'in')) break;
+    };
+
+    // 1. iTunes Search API (parallelized across countries and terms for fast ~400ms loading)
+    const itunesQueries = [];
+    for (const country of ['us', 'in']) {
+      for (const term of terms) {
+        const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=musicVideo&country=${country}&limit=15`;
+        itunesQueries.push(
+          safeFetch(itunesUrl, { timeout: 4500 })
+            .then(async (res) => {
+              if (!res?.ok) return;
+              const data = await res.json().catch(() => null);
+              for (const item of data?.results || []) {
+                considerItem(item.trackName, item.previewUrl, item.artistName, item.collectionName, country);
+              }
+            })
+            .catch(() => null),
+        );
+      }
     }
 
-    // 2. Fallback / supplementary check with Apple Catalog API if token is available
-    if (found.size === 0) {
+    // 2. Apple Music Catalog API in parallel (for direct linked music-videos, adaptive HLS, & visualizers)
+    const catalogQuery = (async () => {
       try {
         const token = await appleCatalogToken();
-        if (token) {
-          const consider = (video, storefront) => {
-            const attr = video?.attributes;
-            if (!attr?.name) return;
-            const label = videoLabel(attr.name);
-            if (!label) return;
-            const sameTitle =
-              motionTitleKey(bareTitle(attr.name)) === titleKey || motionTitleKey(attr.name) === titleKey ||
-              motionTitleKey(bareTitle(attr.name)).startsWith(titleKey);
-            if (!sameTitle) return;
-            const sameArtist = motionMatchesArtist(joined, attr.artistName);
-            const sameFilm = albumKey && motionTitleKey(bareTitle(attr.albumName)) === albumKey;
-            if (!sameArtist && !sameFilm) return;
+        if (!token) return;
+        const catalogFetches = ['us', 'in'].map(async (sf) => {
+          const searchUrl = `${APPLE_CATALOG}/${sf}/search?term=${encodeURIComponent(list[0] + ' ' + bare)}&types=songs,music-videos&limit=15&include=music-videos`;
+          const body = await appleCatalogGet(searchUrl, token);
+          if (!body) return;
+          for (const video of body.results?.['music-videos']?.data || []) {
             const hit = videoPreview(video, title);
-            if (!hit || found.has(hit.url)) return;
-            found.set(hit.url, { ...hit, label, official: label === 'Music Video', storefront });
-          };
-
-          for (const storefront of [...new Set([APPLE_STOREFRONT, 'in', 'us'])]) {
-            const base = `${APPLE_CATALOG}/${storefront}`;
-            for (const term of terms) {
-              const search = new URL(`${base}/search`);
-              search.searchParams.set('term', term);
-              search.searchParams.set('types', 'songs,music-videos');
-              search.searchParams.set('limit', '15');
-              search.searchParams.set('include', 'music-videos');
-              const body = await appleCatalogGet(search.href, token);
-              if (!body) continue;
-              for (const song of body.results?.songs?.data || []) {
-                const name = song?.attributes?.name;
-                if (!name || motionTitleKey(bareTitle(name)) !== titleKey) continue;
-                if (!motionMatchesArtist(joined, song.attributes.artistName) && !(albumKey && motionTitleKey(bareTitle(song.attributes.albumName)) === albumKey)) continue;
-                for (const link of (song.relationships?.['music-videos']?.data || []).slice(0, 4)) {
-                  const detail = await appleCatalogGet(`${base}/music-videos/${link.id}`, token);
-                  consider(detail?.data?.[0], storefront);
-                }
-              }
-              for (const video of body.results?.['music-videos']?.data || []) consider(video, storefront);
-              if ([...found.values()].some((v) => v.official && v.storefront === storefront)) break;
+            if (hit?.url) {
+              considerItem(video.attributes?.name, hit.url, video.attributes?.artistName, video.attributes?.albumName, sf);
             }
-            if (found.size) break;
           }
-        }
+          for (const song of body.results?.songs?.data || []) {
+            const songName = song?.attributes?.name;
+            if (!songName || !isMatchingVideoTitle(songName, bare, titleKey)) continue;
+            for (const link of (song.relationships?.['music-videos']?.data || []).slice(0, 4)) {
+              const detail = await appleCatalogGet(`${APPLE_CATALOG}/${sf}/music-videos/${link.id}`, token);
+              const v = detail?.data?.[0];
+              const hit = videoPreview(v, title);
+              if (hit?.url) {
+                considerItem(v?.attributes?.name, hit.url, v?.attributes?.artistName, v?.attributes?.albumName, sf);
+              }
+            }
+          }
+        });
+        await Promise.allSettled(catalogFetches);
       } catch {
-        // catalog API failed, continue with whatever was found
+        // ignore
+      }
+    })();
+
+    await Promise.allSettled([...itunesQueries, catalogQuery]);
+
+    // Deduplicate: keep highest resolution HD version of identical cut,
+    // while preserving distinct alternate cuts, visualizers, and live takes.
+    const sortedRaw = [...found.values()].sort((a, b) => {
+      const orderA = LABEL_ORDER.indexOf(a.label);
+      const orderB = LABEL_ORDER.indexOf(b.label);
+      if (orderA !== orderB) return orderA - orderB;
+      return (b.score || 0) - (a.score || 0);
+    });
+
+    const dedupedByCut = new Map();
+    for (const v of sortedRaw) {
+      const cutKey = `${v.label}|${normalizeName(v.title)}`;
+      if (!dedupedByCut.has(cutKey)) {
+        dedupedByCut.set(cutKey, v);
       }
     }
 
-    const out = [...found.values()].sort((x, y) => LABEL_ORDER.indexOf(x.label) - LABEL_ORDER.indexOf(y.label));
+    const seenUrls = new Set();
+    const out = [];
+    for (const v of dedupedByCut.values()) {
+      if (!seenUrls.has(v.url)) {
+        seenUrls.add(v.url);
+        out.push(v);
+      }
+    }
     return out.length ? out : null;
   });
 }

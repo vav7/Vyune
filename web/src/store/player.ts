@@ -484,7 +484,7 @@ function queuePrefetch(track: Track, priority = false) {
   if (track?.title && track.artists?.[0] && TIERS[currentTier()].motion) {
     void queryClient
       .prefetchQuery({
-        queryKey: ['apple-motion', track.id, track.title, track.artists[0], track.album],
+        queryKey: ['apple-motion-v2', track.id, track.title, (track.artists || []).join('|'), track.album],
         queryFn: ({ signal }) => apiClient.appleMotion(track, signal),
         staleTime: 24 * 60 * 60_000,
       })

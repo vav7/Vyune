@@ -15,7 +15,9 @@ export async function attachHlsClip(
 ): Promise<ClipHandle | null> {
   // Apple's music-video previews are plain mp4: no player library needed.
   if (!/\.m3u8(?:$|\?)/i.test(source)) {
-    video.src = source;
+    if (video.src !== source) {
+      video.src = source;
+    }
     return {
       destroy: () => {
         video.removeAttribute('src');

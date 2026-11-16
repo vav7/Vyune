@@ -151,13 +151,14 @@ export function AppleMotionArtwork(props: {
   }));
 
   const motionSource = () => query.data?.url || null;
-  // Every music video except the lyric video, in the order found. There is nothing to choose: they
-  // simply play one after another, and the last hands back to the first.
+  // Prioritize official MVs, alternate cuts, and visualizers; fallback to lyric video if it's the only visual
   const isLyricVideo = (v: { label?: string | null; title?: string | null }) => /lyric/i.test(`${v.label ?? ''} ${v.title ?? ''}`);
   const mvList = () => {
     const all = query.data?.mvs?.length ? query.data.mvs : query.data?.mv ? [query.data.mv] : [];
     const seen = new Set<string>();
-    return all.filter((v) => v?.url && !isLyricVideo(v as any) && !seen.has(v.url) && seen.add(v.url));
+    const valid = all.filter((v) => v?.url && !seen.has(v.url) && seen.add(v.url));
+    const nonLyric = valid.filter((v) => !isLyricVideo(v as any));
+    return nonLyric.length ? nonLyric : valid;
   };
   const [mvIndex, setMvIndex] = createSignal(0);
   createEffect(() => {
@@ -172,6 +173,25 @@ export function AppleMotionArtwork(props: {
   const nextMv = () => {
     if (mvList().length > 1) setMvIndex((i) => (i + 1) % mvList().length);
   };
+
+  // Pre-buffering of next MV in rotation
+  createEffect(() => {
+    const list = mvList();
+    if (list.length > 1) {
+      const nextIdx = (mvIndex() + 1) % list.length;
+      const nextUrl = list[nextIdx]?.url;
+      if (nextUrl && typeof document !== 'undefined' && !/\.m3u8/i.test(nextUrl)) {
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'video';
+        link.href = nextUrl;
+        document.head.appendChild(link);
+        onCleanup(() => {
+          if (link.parentNode) link.parentNode.removeChild(link);
+        });
+      }
+    }
+  });
 
   const mvSource = () => chosenMv()?.url || null;
   const usingMv = () => !!mvSource() && (mode() === 'mv' || !motionSource());
@@ -233,7 +253,12 @@ export function AppleMotionArtwork(props: {
           class={`pointer-events-none absolute inset-0 z-10 size-full rounded-[inherit] object-cover transition-opacity duration-[800ms] ease-in-out ${clip.ready() && wantedSource() ? 'opacity-100' : 'opacity-0'}`}
           style={clip.fit() ? { transform: `scale(${clip.fit()!.scale}) translateY(${clip.fit()!.shift}%)` } : undefined}
           onPlaying={() => clip.setReady(true)}
+          onLoadedData={(event) => {
+            clip.setReady(true);
+            if (visible()) event.currentTarget.play().catch(() => undefined);
+          }}
           onCanPlay={(event) => {
+            clip.setReady(true);
             if (visible()) event.currentTarget.play().catch(() => undefined);
           }}
           onError={() => {
