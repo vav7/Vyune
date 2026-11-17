@@ -2,7 +2,7 @@ import { For } from 'solid-js';
 import { SkeletonBlock, SkeletonLine } from '@/components/Skeleton';
 
 const skeletonRow =
-  'relative grid items-center border-y-2 border-transparent bg-card/60 bg-clip-padding [box-shadow:inset_0_0_0_0.5px_var(--cardStroke)]';
+  'relative grid items-center border-y-2 border-transparent bg-white/[0.03] rounded-[10px] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] border border-white/6';
 
 /** Album and playlist pages: artwork header, then the track list. */
 export function DetailSkeleton({ rows = 8, rowArtwork = false, header = true }: { rows?: number; rowArtwork?: boolean; header?: boolean }) {

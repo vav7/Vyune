@@ -12,8 +12,8 @@ interface BlockProps {
   style?: CSSProperties;
 }
 
-// Static subtle placeholder box; no flashing shimmer animation.
-const block = 'relative shrink-0 overflow-hidden rounded-[4px] bg-skeleton';
+// Refined optical glass placeholder box with subtle crystalline sheen.
+const block = 'relative shrink-0 overflow-hidden rounded-[10px] bg-white/[0.05] border border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] animate-pulse';
 
 const cssDimension = (value?: Dimension) => typeof value === 'number' ? `${value}px` : value;
 

@@ -28,8 +28,8 @@ interface DetailHeaderProps {
 
 /** Shuffle (circle) · Play (pill), report §14. */
 export const detailButton = {
-  pill: 'vy-btn vy-btn--primary vy-btn--pill rounded-full transition-all duration-300 hover:scale-[1.04] hover:shadow-[0_12px_28px_rgba(250,45,79,0.5)] active:scale-[0.96]',
-  circle: 'vy-btn vy-btn--glass vy-btn--icon rounded-full transition-all duration-300 hover:scale-[1.07] hover:bg-white/[0.22] hover:shadow-[0_8px_20px_rgba(0,0,0,0.4)] active:scale-[0.94]',
+  pill: 'vy-btn vy-btn--primary vy-btn--pill glance rounded-full transition-all duration-300 hover:scale-[1.04] hover:shadow-[0_16px_36px_rgba(var(--keyColor-rgb),0.7),inset_0_1px_0_rgba(255,255,255,0.55)] active:scale-[0.96]',
+  circle: 'vy-btn vy-btn--glass vy-btn--icon glance rounded-full border border-white/20 transition-all duration-300 hover:scale-[1.08] hover:bg-white/[0.22] hover:shadow-[0_12px_28px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.45)] active:scale-[0.94]',
 };
 
 /**
@@ -42,10 +42,10 @@ export function DetailHeader(props: DetailHeaderProps) {
   return (
     // Artwork beside the headings, description and actions; stacked and centred below 768px.
     <div class="mx-(--body-gutter) mb-10 grid grid-cols-[auto_minmax(0,1fr)] grid-rows-[auto_1fr_auto] gap-x-[34px] pt-11 [grid-template-areas:'artwork_headings'_'artwork_description'_'artwork_actions'] max-md:grid-cols-[1fr] max-md:grid-rows-[auto] max-md:justify-items-center max-md:pt-4 max-md:text-center max-md:[grid-template-areas:'artwork'_'headings'_'actions'_'description']">
-      <div class="relative w-[270px] self-start rounded-artwork-lg shadow-[0_10px_20px_0_var(--radiosityShadowColor)] [grid-area:artwork] max-lg:w-[220px] max-md:w-[min(270px,70vw)]">
+      <div class="relative w-[270px] self-start rounded-artwork-lg shadow-[0_24px_60px_-12px_rgba(0,0,0,0.85)] [grid-area:artwork] max-lg:w-[220px] max-md:w-[min(270px,70vw)]">
         <Show when={props.thumbnail}>
           {/* A blurred copy behind the artwork: Apple's radiosity glow. */}
-          <div class="absolute inset-0 -z-1 scale-88 opacity-30 blur-[20px] saturate-200" aria-hidden="true">
+          <div class="absolute inset-0 -z-1 scale-95 opacity-55 [filter:blur(36px)_saturate(2)] [transform:translateZ(0)]" aria-hidden="true">
             <Artwork src={props.thumbnail} displayWidth={80} radius="var(--radius-artwork-large)" />
           </div>
         </Show>

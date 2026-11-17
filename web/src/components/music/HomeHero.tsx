@@ -65,8 +65,8 @@ export function HomeHero(props: { tracks: Track[] }) {
           <Show when={video()} fallback={<ImageFrost src={current()!.thumb} dim={0.46} />}>
             <MotionFrost video={video()} dim={0.4} />
           </Show>
-          <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(4,4,8,0.62)_0%,rgba(4,4,8,0.18)_52%,transparent_100%)]" />
-          <div class="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[var(--pageBG,#07070b)]" />
+          <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(4,4,8,0.55)_0%,rgba(4,4,8,0.15)_52%,transparent_100%)]" />
+          <div class="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/30" />
         </div>
 
         <div class="hero-grid mx-auto grid min-h-[clamp(560px,82vh,800px)] max-w-[1680px] grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] items-center gap-x-[clamp(24px,4vw,80px)] px-(--body-gutter) pt-28 pb-16 max-lg:grid-cols-1 max-lg:justify-items-start max-lg:gap-y-8 max-lg:pt-24">
@@ -74,23 +74,23 @@ export function HomeHero(props: { tracks: Track[] }) {
           <Show keyed when={current()}>
             {(track) => (
               <div class="order-1 min-w-0 animate-[hero-rise_800ms_80ms_cubic-bezier(0.22,1,0.36,1)_both] max-lg:order-2">
-                <p class="mb-4 inline-flex items-center gap-2 rounded-full bg-white/[0.12] px-3.5 py-1.5 type-[700_11px/14px] tracking-[0.18em] text-white uppercase [backdrop-filter:blur(24px)_saturate(1.6)] shadow-[inset_0_0.5px_0_rgb(255_255_255/0.55)]">
+                <p class="glance mb-4 inline-flex items-center gap-2 rounded-full bg-black/35 px-4 py-1.5 type-[700_11px/14px] tracking-[0.18em] text-white uppercase [backdrop-filter:blur(20px)_saturate(1.8)] border border-white/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_8px_24px_rgba(0,0,0,0.5)]">
                   <span class="size-1.5 rounded-full bg-white shadow-[0_0_10px_#fff]" />
                   No. {index() + 1} today
                 </p>
-                <h2 class="line-clamp-3 type-[800_clamp(40px,6.4vw,96px)/0.98] tracking-[-0.045em] text-white [text-shadow:0_2px_40px_rgb(0_0_0/0.35)]">
+                <h2 class="line-clamp-3 type-[800_clamp(40px,6.4vw,96px)/0.98] tracking-[-0.045em] text-white [text-shadow:0_4px_48px_rgba(0,0,0,0.65)]">
                   {track.title}
                 </h2>
-                <p class="mt-4 line-clamp-2 type-[600_clamp(17px,1.7vw,24px)/1.3] text-white/80">{artists(track)}</p>
+                <p class="mt-4 line-clamp-2 type-[600_clamp(17px,1.7vw,24px)/1.3] text-white/85">{artists(track)}</p>
                 <div class="mt-8 flex flex-wrap items-center gap-3">
                   <button
-                    class="glow-ring sq-pill inline-flex h-[54px] items-center gap-2.5 bg-white px-8 type-[700_16px/20px] text-black shadow-[0_14px_40px_-12px_rgb(255_255_255/0.55)] transition-[transform,box-shadow] duration-300 hover:scale-[1.04] active:scale-95"
+                    class="glow-ring sq-pill glance inline-flex h-[54px] items-center gap-2.5 bg-white px-8 type-[700_16px/20px] text-black shadow-[0_18px_48px_-10px_rgba(255,255,255,0.65),inset_0_1px_0_#fff] transition-all duration-300 hover:scale-[1.05] active:scale-95"
                     onClick={() => playList(slides(), index())}
                   >
                     <PlayIcon size={19} fill="currentColor" /> Play
                   </button>
                   <button
-                    class="sq-pill inline-flex h-[54px] items-center gap-2.5 bg-white/[0.14] px-7 type-[650_16px/20px] text-white shadow-[inset_0_0.5px_0_rgb(255_255_255/0.5)] [backdrop-filter:blur(30px)_saturate(1.7)] transition-[transform,background-color] duration-300 hover:bg-white/[0.22] active:scale-95"
+                    class="sq-pill glance inline-flex h-[54px] items-center gap-2.5 bg-white/[0.12] px-7 type-[650_16px/20px] text-white border border-white/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_12px_32px_-8px_rgba(0,0,0,0.6)] [backdrop-filter:blur(36px)_saturate(1.8)] transition-all duration-300 hover:bg-white/[0.22] hover:scale-[1.04] active:scale-95"
                     onClick={() => shuffleList(slides())}
                   >
                     <ShuffleIcon size={18} /> Shuffle
@@ -98,7 +98,7 @@ export function HomeHero(props: { tracks: Track[] }) {
                   <Show when={track.albumId}>
                     <PrefetchLink
                       to={`/album/${encodeURIComponent(track.albumId!)}`}
-                      class="sq-pill inline-flex h-[54px] items-center bg-white/[0.08] px-6 type-[600_15px/20px] text-white/90 [backdrop-filter:blur(30px)] transition-colors hover:bg-white/[0.18]"
+                      class="sq-pill inline-flex h-[54px] items-center bg-white/[0.08] px-6 type-[600_15px/20px] text-white/90 border border-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] [backdrop-filter:blur(30px)] transition-all hover:bg-white/[0.18]"
                     >
                       View album
                     </PrefetchLink>
@@ -110,7 +110,7 @@ export function HomeHero(props: { tracks: Track[] }) {
                   <For each={slides()}>
                     {(slide, i) => (
                       <button
-                        class="group/chip relative size-[68px] overflow-hidden rounded-[22px] [corner-shape:squircle] opacity-60 shadow-[0_10px_30px_-10px_#000] outline-offset-2 transition-[opacity,transform] duration-500 hover:scale-105 hover:opacity-100 data-[on]:scale-110 data-[on]:opacity-100 data-[on]:outline-2 data-[on]:outline-white/80"
+                        class="group/chip relative size-[68px] overflow-hidden rounded-[20px] [corner-shape:squircle] opacity-65 border border-white/15 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.4)] outline-offset-2 transition-[opacity,transform,border-color] duration-500 hover:scale-105 hover:opacity-100 hover:border-white/30 data-[on]:scale-110 data-[on]:opacity-100 data-[on]:border-white/60 data-[on]:shadow-[0_16px_40px_-6px_rgba(0,0,0,0.8),inset_0_1px_0_#fff]"
                         data-on={i() === index() || undefined}
                         aria-label={`Show ${slide.title}`}
                         aria-current={i() === index()}
@@ -133,14 +133,14 @@ export function HomeHero(props: { tracks: Track[] }) {
                 <div class="pointer-events-none absolute -inset-6 -z-1 opacity-60 [filter:blur(48px)_saturate(1.8)] [transform:translateZ(0)]" aria-hidden="true">
                   <Artwork src={track.thumb} track={track} displayWidth={120} radius="14px" class="size-full rounded-[14px]" />
                 </div>
-                <div class="hero-poster relative aspect-square w-full overflow-hidden rounded-[14px] shadow-[0_32px_80px_-20px_rgb(0_0_0/0.85),0_0_0_0.5px_rgb(255_255_255/0.22)]">
-                  <Artwork src={track.thumb} track={track} displayWidth={560} radius="14px" eager class="size-full rounded-[14px]" />
-                  <div class="absolute inset-0 overflow-hidden rounded-[14px]">
+                <div class="hero-poster relative aspect-square w-full overflow-hidden rounded-[16px] shadow-[0_36px_90px_-18px_rgba(0,0,0,0.92),0_12px_28px_-6px_rgba(0,0,0,0.65)] border border-white/20">
+                  <Artwork src={track.thumb} track={track} displayWidth={560} radius="16px" eager class="size-full rounded-[16px]" />
+                  <div class="absolute inset-0 overflow-hidden rounded-[16px]">
                     <Show when={armed()}>
                       <AppleMotionArtwork track={track} mode="motion" onVideo={setVideo} />
                     </Show>
                   </div>
-                  <div class="pointer-events-none absolute inset-0 rounded-[14px] shadow-[inset_0_1px_0_rgb(255_255_255/0.4),inset_0_0_0_0.5px_rgb(255_255_255/0.2)]" />
+                  <div class="pointer-events-none absolute inset-0 rounded-[16px] shadow-[inset_0_1px_0_rgba(255,255,255,0.5),inset_0_0_0_1px_rgba(255,255,255,0.15)]" />
                 </div>
               </div>
             )}
@@ -155,7 +155,7 @@ export function HomeHero(props: { tracks: Track[] }) {
                 role="tab"
                 aria-selected={i() === index()}
                 aria-label={slide.title}
-                class="h-[5px] flex-1 overflow-hidden rounded-full bg-white/25 [corner-shape:round]"
+                class="h-[5px] flex-1 overflow-hidden rounded-full bg-white/20 backdrop-blur-md shadow-[inset_0_1px_1px_rgba(0,0,0,0.35)] [corner-shape:round]"
                 onClick={() => setIndex(i())}
               >
                 <Show when={i() < index()}>

@@ -43,9 +43,11 @@ const link = 'text-inherit hover:underline group-data-current/row:text-primary';
  * fill is clipped inside), brighter on hover, tinted red for the playing row.
  */
 const row = [
-  'group/row track-row relative grid items-center border-y-2 border-transparent bg-card bg-clip-padding hover:bg-card-hover [content-visibility:auto] [contain-intrinsic-size:auto_54px]',
-  '[box-shadow:inset_0_0_0_0.5px_var(--cardStroke)] transition-[background-color] duration-200 ease-out',
-  'data-current:bg-[color-mix(in_srgb,var(--keyColor)_20%,#ffffff0d)]',
+  'group/row track-row glance relative grid items-center [content-visibility:auto] [contain-intrinsic-size:auto_54px]',
+  'border border-white/[0.06] hover:border-white/[0.18]',
+  'hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_6px_20px_rgba(0,0,0,0.35)]',
+  'transition-all duration-200 ease-out select-none',
+  'data-current:bg-[color-mix(in_srgb,var(--keyColor)_24%,rgba(255,255,255,0.08))] data-current:border-white/25 data-current:shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_6px_24px_-4px_rgba(var(--keyColor-rgb),0.45)]',
 ].join(' ');
 
 const rowVariant: Record<Variant, string> = {

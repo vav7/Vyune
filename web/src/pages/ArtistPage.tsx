@@ -25,14 +25,14 @@ const FILTERS = ['All', 'Albums', 'Singles'] as const;
 /** The discography's segmented control (report §6 tokens). */
 function Segmented(props: { value: string; onChange: (v: (typeof FILTERS)[number]) => void }) {
   return (
-    <div class="inline-flex items-center gap-0.5 rounded-pill bg-segmented p-0.5" role="tablist" aria-label="Discography filter">
+    <div class="inline-flex items-center gap-1 rounded-full bg-black/40 border border-white/14 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_6px_20px_rgba(0,0,0,0.4)] [backdrop-filter:blur(24px)_saturate(1.8)]" role="tablist" aria-label="Discography filter">
       <For each={FILTERS}>
         {(f) => (
           <button
             role="tab"
             aria-selected={props.value === f}
-            class={`rounded-pill px-3 py-1 type-callout-emphasized transition-colors ${
-              props.value === f ? 'bg-segmented-selected text-primary shadow-[0_1px_3px_#0000001f]' : 'text-secondary hover:text-primary'
+            class={`rounded-full px-3.5 py-1.5 type-callout-emphasized transition-all duration-200 active:scale-95 ${
+              props.value === f ? 'bg-white text-black font-bold shadow-[0_4px_14px_rgba(255,255,255,0.4),inset_0_1px_0_#fff]' : 'text-secondary hover:text-primary hover:bg-white/[0.08]'
             }`}
             onClick={() => props.onChange(f)}
           >
@@ -124,7 +124,7 @@ export default function ArtistPage() {
           .join(' · ');
 
         const smallButton =
-          'grid size-9 place-items-center rounded-full text-white transition-[background-color,scale] duration-200 hover:scale-105';
+          'grid size-9 place-items-center rounded-full text-white transition-all duration-200 hover:scale-108 active:scale-92 shadow-[0_4px_16px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.35)]';
 
         return (
           <div class="relative">
@@ -143,7 +143,7 @@ export default function ArtistPage() {
                   headerExtra={
                     <div class="flex min-w-0 items-center gap-2.5 font-normal">
                       <button
-                        class={`${smallButton} bg-key-bg shadow-[0_2px_8px_-2px_#0008,inset_0_0_2px_#ffffff26]`}
+                        class={`${smallButton} bg-key-bg glance shadow-[0_8px_20px_rgba(var(--keyColor-rgb),0.5),inset_0_1px_0_rgba(255,255,255,0.45)]`}
                         aria-label={`Play ${artist.name}`}
                         onClick={() => playList(artist.topSongs, 0)}
                       >
@@ -151,7 +151,7 @@ export default function ArtistPage() {
                       </button>
                       {artist.radioId && (
                         <button
-                          class={`${smallButton} bg-white/12 [backdrop-filter:blur(20px)_saturate(1.6)] hover:bg-white/20`}
+                          class={`${smallButton} glance bg-white/14 border border-white/16 [backdrop-filter:blur(24px)_saturate(1.8)] hover:bg-white/22`}
                           aria-label={`Start ${artist.name} radio`}
                           title="Start radio"
                           onClick={() => void playerStore.startRadio(artist.topSongs[0]!)}

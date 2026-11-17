@@ -129,7 +129,7 @@ function ProviderPicker(props: {
     >
       <div class="flex min-w-0 items-center gap-1">
         <button
-          class="inline-flex min-w-0 items-center gap-1 rounded-[8px] px-2 py-1 type-callout-emphasized text-secondary hover:bg-quinary"
+          class="inline-flex min-w-0 items-center gap-1.5 rounded-[10px] px-3 py-1.5 type-callout-emphasized text-secondary bg-white/[0.07] hover:bg-white/[0.13] hover:text-primary border border-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_2px_8px_rgba(0,0,0,0.3)] transition-all duration-200"
           aria-haspopup="menu"
           aria-label="Lyrics provider"
           onClick={(e) => setAnchor(e.currentTarget)}
@@ -204,9 +204,9 @@ function ProviderPicker(props: {
         </Menu>
       )}
       {!props.full && (
-        <div class="flex items-center gap-1">
+        <div class="flex items-center gap-1.5">
           <button
-            class="grid size-8 place-items-center rounded-[8px] text-secondary hover:bg-quinary aria-pressed:text-primary"
+            class="grid size-8 place-items-center rounded-[8px] text-secondary hover:text-primary hover:bg-white/[0.1] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition-all duration-200 active:scale-90 aria-pressed:bg-white/[0.16] aria-pressed:text-primary aria-pressed:shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]"
             aria-label="Toggle romanized lyrics"
             aria-pressed={props.romanization}
             title="Romanization"
@@ -215,7 +215,7 @@ function ProviderPicker(props: {
             <Type size={16} />
           </button>
           <button
-            class="grid size-8 place-items-center rounded-[8px] text-secondary hover:bg-quinary aria-pressed:text-primary"
+            class="grid size-8 place-items-center rounded-[8px] text-secondary hover:text-primary hover:bg-white/[0.1] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition-all duration-200 active:scale-90 aria-pressed:bg-white/[0.16] aria-pressed:text-primary aria-pressed:shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]"
             aria-label="Toggle lyric translation"
             aria-pressed={props.translation}
             title="Translation"

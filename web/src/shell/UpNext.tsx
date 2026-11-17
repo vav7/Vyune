@@ -7,7 +7,7 @@ import type { Track } from '@/lib/types';
 import { playerStore } from '@/store/player';
 
 // The panel's square buttons: AutoPlay (the key colour when on) and the options menu.
-const square = 'grid size-7 place-items-center rounded-[6px] text-secondary hover:bg-quinary aria-pressed:text-key';
+const square = 'grid size-7 place-items-center rounded-[8px] text-secondary hover:text-primary hover:bg-white/[0.12] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] transition-all duration-150 active:scale-90 aria-pressed:text-key';
 const list = 'flex flex-col';
 
 /** A row: 55px, [art] 40px [title] 1fr [right] 40px, gap 12px, radius 6px; a key-colour line where a drag would drop. */
@@ -25,8 +25,8 @@ function Row(props: {
 
   return (
     <li
-      class={`track-row group/row relative grid h-[55px] grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-x-3 rounded-row px-2.5 hover:bg-quinary data-dragging:opacity-40 data-over:before:absolute data-over:before:inset-x-2.5 data-over:before:-top-px data-over:before:border-t-2 data-over:before:border-t-key ${
-        isCurrent() ? 'bg-[color-mix(in_srgb,var(--keyColor)_20%,#ffffff0d)] shadow-[inset_0_0_0_0.5px_var(--cardStroke)]' : ''
+      class={`track-row glance group/row relative grid h-[55px] grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-x-3 rounded-[12px] px-2.5 border border-white/[0.06] hover:border-white/[0.18] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_4px_16px_rgba(0,0,0,0.35)] transition-all duration-150 data-dragging:opacity-40 data-over:before:absolute data-over:before:inset-x-2.5 data-over:before:-top-px data-over:before:border-t-2 data-over:before:border-t-key ${
+        isCurrent() ? 'bg-[color-mix(in_srgb,var(--keyColor)_24%,rgba(255,255,255,0.08))] border-white/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_4px_20px_-4px_rgba(var(--keyColor-rgb),0.4)]' : ''
       }`}
       data-current={isCurrent() || undefined}
       data-over={over() || undefined}

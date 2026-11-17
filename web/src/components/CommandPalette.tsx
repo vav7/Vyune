@@ -226,40 +226,47 @@ export function CommandPalette() {
 
   return (
     <Show when={open()}>
-      <div class="command-palette" role="dialog" aria-modal="true" aria-label="Command palette">
-        <div class="command-palette-backdrop" onClick={close} />
-        <div class="command-palette-window">
-          <div class="command-palette-header">
-            <Command size={18} class="text-secondary" />
+      <div class="command-palette fixed inset-0 z-[var(--z-modal)] flex items-start justify-center pt-[14vh] px-4" role="dialog" aria-modal="true" aria-label="Command palette">
+        <div class="fixed inset-0 bg-black/55 backdrop-blur-[16px] animate-[fade-in_180ms_ease-out]" onClick={close} />
+        <div class="relative w-full max-w-[580px] overflow-hidden rounded-[20px] bg-black/50 backdrop-blur-[32px] backdrop-saturate-[2] border border-white/18 shadow-[0_36px_90px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.55),inset_0_0_0_1px_rgba(255,255,255,0.1)] animate-[zoom_180ms_cubic-bezier(0.16,1,0.3,1)]">
+          <div class="flex items-center gap-3 px-4 py-3.5 border-b border-white/12 bg-white/[0.04]">
+            <Command size={18} class="text-white/70" />
             <input
-              class="command-palette-input"
-              placeholder="Type a command…"
+              class="w-full bg-transparent text-[15px] font-medium text-white placeholder-white/40 outline-none"
+              placeholder="Type a command or jump to page…"
               value={query()}
               onInput={(e) => setQuery(e.currentTarget.value)}
               aria-label="Command palette"
+              autofocus
             />
-            <kbd class="command-palette-hint">⌘K</kbd>
+            <kbd class="rounded-[6px] border border-white/18 bg-white/12 px-2 py-0.5 text-[11px] font-semibold text-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]">⌘K</kbd>
           </div>
-          <div class="command-palette-list">
+          <div class="max-h-[380px] overflow-y-auto p-2 [scrollbar-width:none]">
             <Show
               when={items().length > 0}
-              fallback={<div class="command-palette-empty">No matching commands</div>}
+              fallback={<div class="py-8 text-center text-[13px] text-white/40">No matching commands</div>}
             >
               <For each={items()}>
                 {(action, index) => (
                   <div
-                    class={`command-palette-item ${index() === selected() ? 'selected' : ''}`}
+                    class={`flex items-center gap-3 px-3.5 py-2.5 rounded-[12px] text-[14px] transition-all cursor-pointer ${
+                      index() === selected()
+                        ? 'bg-white/[0.16] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_4px_16px_rgba(0,0,0,0.4)] scale-[1.01]'
+                        : 'text-white/70 hover:bg-white/[0.09] hover:text-white'
+                    }`}
                     onMouseEnter={() => setSelected(index())}
                     onClick={() => choose(action)}
                   >
-                    <span class="command-palette-icon">{action.icon()}</span>
+                    <span class={`flex size-7 items-center justify-center rounded-[8px] ${index() === selected() ? 'bg-white/22 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]' : 'bg-white/8 text-white/60'}`}>
+                      {action.icon()}
+                    </span>
                     <Show
                       when={action.href}
-                      fallback={<span class="command-palette-label">{action.label()}</span>}
+                      fallback={<span class="font-medium text-current">{action.label()}</span>}
                     >
                       <A
                         href={action.href!}
-                        class="command-palette-label"
+                        class="font-medium text-current"
                         onClick={(event) => {
                           event.preventDefault();
                           choose(action);
@@ -268,7 +275,7 @@ export function CommandPalette() {
                         {action.label()}
                       </A>
                     </Show>
-                    <span class="command-palette-keywords">{action.keywords().join(', ')}</span>
+                    <span class="ml-auto text-[11px] text-white/40">{action.keywords().join(', ')}</span>
                   </div>
                 )}
               </For>

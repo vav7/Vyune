@@ -47,14 +47,14 @@ function Scrubber() {
   return (
     <div class="group/scrub" data-dragging={dragging() || undefined}>
       {/* A taller hit area than the line it carries. */}
-      <div class="group/hit flex h-4 cursor-pointer touch-none items-center" {...handlers}>
+      <div class="group/hit flex h-5 cursor-pointer touch-none items-center" {...handlers}>
         <div
-          class="h-1.5 flex-1 overflow-hidden rounded-[999px] bg-white/16 transition-[height] duration-200 ease-out group-hover/hit:h-2.5 group-data-dragging/scrub:h-2.5"
+          class="h-1.5 flex-1 overflow-hidden rounded-[999px] bg-white/15 backdrop-blur-md transition-[height,background-color] duration-200 ease-out group-hover/hit:h-2.5 group-data-dragging/scrub:h-2.5 shadow-[inset_0_1px_1px_rgba(0,0,0,0.4)]"
           aria-hidden="true"
         >
           <div
             ref={setBarRef}
-            class="size-full origin-left scale-x-(--progress) bg-white/85 shadow-[0_0_14px_#ffffff59] transition-[background-color] duration-200 ease-out [--progress:0] group-hover/hit:bg-white group-data-dragging/scrub:bg-white"
+            class="size-full origin-left scale-x-(--progress) bg-gradient-to-r from-white/90 via-white to-white shadow-[0_0_16px_rgba(255,255,255,0.75)] transition-[background-color,shadow] duration-200 ease-out [--progress:0] group-hover/hit:shadow-[0_0_22px_rgba(255,255,255,1)]"
           />
         </div>
       </div>
@@ -85,7 +85,7 @@ function Transport() {
         <BackwardIcon size={40} />
       </button>
       <button
-        class="fs-puck"
+        class="fs-puck glance"
         data-glint
         disabled={!hasTrack()}
         aria-label={playing() ? 'Pause' : 'Play'}

@@ -61,14 +61,14 @@ export function Lcd() {
           <div class="group/lcd relative grid h-full grid-cols-[34px_minmax(0,1fr)] items-center gap-x-2 pb-1.5">
             {/* As Apple's: the artwork opens the full-screen player, with an expand glyph on hover. */}
             <button
-              class="group/art relative block size-[34px] overflow-hidden rounded-[6px] bg-joe p-0 transition-[filter,opacity]"
+              class="group/art relative block size-[36px] overflow-hidden rounded-[8px] bg-joe p-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_12px_rgba(0,0,0,0.45)] transition-[filter,opacity,transform] duration-200 hover:scale-105 active:scale-95"
               aria-label="Open full screen player"
               onClick={() => playerStore.setFullscreen(true)}
             >
               <Show when={thumb}>
                 {(src) => (
                   <img
-                    src={sizedArtwork(src(), 34)}
+                    src={sizedArtwork(src(), 36)}
                     alt=""
                     referrerPolicy="no-referrer"
                     decoding="async"
@@ -88,7 +88,7 @@ export function Lcd() {
               </Show>
               {/* Hovering anywhere on the player pill dims the artwork and shows the expand glyph. */}
               <span
-                class="absolute inset-0 z-20 grid place-items-center bg-[rgb(0_0_0/0.5)] text-white opacity-0 transition-opacity duration-200 group-hover/pill:opacity-100 group-focus-visible/art:opacity-100"
+                class="absolute inset-0 z-20 grid place-items-center bg-[rgb(0_0_0/0.45)] backdrop-blur-[2px] text-white opacity-0 transition-opacity duration-200 group-hover/pill:opacity-100 group-focus-visible/art:opacity-100"
                 aria-hidden="true"
               >
                 <Maximize2 size={14} strokeWidth={2.25} />
@@ -132,7 +132,7 @@ function Progress() {
   return (
     // The hit area: taller than the 2px line it carries.
     <div
-      class="group/scrub absolute inset-x-0 bottom-0 h-3.5 cursor-pointer touch-none"
+      class="group/scrub absolute inset-x-0 bottom-0 h-4 cursor-pointer touch-none"
       data-scrubber
       data-dragging={dragging() || undefined}
       {...handlers}
@@ -140,10 +140,13 @@ function Progress() {
       <span ref={setElapsedRef} class={`${time} left-0`} />
       <span ref={setRemainingRef} class={`${time} right-0`} />
       <div
-        class="absolute inset-x-0 bottom-1.5 h-0.5 overflow-hidden rounded-[1px] bg-quaternary transition-[height,left,right] duration-100 ease-in group-hover/scrub:bottom-[5px] group-hover/scrub:h-1 group-data-dragging/scrub:bottom-[5px] group-data-dragging/scrub:h-1"
+        class="absolute inset-x-0 bottom-1.5 h-1 overflow-hidden rounded-[2px] bg-white/15 backdrop-blur-sm transition-[height,bottom,background-color] duration-150 ease-out group-hover/scrub:bottom-2 group-hover/scrub:h-1.5 group-data-dragging/scrub:bottom-2 group-data-dragging/scrub:h-1.5"
         aria-hidden="true"
       >
-        <div ref={setBarRef} class="size-full origin-left scale-x-(--progress) bg-secondary [--progress:0]" />
+        <div
+          ref={setBarRef}
+          class="size-full origin-left scale-x-(--progress) bg-gradient-to-r from-white/90 via-white to-white shadow-[0_0_10px_rgba(255,255,255,0.6)] group-hover/scrub:shadow-[0_0_14px_rgba(255,255,255,0.9)] [--progress:0]"
+        />
       </div>
     </div>
   );

@@ -25,11 +25,11 @@ import { Lcd } from './Lcd';
 import { PlayerMenu } from './PlayerMenu';
 import { useScrubber as useScrubberLocal } from './useScrubber';
 
-const control = 'grid place-items-center rounded-[6px] disabled:opacity-40';
+const control = 'grid place-items-center rounded-[8px] transition-all duration-200 ease-out hover:scale-110 active:scale-90 disabled:opacity-40';
 // Shuffle and repeat: secondary, and the key colour when on, as Apple's toggles.
-const toggleBtn = `${control} size-7 text-secondary aria-pressed:text-key`;
-const transport = `${control} size-7 text-primary`;
-const action = 'grid h-7 w-6 place-items-center rounded-[4px] text-primary aria-pressed:text-key';
+const toggleBtn = `${control} size-7 text-secondary hover:text-primary aria-pressed:text-key aria-pressed:bg-white/[0.14] aria-pressed:shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_2px_8px_rgba(0,0,0,0.3)]`;
+const transport = `${control} size-8 text-primary hover:bg-white/[0.12] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_2px_8px_rgba(0,0,0,0.3)] rounded-full`;
+const action = 'grid h-7 w-6 place-items-center rounded-[6px] text-secondary hover:text-primary hover:bg-white/[0.12] aria-pressed:text-key transition-all duration-150 active:scale-90';
 // The actions the volume level slides in over: they fade out while it's open.
 const fading = `${action} transition-opacity group-data-volume-open/actions:pointer-events-none group-data-volume-open/actions:opacity-0`;
 
@@ -37,10 +37,10 @@ const slider = [
   'absolute top-1/2 right-[33px] mx-0 mb-0 -mt-2 block h-4 w-24 cursor-pointer appearance-none bg-transparent',
   'pointer-events-none translate-x-2 opacity-0 transition-[opacity,translate]',
   'data-open:pointer-events-auto data-open:translate-none data-open:opacity-100',
-  '[&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-[2px] [&::-webkit-slider-runnable-track]:bg-[linear-gradient(to_right,var(--systemPrimary)_var(--fill),var(--systemQuaternary)_var(--fill))]',
-  '[&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-[2px] [&::-moz-range-track]:bg-[linear-gradient(to_right,var(--systemPrimary)_var(--fill),var(--systemQuaternary)_var(--fill))]',
-  '[&::-webkit-slider-thumb]:-mt-1 [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_2px_#0006]',
-  '[&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-[0_0_2px_#0006]',
+  '[&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-[linear-gradient(to_right,white_var(--fill),rgba(255,255,255,0.18)_var(--fill))] [&::-webkit-slider-runnable-track]:shadow-[inset_0_1px_1px_rgba(0,0,0,0.4)]',
+  '[&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-[linear-gradient(to_right,white_var(--fill),rgba(255,255,255,0.18)_var(--fill))]',
+  '[&::-webkit-slider-thumb]:-mt-1 [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_8px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.8)] [&::-webkit-slider-thumb]:transition-transform hover:[&::-webkit-slider-thumb]:scale-110',
+  '[&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-[0_0_8px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.8)]',
 ].join(' ');
 
 /**

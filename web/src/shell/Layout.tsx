@@ -19,6 +19,7 @@ import { ImageFrost } from '@/components/music/ImageFrost';
 import { MotionFrost } from '@/components/music/MotionFrost';
 import { pageArtStore } from '@/lib/pageArt';
 import { useWarmLyrics } from '@/lib/lyricsWarm';
+import { AppBackground } from '@/components/ui/glass/AppBackground';
 import { MobileTopBar } from './MobileTopBar';
 import { MiniPlayer, PlayerBar } from './PlayerBar';
 import { SidePanel } from './SidePanel';
@@ -117,6 +118,7 @@ export function Layout(props: RouteSectionProps) {
 
   return (
     <div class="mc-frame">
+      <AppBackground />
       <Show when={pageArtStore.motionVideo}>
         {(video) => (
           <div class="pointer-events-none absolute inset-0 z-0 overflow-hidden animate-[fade-in_1s_ease_both]">
@@ -141,7 +143,7 @@ export function Layout(props: RouteSectionProps) {
           type="button"
           aria-label={sidebarHidden() ? 'Show sidebar' : 'Hide sidebar'}
           title={sidebarHidden() ? 'Show sidebar' : 'Hide sidebar'}
-          class="absolute top-4 left-4 z-[65] grid size-9 place-items-center rounded-full border border-white/25 bg-white/15 text-white shadow-[inset_0_1px_0_#ffffff59,0_8px_20px_-10px_#0009] [backdrop-filter:blur(24px)_saturate(1.8)] transition-[background-color,transform,left] duration-300 ease-out hover:bg-white/25 hover:text-white active:scale-90 max-sm:hidden data-[shown=true]:left-[calc(var(--web-navigation-width)+4px)]"
+          class="absolute top-4 left-4 z-[65] grid size-9 place-items-center rounded-full border border-white/20 bg-black/40 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_10px_24px_rgba(0,0,0,0.5)] [backdrop-filter:blur(24px)_saturate(1.8)] transition-[background-color,transform,left] duration-300 ease-out hover:bg-black/60 hover:text-white active:scale-90 max-sm:hidden data-[shown=true]:left-[calc(var(--web-navigation-width)+4px)]"
           data-shown={!sidebarHidden()}
           onClick={() => uiStore.toggleSidebar()}
         >

@@ -391,13 +391,19 @@
 /* Glass (report §1): the sidebar, the side panel and the phone's top bar. */
 @utility glass-material {
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%, rgba(0, 0, 0, 0.20) 100%),
-    rgba(18, 18, 22, 0.78);
-  backdrop-filter: blur(40px) saturate(200%) brightness(1.04);
-  -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.04);
+    radial-gradient(130% 85% at 12% 0%, rgba(255, 255, 255, 0.10) 0%, transparent 58%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.01) 35%, rgba(0, 0, 0, 0.28) 100%),
+    rgba(10, 10, 16, 0.65);
+  backdrop-filter: blur(48px) saturate(220%) brightness(1.05);
+  -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.10),
+    0 28px 70px -22px rgba(0, 0, 0, 0.65);
 }
 
-/* The player pill's glass: blurred fill, liquid gradient, specular refraction and drop shadow. */
+/* The player pill's glass: pure optical liquid refraction with dual-vector rim and specular drift. */
 @utility glass-pill {
   isolation: isolate;
 
@@ -413,22 +419,146 @@
   &::before {
     z-index: -1;
     background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 45%, rgba(0, 0, 0, 0.22) 100%),
-      color-mix(in srgb, var(--song-tint, #383842) 20%, rgba(18, 18, 22, 0.82));
-    backdrop-filter: blur(40px) saturate(200%) brightness(1.06);
-    -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.06);
-    transition: background-color 260ms ease-out;
+      radial-gradient(130% 85% at 12% 0%, rgba(255, 255, 255, 0.26) 0%, rgba(255, 255, 255, 0.05) 42%, transparent 68%),
+      radial-gradient(100% 70% at 85% 100%, color-mix(in srgb, var(--song-tint, transparent) 20%, transparent) 0%, transparent 68%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(0, 0, 0, 0.20) 100%),
+      color-mix(in srgb, var(--song-tint, transparent) 12%, rgba(8, 8, 14, 0.52));
+    backdrop-filter: blur(24px) saturate(1.9) brightness(1.06);
+    -webkit-backdrop-filter: blur(24px) saturate(1.9) brightness(1.06);
+    transition: background-color 400ms cubic-bezier(0.22, 1, 0.36, 1);
     box-shadow:
-      0 24px 60px -16px rgba(0, 0, 0, 0.75),
-      inset 0 1px 0 0 rgba(255, 255, 255, 0.36),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-      inset 0 -1px 0 0 rgba(0, 0, 0, 0.30);
-    border: 1px solid rgba(255, 255, 255, 0.10);
+      0 28px 70px -14px rgba(0, 0, 0, 0.70),
+      0 10px 28px -8px rgba(0, 0, 0, 0.50),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.52),
+      inset 0 -14px 28px -12px rgba(255, 255, 255, 0.12),
+      inset 1px 0 0 0 rgba(255, 255, 255, 0.14),
+      inset -1px 0 0 0 rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.16);
   }
 
   &::after {
-    display: none;
+    z-index: 2;
+    padding: var(--liquid-glass-rim-width, 0.75px);
+    background:
+      linear-gradient(to right, rgba(255,255,255,0), var(--liquid-glass-rim-light, rgba(255,255,255,0.35)) 16%, var(--liquid-glass-rim-light, rgba(255,255,255,0.35)) 84%, rgba(255,255,255,0)),
+      linear-gradient(to bottom, rgba(0,0,0,0), var(--liquid-glass-rim-dark, rgba(0,0,0,0.3)) 16%, var(--liquid-glass-rim-dark, rgba(0,0,0,0.3)) 84%, rgba(0,0,0,0));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
   }
+}
+
+/* ==========================================================================
+ * glasscn-components Core Liquid Glass Engine & Utilities
+ * ========================================================================== */
+
+@keyframes liquid-drift {
+  0% {
+    background-position: 0% 0%, 100% 100%, 0% 0%;
+  }
+  50% {
+    background-position: 30% 20%, 70% 80%, 0% 0%;
+  }
+  100% {
+    background-position: 0% 0%, 100% 100%, 0% 0%;
+  }
+}
+
+/*
+ * Glance: a CSS-only directional specular hover shine from glasscn.
+ * A diagonal highlight sweeps across the element once per hover.
+ */
+@utility glance {
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: -50%;
+    z-index: 10;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      var(--glance-angle, 120deg),
+      transparent 40%,
+      color-mix(in oklab, var(--glance-color, white) calc(var(--glance-opacity, 12%) * 0.6), transparent) 48%,
+      color-mix(in oklab, var(--glance-color, white) var(--glance-opacity, 12%), transparent) 50%,
+      color-mix(in oklab, var(--glance-color, white) calc(var(--glance-opacity, 12%) * 0.6), transparent) 52%,
+      transparent 60%
+    );
+  }
+
+  &:hover::after {
+    transform: translateX(100%);
+    transition: transform var(--glance-duration, 700ms) cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::after {
+      display: none;
+    }
+  }
+}
+
+@utility glance-color-* {
+  --glance-color: --value(--color-*, [color]);
+}
+
+@utility glance-opacity-* {
+  --glance-opacity: calc(--value(number) * 1%);
+}
+
+@utility glance-duration-* {
+  --glance-duration: calc(--value(number) * 1ms);
+}
+
+@utility glance-angle-* {
+  --glance-angle: calc(--value(number) * 1deg);
+}
+
+/* Glasscn 5-tier Material System */
+@utility glass-clear {
+  backdrop-filter: blur(8px) saturate(1.9) brightness(1.05);
+  -webkit-backdrop-filter: blur(8px) saturate(1.9) brightness(1.05);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+@utility glass-frosted {
+  backdrop-filter: blur(28px) saturate(1.8) brightness(1.04);
+  -webkit-backdrop-filter: blur(28px) saturate(1.8) brightness(1.04);
+  background: rgba(18, 18, 24, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+@utility glass-subtle {
+  backdrop-filter: blur(12px) saturate(1.5);
+  -webkit-backdrop-filter: blur(12px) saturate(1.5);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+@utility glass-liquid {
+  backdrop-filter: blur(32px) saturate(1.85) brightness(1.06);
+  -webkit-backdrop-filter: blur(32px) saturate(1.85) brightness(1.06);
+  background:
+    radial-gradient(120% 85% at 15% 8%, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.05) 40%, rgba(255, 255, 255, 0) 70%),
+    radial-gradient(110% 80% at 85% 100%, rgba(120, 170, 255, 0.12) 0%, rgba(0, 0, 0, 0) 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(0, 0, 0, 0.25) 100%),
+    rgba(14, 14, 18, 0.65);
+  background-size: 200% 200%, 180% 180%, 100% 100%, 100% 100%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.45),
+    inset 0 -14px 28px -10px rgba(180, 210, 255, 0.18),
+    inset 1px 0 0 0 rgba(255, 255, 255, 0.12),
+    inset -1px 0 0 0 rgba(255, 255, 255, 0.10),
+    0 28px 70px -18px rgba(0, 0, 0, 0.65),
+    0 10px 28px -10px rgba(0, 0, 0, 0.45);
 }
 
 /* Artwork's 0.5px inner stroke (report §1, "Inner stroke"), Apple's "has-borders". */
@@ -661,16 +791,21 @@
   /* Real glass, cheaply: translucent gradient fill, a lit top edge and a hairline —
      no backdrop-filter per box, because the frost behind the page is already soft. */
   .track-row {
-    background-color: rgb(255 255 255 / 0.055);
-    background-image: none;
-    border-radius: 14px;
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.05);
-    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.065) 0%, rgba(255, 255, 255, 0.02) 100%),
+      rgba(255, 255, 255, 0.035);
+    border-radius: 12px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 0 0 0.5px rgba(255, 255, 255, 0.07);
+    transition: background 0.2s ease, box-shadow 0.25s ease, transform 0.2s ease;
   }
   .track-row:hover {
-    background-color: rgb(255 255 255 / 0.11);
-    background-image: none;
-    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.09);
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%),
+      rgba(255, 255, 255, 0.07);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.35),
+      inset 0 0 0 0.5px rgba(255, 255, 255, 0.16),
+      0 6px 20px -4px rgba(0, 0, 0, 0.45);
   }
 
   /* Scroll-driven, compositor-only: the artist hero drifts, scales and softens as the page scrolls. */
@@ -905,9 +1040,8 @@
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(1100px 700px at 12% 15%, rgba(65, 60, 85, 0.42) 0%, transparent 70%),
-    radial-gradient(900px 600px at 88% 78%, rgba(50, 60, 85, 0.35) 0%, transparent 70%),
-    #09090c;
+    radial-gradient(1100px 700px at 12% 15%, var(--amb1, rgba(65, 60, 85, 0.25)) 0%, transparent 70%),
+    radial-gradient(900px 600px at 88% 78%, var(--amb2, rgba(50, 60, 85, 0.20)) 0%, transparent 70%);
 }
 
 /* ------------------------------------------------------------------ */

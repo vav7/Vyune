@@ -86,8 +86,8 @@ export function Menu({ anchor, placement = 'below-end', onClose, label, children
       <div class="fixed inset-0 z-[calc(var(--z-contextual-menus)-1)]" onPointerDown={onClose} aria-hidden="true" />
       <div
         ref={panelRef}
-        // Apple's amp-contextual-menu (report §8).
-        class="fixed z-(--z-contextual-menus) max-w-[300px] min-w-[185px] animate-menu-in overflow-y-auto rounded-[10px] bg-thick-material p-[5px] shadow-[0_0_0_0.5px_var(--vibrantDivider),0_10px_40px_var(--glassMaterialShadowColor)] [backdrop-filter:saturate(2.2)_blur(32px)]"
+        // Apple's amp-contextual-menu (report §8) with glasscn elevated optical glass.
+        class="fixed z-(--z-contextual-menus) max-w-[320px] min-w-[195px] animate-menu-in overflow-y-auto rounded-[14px] bg-[#14141c]/90 border border-white/16 p-1.5 shadow-[0_24px_64px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.4)] [backdrop-filter:saturate(2.2)_blur(40px)]"
         style={position()}
         role="menu"
         aria-label={label}
@@ -113,7 +113,7 @@ interface MenuItemProps {
 export function MenuItem({ onSelect, icon, checked, destructive, disabled, trailing, children }: MenuItemProps) {
   return (
     <button
-      class="flex min-h-7 w-full items-center gap-2 rounded-[5px] px-2 py-1 text-start type-body text-primary enabled:hover:bg-quinary focus-visible:bg-quinary disabled:text-tertiary data-destructive:text-destructive"
+      class="flex min-h-8 w-full items-center gap-2.5 rounded-[8px] px-2.5 py-1.5 text-start type-body text-primary enabled:hover:bg-white/[0.12] enabled:hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] focus-visible:bg-white/[0.12] transition-all duration-150 disabled:text-tertiary data-destructive:text-destructive"
       role={checked === undefined ? 'menuitem' : 'menuitemradio'}
       aria-checked={checked === undefined ? undefined : !!checked}
       data-destructive={destructive || undefined}

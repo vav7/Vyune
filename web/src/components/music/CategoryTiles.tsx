@@ -250,11 +250,11 @@ export function CustomCurator() {
   const items = () => query.data || [];
 
   return (
-    <section class="mx-(--body-gutter) mt-6 mb-8 overflow-hidden rounded-[20px] border border-white/10 bg-[#13141f] p-5 shadow-lg" aria-label="Custom Curator">
-      <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/8">
+    <section class="glass-card glance mx-(--body-gutter) mt-6 mb-8 overflow-hidden rounded-[20px] p-5 border border-white/14 shadow-[0_24px_60px_-18px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.35)]" aria-label="Custom Curator">
+      <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/10">
         <div>
           <div class="flex items-center gap-2">
-            <span class="grid size-7 place-items-center rounded-lg bg-white/10 text-white"><Sparkles size={16} /></span>
+            <span class="grid size-7 place-items-center rounded-lg bg-white/12 border border-white/20 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]"><Sparkles size={16} /></span>
             <h2 class="type-title-3-emphasized text-white">Custom Curator</h2>
           </div>
           <p class="mt-1 type-caption-1 text-secondary">
@@ -269,12 +269,12 @@ export function CustomCurator() {
             <select
               value={country()}
               onChange={(e) => onCountryChange(e.currentTarget.value)}
-              class="appearance-none cursor-pointer rounded-full border border-white/15 bg-white/10 px-4 py-2 pr-8 text-[13px] font-semibold text-white shadow-[inset_0_1px_0_#ffffff30] outline-none transition hover:bg-white/16 focus:border-white/40"
+              class="appearance-none cursor-pointer rounded-full border border-white/16 bg-white/[0.08] hover:bg-white/[0.14] px-4 py-2 pr-8 text-[13px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_4px_12px_rgba(0,0,0,0.3)] backdrop-blur-md outline-none transition focus:border-white/40"
               aria-label="Select Country"
             >
               <For each={COUNTRIES}>
                 {(c) => (
-                  <option value={c.id} class="bg-[#161722] text-white">
+                  <option value={c.id} class="bg-[#12121a] text-white">
                     {c.flag} {c.name}
                   </option>
                 )}
@@ -288,12 +288,12 @@ export function CustomCurator() {
             <select
               value={mood()}
               onChange={(e) => onMoodChange(e.currentTarget.value)}
-              class="appearance-none cursor-pointer rounded-full border border-white/15 bg-white/10 px-4 py-2 pr-8 text-[13px] font-semibold text-white shadow-[inset_0_1px_0_#ffffff30] outline-none transition hover:bg-white/16 focus:border-white/40"
+              class="appearance-none cursor-pointer rounded-full border border-white/16 bg-white/[0.08] hover:bg-white/[0.14] px-4 py-2 pr-8 text-[13px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_4px_12px_rgba(0,0,0,0.3)] backdrop-blur-md outline-none transition focus:border-white/40"
               aria-label="Select Vibe or Interest"
             >
               <For each={CURATOR_MOODS}>
                 {(m) => (
-                  <option value={m.id} class="bg-[#161722] text-white">
+                  <option value={m.id} class="bg-[#12121a] text-white">
                     {m.label}
                   </option>
                 )}
@@ -379,18 +379,18 @@ export function PopGenres(props: { categories?: GenreCategory[] }) {
             <li class="[content-visibility:auto] [contain-intrinsic-size:auto_140px]">
               <PrefetchLink
                 to={getHref(genre)}
-                class="group relative flex aspect-[1.38] flex-col justify-end overflow-hidden rounded-[16px] border border-white/10 bg-[#12131d] p-3 text-white shadow-md transition-transform duration-200 ease-out hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-white"
+                class="group glance relative flex aspect-[1.38] flex-col justify-end overflow-hidden rounded-[16px] border border-white/14 bg-white/[0.05] p-3.5 text-white shadow-[0_6px_24px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.35)] transition-all duration-300 ease-out hover:-translate-y-1 hover:border-white/30 hover:bg-white/[0.09] hover:shadow-[0_14px_36px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.5)] focus-visible:outline-2 focus-visible:outline-white"
               >
                 {/* Instant GPU gradient backdrop — 60 FPS, 0 network lag */}
                 <span
                   class="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-105"
                   style={{
-                    background: `linear-gradient(135deg, ${genre.color}99 0%, ${genre.color}25 50%, #0d0e17 100%)`,
+                    background: `linear-gradient(135deg, ${genre.color}88 0%, ${genre.color}20 50%, transparent 100%)`,
                   }}
                   aria-hidden="true"
                 />
                 <span
-                  class="absolute inset-0 bg-gradient-to-t from-[#0a0a10]/95 via-[#0a0a10]/40 to-transparent"
+                  class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"
                   aria-hidden="true"
                 />
                 <div class="relative z-1 min-w-0">
@@ -415,12 +415,12 @@ function CategoryTile({ category }: { category: GenreCategory }) {
     <li class="[content-visibility:auto] [contain-intrinsic-size:auto_96px]">
       <PrefetchLink
         to={`/genre/${encodeURIComponent(category.params)}/${encodeURIComponent(category.label)}`}
-        class="genre-tile group relative flex aspect-[1.75] items-end overflow-hidden rounded-[16px] border border-white/10 bg-[#161722] p-4 text-white shadow-sm transition-transform duration-200 ease-out hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-white"
+        class="genre-tile glance group relative flex aspect-[1.75] items-end overflow-hidden rounded-[16px] border border-white/14 bg-white/[0.05] p-4 text-white shadow-[0_6px_20px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.35)] transition-all duration-300 ease-out hover:-translate-y-1 hover:border-white/30 hover:bg-white/[0.09] hover:shadow-[0_14px_36px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.5)] focus-visible:outline-2 focus-visible:outline-white"
       >
         <CategoryArtwork label={category.label} />
-        <span class="absolute inset-0 bg-gradient-to-t from-[#090a12]/85 via-[#090a12]/20 to-transparent transition-opacity duration-200 group-hover:from-[#090a12]/70" />
+        <span class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-opacity duration-200 group-hover:from-black/65" />
         <span class="relative z-[1] max-w-[85%] type-title-2-emphasized tracking-[-.02em] drop-shadow-[0_2px_8px_#0009]">{category.label}</span>
-        <span class="absolute right-3 bottom-3 z-[1] grid size-8 translate-y-1 place-items-center rounded-full border border-white/20 bg-white/20 text-white opacity-0 transition-[opacity,transform] duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100" aria-hidden="true">
+        <span class="absolute right-3.5 bottom-3.5 z-[1] grid size-8 translate-y-1 place-items-center rounded-full border border-white/30 bg-white/20 backdrop-blur-md shadow-[0_4px_12px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.5)] text-white opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100" aria-hidden="true">
           <ArrowRight size={15} />
         </span>
       </PrefetchLink>

@@ -22,7 +22,7 @@ import { ArtVolume } from './ArtControls';
 import { startDockDrag } from './dock';
 import { PlayerMenu } from './PlayerMenu';
 
-const button = 'grid size-9 place-items-center rounded-full text-primary/90 transition-[background-color,scale,color] duration-200 hover:bg-white/12 hover:text-primary active:scale-90 disabled:opacity-40 aria-pressed:text-key';
+const button = 'grid size-9 place-items-center rounded-full text-primary/90 transition-all duration-200 hover:bg-white/14 hover:scale-105 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] hover:text-primary active:scale-90 disabled:opacity-40 aria-pressed:text-key';
 
 /**
  * The player, docked at the bottom of the sidebar in three chunks: the

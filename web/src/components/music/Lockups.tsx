@@ -102,7 +102,7 @@ function LockupArtwork(props: { item: MusicItem; width: number; aspect: number }
       {/* The card's own ⋯ menu, over the frame's top-right corner. */}
       <CardMenu
         item={item()}
-        class="absolute end-2 top-2 z-3 grid size-7 place-items-center rounded-full bg-black/75 text-white/90 opacity-0 transition-[opacity,background-color] duration-150 ease-out hover:bg-black/90 hover:text-white group-hover/art:opacity-100 focus-visible:opacity-100 data-open:opacity-100"
+        class="absolute end-2 top-2 z-3 grid size-7 place-items-center rounded-full bg-black/55 text-white/90 backdrop-blur-[16px] border border-white/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_6px_16px_rgba(0,0,0,0.5)] opacity-0 transition-all duration-200 ease-out hover:bg-black/75 hover:scale-105 hover:text-white group-hover/art:opacity-100 focus-visible:opacity-100 data-open:opacity-100"
       />
     </div>
   );
@@ -187,8 +187,8 @@ export function TrackLockup(props: { item: MusicItem; onPlay?: () => void }) {
     // the row plays it, as Apple's list rows do; buttons and links keep their
     // own clicks.
     <div
-      class={`track-row group/track grid h-[72px] cursor-pointer grid-cols-[56px_minmax(0,1fr)] items-center gap-x-3 rounded-[10px] border-y-[3px] border-transparent bg-card bg-clip-padding py-1.5 pr-3.5 pl-2 [box-shadow:inset_0_0_0_0.5px_var(--cardStroke)] transition-[background-color] duration-150 ease-out hover:-translate-y-px hover:bg-card-hover hover:shadow-[0_10px_26px_-16px_#000,inset_0_0_0_0.5px_var(--cardStroke)] ${
-        isCurrent() ? 'bg-white/[0.08] shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.12)]' : ''
+      class={`track-row group/track grid h-[72px] cursor-pointer grid-cols-[56px_minmax(0,1fr)] items-center gap-x-3 rounded-[14px] border border-white/[0.08] hover:border-white/[0.22] bg-white/[0.045] hover:bg-white/[0.09] py-1.5 pr-3.5 pl-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_4px_16px_rgba(0,0,0,0.25)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.38),0_12px_32px_rgba(0,0,0,0.45)] transition-all duration-200 glance ${
+        isCurrent() ? 'bg-white/[0.14] border-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_8px_24px_rgba(0,0,0,0.5)]' : ''
       }`}
       data-current={isCurrent() || undefined}
       onPointerEnter={() => prewarmArtworkColor(item().thumbnail)}

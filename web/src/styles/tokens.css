@@ -161,8 +161,8 @@
   :root {
     color-scheme: dark;
 
-    --pageBG: #09090b;
-    --pageBG-rgb: 9, 9, 11;
+    --pageBG: transparent;
+    --pageBG-rgb: 13, 14, 23;
 
     --systemPrimary: #ffffffeb;
     --systemSecondary: #ffffffa3;
@@ -191,28 +191,52 @@
     --labelDivider: #ffffff14;
     --vibrantDivider: #ffffff1a;
 
-    --glassMaterialBackground: #16161cb8;
+    --glassMaterialBackground: rgba(0, 0, 0, 0.32);
     --glassMaterialShadowColor: #0000004d;
     --glassMaterialInnerStroke: #ffffff;
-    --glassMaterialInnerStrokeAlpha: 0.18;
-    --glassMaterialBackdropFilter: saturate(220%) blur(24px);
+    --glassMaterialInnerStrokeAlpha: 0.14;
+    --glassMaterialBackdropFilter: saturate(170%) blur(16px);
 
-    --systemStandardThinMaterialSover: #111111cc;
-    --systemStandardThickMaterialSover: #0a0a0ae6;
-    --systemHeaderMaterialSover: #000000e6;
+    /* Apple Liquid Glass Engine Tokens (glasscn-components) */
+    --liquid-glass-rim-width: 0.75px;
+    --liquid-glass-rim-light: rgba(255, 255, 255, 0.50);
+    --liquid-glass-rim-dark: rgba(0, 0, 0, 0.35);
+    --liquid-glass-rim-fade: 16%;
+    --glass-specular-sheen: radial-gradient(120% 85% at 15% 8%, rgba(255,255,255,0.26) 0%, rgba(255,255,255,0.06) 40%, transparent 70%);
+    --glass-rim-glow: radial-gradient(110% 80% at 85% 100%, rgba(255,255,255,0.14) 0%, transparent 60%);
+    --glass-contact-shadow: 0 24px 60px -18px rgba(0,0,0,0.60), 0 8px 24px -8px rgba(0,0,0,0.40);
+    --glass-inner-bevel: inset 0 1px 0 0 rgba(255,255,255,0.45), inset 0 -12px 24px -10px rgba(255,255,255,0.18), inset 1px 0 0 0 rgba(255,255,255,0.14), inset -1px 0 0 0 rgba(255,255,255,0.10);
 
-    --navSidebarSelectedState: #ffffff0d;
-    --tracklistHoverColor: #ffffff14;
-    --shelfBG: #ffffff08;
-    --cardBG: #ffffff0b;
-    --cardBG-hover: #ffffff16;
-    --cardStroke: #ffffff14;
+    /* Premium Glass Surface Tokens */
+    --glass-card-bg: rgba(255, 255, 255, 0.055);
+    --glass-card-bg-hover: rgba(255, 255, 255, 0.10);
+    --glass-card-border: rgba(255, 255, 255, 0.08);
+    --glass-card-border-hover: rgba(255, 255, 255, 0.18);
+    --glass-card-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    --glass-card-highlight-hover: inset 0 1px 0 rgba(255, 255, 255, 0.32);
+    --glass-row-bg: rgba(255, 255, 255, 0.055);
+    --glass-row-bg-hover: rgba(255, 255, 255, 0.10);
+    --glass-row-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    --glass-row-highlight-hover: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 4px 16px rgba(0, 0, 0, 0.30);
+    --glass-overlay-bg: rgba(0, 0, 0, 0.42);
+    --glass-overlay-border: rgba(255, 255, 255, 0.14);
+
+    --systemStandardThinMaterialSover: rgba(18, 18, 24, 0.75);
+    --systemStandardThickMaterialSover: rgba(12, 12, 18, 0.85);
+    --systemHeaderMaterialSover: rgba(10, 10, 16, 0.85);
+
+    --navSidebarSelectedState: rgba(255, 255, 255, 0.12);
+    --tracklistHoverColor: rgba(255, 255, 255, 0.08);
+    --shelfBG: rgba(255, 255, 255, 0.04);
+    --cardBG: rgba(255, 255, 255, 0.06);
+    --cardBG-hover: rgba(255, 255, 255, 0.12);
+    --cardStroke: rgba(255, 255, 255, 0.10);
     --opaqueShelfBG: #16161c;
-    --footerBg: #0a0a0a;
-    --lockupHoverBGColor: #00000059;
-    --genericJoeColor: #17171d;
-    --modalScrimColor: #0000008c;
-    --searchBarBorderColor: #ffffff1a;
+    --footerBg: transparent;
+    --lockupHoverBGColor: rgba(0, 0, 0, 0.45);
+    --genericJoeColor: rgba(255, 255, 255, 0.08);
+    --modalScrimColor: rgba(0, 0, 0, 0.65);
+    --searchBarBorderColor: rgba(255, 255, 255, 0.14);
     --segmentedControlBG: #ffffff0f;
     --segmentedControlSelectedBG: #2a2a2a;
     --button-pill-color: #000000;

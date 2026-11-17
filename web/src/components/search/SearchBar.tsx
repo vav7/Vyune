@@ -25,14 +25,14 @@ export function SearchBar(props: {
   return (
     <form
       role="search"
-      class="sr-field flex h-11 w-full max-w-[640px] items-center gap-2 rounded-full bg-white/[0.08] border border-white/12 [backdrop-filter:blur(30px)_saturate(190%)] px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_24px_-6px_rgba(0,0,0,0.5)] transition-all duration-200 focus-within:bg-white/[0.13] focus-within:border-white/25 focus-within:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_14px_32px_-6px_rgba(0,0,0,0.65)]"
+      class="sr-field glance flex h-12 w-full max-w-[640px] items-center gap-2.5 rounded-full bg-black/40 backdrop-blur-[24px] backdrop-saturate-[1.9] border border-white/18 px-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_16px_36px_-8px_rgba(0,0,0,0.65)] transition-all duration-300 focus-within:bg-black/55 focus-within:border-white/35 focus-within:shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_20px_48px_-8px_rgba(0,0,0,0.8),0_0_0_2px_rgba(255,255,255,0.18)]"
       onSubmit={(event) => {
         event.preventDefault();
         props.onSubmit(input.value);
         input.blur();
       }}
     >
-      <button type="submit" class="grid size-9 flex-none place-items-center rounded-full text-secondary transition-colors hover:text-primary" aria-label="Search">
+      <button type="submit" class="grid size-9 flex-none place-items-center rounded-full text-secondary transition-colors hover:text-primary active:scale-95" aria-label="Search">
         <SearchIcon size={18} />
       </button>
       <input
@@ -50,7 +50,7 @@ export function SearchBar(props: {
       <Show when={props.value}>
         <button
           type="button"
-          class="grid size-7 flex-none place-items-center rounded-full bg-white/[0.15] text-primary/80 transition-colors hover:bg-white/[0.25]"
+          class="grid size-7 flex-none place-items-center rounded-full bg-white/[0.12] hover:bg-white/[0.22] text-white/90 border border-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-all active:scale-90"
           aria-label="Clear search"
           onClick={() => {
             props.onClear();

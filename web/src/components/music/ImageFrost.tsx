@@ -50,7 +50,7 @@ export function ImageFrost(props: { src: string | null; dim?: number; palette?: 
   });
 
   return (
-    <div class={`absolute inset-0 overflow-hidden bg-[#07070b] ${props.class ?? ''}`} aria-hidden="true">
+    <div class={`absolute inset-0 overflow-hidden bg-transparent ${props.class ?? ''}`} aria-hidden="true">
       <For each={layers()}>{(layer) => <FrostCanvas url={layer.url} />}</For>
       <Show when={currentTier() !== 'low' && (props.palette?.length ?? 0) > 0}>
         <ColorScatter palette={props.palette!} />
@@ -81,8 +81,8 @@ function ColorScatter(props: { palette: string[] }) {
 function FrostCanvas(props: { url: string }) {
   let canvas!: HTMLCanvasElement;
   const [ready, setReady] = createSignal(false);
-  const W = 320;
-  const H = 180;
+  const W = 960;
+  const H = 540;
 
   createEffect(() => {
     const el = canvas;
@@ -94,8 +94,7 @@ function FrostCanvas(props: { url: string }) {
     image.decoding = 'async';
     image.onload = () => {
       if (dead || !image.naturalWidth) return;
-      // Halve the picture step by step: every step averages neighbours, so detail melts away
-      // into a clean colour field (a single big jump keeps noise and stretches it into blocks).
+      // High-resolution multi-step bicubic downscale for silky smooth color transition
       let from: CanvasImageSource = image;
       let fw = image.naturalWidth;
       let fh = image.naturalHeight;
@@ -112,12 +111,10 @@ function FrostCanvas(props: { url: string }) {
         fw = step.width;
         fh = step.height;
       }
-      // Cover-fit, oversized so the soft edges of the blur never show.
-      // Scaled smoothly into a 160x90 intermediate canvas: preserves smooth optical gradients
-      // without pixel cracks or low-res blockiness.
-      const cover = Math.max(W / fw, H / fh) * 1.25;
-      const smoothW = 160;
-      const smoothH = 90;
+      // Cover-fit, oversized so the soft edges of the blur never show
+      const cover = Math.max(W / fw, H / fh) * 1.2;
+      const smoothW = 480;
+      const smoothH = 270;
       const step = document.createElement('canvas');
       step.width = smoothW;
       step.height = smoothH;
@@ -131,21 +128,20 @@ function FrostCanvas(props: { url: string }) {
       ctx.drawImage(step, 0, 0, W, H);
       setReady(true);
     };
-    image.src = proxiedImg(artworkForPaint(source, 544));
+    image.src = proxiedImg(artworkForPaint(source, 720));
     onCleanup(() => {
       dead = true;
       image.onload = null;
     });
   });
 
-  // The final softness is one Gaussian blur on a layer that never changes after it fades in, so the
-  // browser rasterises it once; the 320x180 source keeps the gradients silky, with no blocks for the blur to smear.
+  // High-fidelity Retina optical glass blur
   return (
     <canvas
       ref={canvas}
       width={W}
       height={H}
-      class={`absolute inset-0 size-full scale-[1.12] object-cover transition-opacity duration-[1100ms] ease-out [filter:blur(36px)_saturate(2.0)_contrast(1.05)_brightness(1.04)] ${ready() ? 'opacity-100' : 'opacity-0'}`}
+      class={`absolute inset-0 size-full scale-[1.12] object-cover transition-opacity duration-[1100ms] ease-out [filter:blur(54px)_saturate(2.2)_contrast(1.05)_brightness(1.05)] ${ready() ? 'opacity-100' : 'opacity-0'}`}
     />
   );
 }

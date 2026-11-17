@@ -61,8 +61,8 @@ export function CoverGlass(props: {
           {(layer) => <GlassCanvas url={layer.url} />}
         </For>
         <div class="absolute inset-0" style={{ background: `rgba(8,8,14,${veil()})` }} />
-        <div class="absolute inset-0 bg-[linear-gradient(180deg,rgb(255_255_255/0.14),rgb(255_255_255/0)_40%,rgb(0_0_0/0.12))]" />
-        <div class="absolute inset-0 rounded-[inherit] shadow-[inset_0_1px_0_rgb(255_255_255/0.28),inset_0_0_0_1px_rgb(255_255_255/0.08),inset_0_-14px_26px_-18px_rgb(0_0_0/0.45)]" />
+        <div class="absolute inset-0 bg-[radial-gradient(120%_80%_at_20%_0%,rgba(255,255,255,0.22)_0%,rgba(255,255,255,0.02)_50%,transparent_80%),linear-gradient(180deg,rgba(255,255,255,0.14)_0%,rgba(0,0,0,0.2)_100%)]" />
+        <div class="absolute inset-0 rounded-[inherit] shadow-[inset_0_1px_0_rgba(255,255,255,0.42),inset_0_0_0_1px_rgba(255,255,255,0.14),inset_0_-18px_36px_-18px_rgba(0,0,0,0.55)]" />
       </div>
     </Show>
   );
@@ -83,15 +83,15 @@ function GlassCanvas(props: { url: string }) {
       if (dead || !image.naturalWidth) return;
       const { width, height } = el;
       const cover = (zoom: number) => Math.max(width / image.naturalWidth, height / image.naturalHeight) * zoom;
-      // Higher-res + stronger blur = clean optical glass, not grainy upscale.
+      // High-res optical glass filter pass
       try {
-        ctx.filter = 'blur(18px) saturate(1.8) contrast(1.05) brightness(1.03)';
+        ctx.filter = 'blur(16px) saturate(1.8) brightness(1.02)';
       } catch {
-        // an unfiltered paint is still softened by the upscale
+        // fallback
       }
       let scale = cover(1.75);
       ctx.drawImage(image, (width - image.naturalWidth * scale) / 2, (height - image.naturalHeight * scale) / 2, image.naturalWidth * scale, image.naturalHeight * scale);
-      // Second pass, rotated: mesh of colour instead of a stretched thumbnail.
+      // Second pass, rotated: mesh of vibrant optical refraction
       ctx.save();
       ctx.globalAlpha = 0.55;
       ctx.globalCompositeOperation = 'overlay';
@@ -102,7 +102,7 @@ function GlassCanvas(props: { url: string }) {
       ctx.restore();
       setReady(true);
     };
-    image.src = proxiedImg(artworkForPaint(props.url, 480));
+    image.src = proxiedImg(artworkForPaint(props.url, 720));
     onCleanup(() => {
       dead = true;
       image.onload = null;
@@ -112,8 +112,8 @@ function GlassCanvas(props: { url: string }) {
   return (
     <canvas
       ref={canvasRef}
-      width={480}
-      height={320}
+      width={960}
+      height={640}
       class={`absolute inset-0 size-full origin-center animate-[glass-drift_32s_ease-in-out_infinite_alternate] object-cover transition-opacity duration-[1100ms] ease-out ${ready() ? 'opacity-100' : 'opacity-0'}`}
     />
   );

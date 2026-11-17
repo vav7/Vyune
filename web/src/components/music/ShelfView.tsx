@@ -7,9 +7,9 @@ import { CircleLockup, SquareLockup, TrackLockup, VideoLockup } from './Lockups'
 import { playList } from './play';
 import { trackItem, type MusicItem, type Shelf } from './types';
 
-// Arrow buttons (report §2): 28×52 glass pills, only ≥1000px, shown on shelf hover.
+// Arrow buttons: 28×52 glass pills, only ≥1000px, shown on shelf hover.
 const arrow =
-  'absolute top-1/2 z-3 hidden h-13 w-7 -translate-y-1/2 place-items-center rounded-pill bg-thin-material text-secondary opacity-0 transition-[opacity,background-color,color] duration-(--duration-arrow) ease-linear [backdrop-filter:saturate(180%)_blur(60px)] hover:text-primary disabled:pointer-events-none lg:grid lg:enabled:group-hover/shelf:opacity-100';
+  'absolute top-1/2 z-3 hidden h-13 w-7 -translate-y-1/2 place-items-center rounded-pill bg-black/45 text-white/75 opacity-0 transition-all duration-(--duration-arrow) ease-out backdrop-blur-[18px] backdrop-saturate-[1.8] border border-white/20 shadow-[0_8px_24px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.45)] hover:text-white hover:bg-black/65 hover:scale-105 active:scale-95 disabled:pointer-events-none lg:grid lg:enabled:group-hover/shelf:opacity-100';
 
 function renderItem(shelf: Shelf, item: MusicItem, onPlay?: () => void): JSX.Element {
   switch (shelf.layout) {

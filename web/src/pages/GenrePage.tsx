@@ -56,7 +56,7 @@ export default function GenrePage() {
         <Show when={section.items.length > initialCount}>
           <div class="mx-(--body-gutter) mt-2 flex justify-center">
             <button
-              class="rounded-full border border-white/10 bg-thin-material px-5 py-2 type-callout-emphasized text-secondary transition-[background-color,color,scale] duration-200 hover:bg-quinary hover:text-primary active:scale-[.98]"
+              class="glance rounded-full border border-white/14 bg-white/[0.08] backdrop-blur-md px-6 py-2.5 type-callout-emphasized text-secondary shadow-[inset_0_1px_0_rgba(255,255,255,0.25)] transition-all duration-200 hover:bg-white/[0.16] hover:text-white active:scale-95"
               aria-expanded={isExpanded()}
               onClick={() => setExpanded((value) => ({ ...value, [sectionKey]: !value[sectionKey] }))}
             >
