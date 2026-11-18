@@ -83,7 +83,7 @@ export function Lcd() {
                   />
                 )}
               </Show>
-              <Show when={artModeStore.mode !== 'static'}>
+              <Show when={artModeStore.mode !== 'art'}>
                 <AppleMotionArtwork track={current} mode={artModeStore.mode} />
               </Show>
               {/* Hovering anywhere on the player pill dims the artwork and shows the expand glyph. */}

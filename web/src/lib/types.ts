@@ -196,7 +196,7 @@ export interface AppleMotionArt {
   aspect: number | null;
   album?: string | null;
   /** Apple's own ~30s music-video preview for the recording, when one exists. */
-  mv?: { url: string; aspect: number; title?: string } | null;
+  mv?: { url: string; aspect: number; title?: string; label?: string } | null;
   /** Every video for the recording: the official one, then director's cut / alternate versions. */
   mvs?: { url: string; aspect: number; title?: string; label?: string; provider?: string }[];
 }

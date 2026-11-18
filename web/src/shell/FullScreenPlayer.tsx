@@ -184,6 +184,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
   const [settled, setSettled] = createSignal(false);
   // The playing song's motion artwork, once it is on screen: the backdrop frosts a copy of it.
   const [motionVideo, setMotionVideo] = createSignal<HTMLVideoElement | null>(null);
+  const [aspectRatio, setAspectRatio] = createSignal<number>(1);
   const tint = useSongTint();
 
   let close!: HTMLButtonElement;
@@ -500,10 +501,65 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
               data-lyrics={column() || undefined}
             >
               <section class={`poster-col flex w-(--art) min-w-0 flex-col${showQueue() ? ' max-md:order-2 max-md:w-full' : ''}`} aria-label="Player">
-                {/* Shrinks a touch while paused, as Apple's does. */}
+                {/* 3-Mode Selector Pill: Art | Visualizer | MV */}
+                <div class={`${fades} mb-3.5 flex items-center justify-between`}>
+                  <div class="inline-flex items-center gap-1 rounded-full p-1 bg-white/[0.06] border border-white/10 backdrop-blur-2xl shadow-[0_4px_20px_rgba(0,0,0,0.35)] select-none">
+                    <button
+                      type="button"
+                      class={`px-3.5 py-1 text-[11px] font-bold tracking-wider uppercase rounded-full transition-all duration-300 [font-family:var(--font-display)] ${
+                        artModeStore.mode === 'art'
+                          ? 'bg-white text-black shadow-[0_2px_10px_rgba(255,255,255,0.4)]'
+                          : 'text-white/60 hover:text-white hover:bg-white/10'
+                      }`}
+                      onClick={(e) => { e.stopPropagation(); artModeStore.setMode('art'); }}
+                    >
+                      Art
+                    </button>
+                    <button
+                      type="button"
+                      class={`px-3.5 py-1 text-[11px] font-bold tracking-wider uppercase rounded-full transition-all duration-300 [font-family:var(--font-display)] ${
+                        artModeStore.mode === 'visualiser'
+                          ? 'bg-white text-black shadow-[0_2px_10px_rgba(255,255,255,0.4)]'
+                          : 'text-white/60 hover:text-white hover:bg-white/10'
+                      }`}
+                      onClick={(e) => { e.stopPropagation(); artModeStore.setMode('visualiser'); }}
+                    >
+                      Visualizer
+                    </button>
+                    <button
+                      type="button"
+                      class={`px-3.5 py-1 text-[11px] font-bold tracking-wider uppercase rounded-full transition-all duration-300 [font-family:var(--font-display)] ${
+                        artModeStore.mode === 'mv'
+                          ? 'bg-white text-black shadow-[0_2px_10px_rgba(255,255,255,0.4)]'
+                          : 'text-white/60 hover:text-white hover:bg-white/10'
+                      }`}
+                      onClick={(e) => { e.stopPropagation(); artModeStore.setMode('mv'); }}
+                    >
+                      MV
+                    </button>
+                  </div>
+
+                  {/* Visualizer phase badge / MV status */}
+                  <Show when={artModeStore.mode === 'visualiser'}>
+                    <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[10px] font-bold tracking-wider uppercase text-white/70 backdrop-blur-md">
+                      <span class="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>{artModeStore.visualizerPhase === 'live_art' ? 'Live Canvas' : 'MV 30s Cut'}</span>
+                    </div>
+                  </Show>
+                  <Show when={artModeStore.mode === 'mv'}>
+                    <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[10px] font-bold tracking-wider uppercase text-white/70 backdrop-blur-md">
+                      <span class="size-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                      <span>Full MV 60fps</span>
+                    </div>
+                  </Show>
+                </div>
+
+                {/* Shrinks a touch while paused, as Apple's does. Dynamic aspect ratio for cinematic MV */}
                 <div
-                  class={`fs-poster group/poster relative w-(--art) cursor-pointer rounded-[10px] transition-[scale] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-data-[idle=true]:scale-[0.95]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.92]'}`}
-                  style={{ 'aspect-ratio': '1 / 1' }}
+                  class={`fs-poster group/poster relative w-(--art) cursor-pointer rounded-[14px] transition-[scale,aspect-ratio,width] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-data-[idle=true]:scale-[0.95]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.92]'}`}
+                  style={{
+                    'aspect-ratio': artModeStore.mode === 'mv' ? `${aspectRatio() || 16 / 9}` : '1 / 1',
+                  }}
                   onClick={() => artModeStore.cycle()}
                 >
                   <Show when={poster()[0]}>
@@ -512,13 +568,18 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                         candidates={poster()}
                         track={artworkTrack()}
                         displayWidth={600}
-                        radius="10px"
+                        radius="14px"
                         eager
-                        class="size-full rounded-[10px]"
+                        class="size-full rounded-[14px]"
                       />
-                      <div class="absolute inset-0 overflow-hidden rounded-[10px]">
+                      <div class="absolute inset-0 overflow-hidden rounded-[14px]">
                         <Show when={settled()}>
-                          <AppleMotionArtwork track={current()} mode={artModeStore.mode} onVideo={setMotionVideo} />
+                          <AppleMotionArtwork
+                            track={current()}
+                            mode={artModeStore.mode}
+                            onVideo={setMotionVideo}
+                            onAspect={setAspectRatio}
+                          />
                         </Show>
                       </div>
                     </div>

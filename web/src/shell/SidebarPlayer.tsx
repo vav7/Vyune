@@ -84,7 +84,7 @@ export function SidebarPlayer() {
                 <Show when={thumb}>
                   {(src) => <img src={sizedArtwork(src(), 112)} alt="" referrerPolicy="no-referrer" decoding="async" class="size-full object-cover" />}
                 </Show>
-                <Show when={artModeStore.mode !== 'static'}>
+                <Show when={artModeStore.mode !== 'art'}>
                   <AppleMotionArtwork track={current} mode={artModeStore.mode} />
                 </Show>
               </button>

@@ -137,7 +137,7 @@ export function HomeHero(props: { tracks: Track[] }) {
                   <Artwork src={track.thumb} track={track} displayWidth={560} radius="16px" eager class="size-full rounded-[16px]" />
                   <div class="absolute inset-0 overflow-hidden rounded-[16px]">
                     <Show when={armed()}>
-                      <AppleMotionArtwork track={track} mode="motion" onVideo={setVideo} />
+                      <AppleMotionArtwork track={track} mode="visualiser" onVideo={setVideo} />
                     </Show>
                   </div>
                   <div class="pointer-events-none absolute inset-0 rounded-[16px] shadow-[inset_0_1px_0_rgba(255,255,255,0.5),inset_0_0_0_1px_rgba(255,255,255,0.15)]" />

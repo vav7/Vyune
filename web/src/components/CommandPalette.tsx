@@ -18,7 +18,7 @@ import {
 import { A, useNavigate } from '@solidjs/router';
 import { playerStore } from '@/store/player';
 import { uiStore } from '@/store/ui';
-import { artModeStore } from '@/store/artMode';
+import { ART_MODE_LABEL, artModeStore } from '@/store/artMode';
 import { albumVideoStore } from '@/store/albumVideo';
 import { preloadRoute } from '@/pageRegistry';
 
@@ -126,8 +126,8 @@ export function CommandPalette() {
       when: () => !!playerStore.current,
     },
     {
-      label: () => `Art mode: ${artModeStore.mode}`,
-      keywords: () => ['art', 'mode', 'artwork', 'visual'],
+      label: () => `Player mode: ${ART_MODE_LABEL[artModeStore.mode] || artModeStore.mode}`,
+      keywords: () => ['art', 'mode', 'artwork', 'visual', 'visualizer', 'mv', 'video'],
       icon: () => <Sparkles size={16} />,
       perform: () => artModeStore.cycle(),
       when: () => !!playerStore.current,

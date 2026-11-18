@@ -140,7 +140,20 @@ export const api = {
     });
     return getJSON<AppleMotionArt>(`/api/apple-motion?${p}`, signal);
   },
+  /** Official YouTube Music Video resolver for the visualizer & full MV player */
+  resolveMv: (track: Track, signal?: AbortSignal) => {
+    const p = new URLSearchParams({
+      id: track.id || '',
+      title: track.title || '',
+      artist: (track.artists || []).join(', '),
+    });
+    return getJSON<{ videoId: string; title: string; thumbnail: string }>(`/api/mv/resolve?${p}`, signal);
+  },
 };
+
+/** High-definition native video stream URL for HTML5 <video> */
+export const videoStreamUrl = (videoId: string) => `/api/video/${encodeURIComponent(videoId)}`;
 
 /** Same-origin image proxy (CORS-proof thumbnails for canvas/strict contexts). */
 export const proxiedImg = (url: string) => `/api/img?url=${encodeURIComponent(url)}`;
+

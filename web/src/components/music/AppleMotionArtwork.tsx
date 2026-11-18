@@ -1,10 +1,11 @@
 import { createEffect, createSignal, onCleanup, Show, type Accessor } from 'solid-js';
 import { useQuery } from '@tanstack/solid-query';
-import { type ArtMode } from '@/store/artMode';
+import { type ArtMode, artModeStore } from '@/store/artMode';
 import type { Track } from '@/lib/types';
-import { api } from '@/lib/api';
+import { api, videoStreamUrl } from '@/lib/api';
 import { attachHlsClip, type ClipHandle } from '@/lib/hlsClip';
 import { useTier } from '@/lib/perf';
+import { playerStore } from '@/store/player';
 
 const reducedMotionQuery = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
 
@@ -56,68 +57,11 @@ function detectBars(video: HTMLVideoElement): Fit | null {
   }
 }
 
-/** One clip: attached when it has a source, played (looped) while the tab is in front. */
-function useClip(source: Accessor<string | null>, active: Accessor<boolean>, loop?: Accessor<boolean>) {
-  const [element, setElement] = createSignal<HTMLVideoElement | null>(null);
-  const [ready, setReady] = createSignal(false);
-  const [fit, setFit] = createSignal<Fit | null>(null);
-  let handle: ClipHandle | null = null;
-
-  createEffect(() => {
-    const src = source();
-    const el = element();
-    setReady(false);
-    setFit(null);
-    if (!el || !src) return;
-    let cancelled = false;
-    void attachHlsClip(el, src, { maxBufferLength: 8 }).then((attached) => {
-      if (cancelled) attached?.destroy();
-      else handle = attached;
-    });
-    onCleanup(() => {
-      cancelled = true;
-      handle?.destroy();
-      handle = null;
-      el.pause();
-    });
-  });
-
-  createEffect(() => {
-    const el = element();
-    const src = source();
-    if (!el || !src) return;
-    if (!active()) {
-      el.pause();
-      return;
-    }
-    el.play().catch(() => undefined);
-  });
-
-  // A plain loop when single clip; multiple MVs advance consecutively onEnded.
-  createEffect(() => {
-    const el = element();
-    const shouldLoop = loop ? loop() : true;
-    if (el) el.loop = shouldLoop;
-  });
-
-  // Once frames are showing, measure any black bars baked into the clip.
-  createEffect(() => {
-    const el = element();
-    const isReady = ready();
-    if (!isReady || !el) return;
-    const timer = window.setTimeout(() => setFit(detectBars(el)), 700);
-    onCleanup(() => window.clearTimeout(timer));
-  });
-
-  return { element, setElement, ready, setReady, fit };
-}
-
 /**
- * The song's moving picture, by mode:
- *   static — nothing moves · motion — Apple's square motion artwork · mv — the music video.
- * Each mode asks for its own clip first and settles for the other. The clip keeps its own
- * aspect ratio (reported through `onAspect`), its letterbox bars are cropped away, and it
- * loops.
+ * Three Player Presentation Modes:
+ *   - 'art': Normal static high-resolution artwork (zero video overhead).
+ *   - 'visualiser': Dynamic visualizer cycling Live Album Art -> 30s clips of all MV versions -> Loop.
+ *   - 'mv': Full official YouTube Music Video streaming at 1080p/720p 60fps in tight lockstep with audio.
  */
 export function AppleMotionArtwork(props: {
   track: Track;
@@ -131,139 +75,321 @@ export function AppleMotionArtwork(props: {
   const tier = useTier();
   const [visible, setVisible] = createSignal(typeof document === 'undefined' || document.visibilityState === 'visible');
 
-  const mode = () => props.mode ?? 'motion';
-  const wanted = () => !reduceMotion() && mode() !== 'static' && (tier.motion || mode() === 'mv');
+  const mode = () => props.mode ?? artModeStore.mode;
+  const isArtMode = () => mode() === 'art';
+  const isVisualizerMode = () => mode() === 'visualiser';
+  const isMvMode = () => mode() === 'mv';
 
-  const query = useQuery(() => ({
-    queryKey: [
-      'apple-motion-v2',
-      props.track.id,
-      props.track.title,
-      (props.track.artists || []).join('|'),
-      props.track.album,
-    ],
-    queryFn: ({ signal }: { signal: AbortSignal }) => api.appleMotion(props.track, signal),
-    enabled: wanted() && !!props.track.title && (!!props.track.artists?.[0] || !!props.track.channel || props.track.title.includes(' - ')),
-    staleTime: 24 * 60 * 60_000,
-    gcTime: 48 * 60 * 60_000,
-    retry: 1,
-    retryDelay: 800,
-  }));
+  const wanted = () => !reduceMotion() && !isArtMode() && (tier.motion || isMvMode());
 
-  const motionSource = () => query.data?.url || null;
-  // Prioritize official MVs, alternate cuts, and visualizers; fallback to lyric video if it's the only visual
-  const isLyricVideo = (v: { label?: string | null; title?: string | null }) => /lyric/i.test(`${v.label ?? ''} ${v.title ?? ''}`);
-  const mvList = () => {
-    const all = query.data?.mvs?.length ? query.data.mvs : query.data?.mv ? [query.data.mv] : [];
-    const seen = new Set<string>();
-    const valid = all.filter((v) => v?.url && !seen.has(v.url) && seen.add(v.url));
-    const nonLyric = valid.filter((v) => !isLyricVideo(v as any));
-    return nonLyric.length ? nonLyric : valid;
-  };
-  const [mvIndex, setMvIndex] = createSignal(0);
-  createEffect(() => {
-    // a new song starts its videos from the first
-    props.track.id;
-    setMvIndex(0);
-  });
-  const chosenMv = () => {
-    const list = mvList();
-    return list.length ? list[mvIndex() % list.length]! : null;
-  };
-  const nextMv = () => {
-    if (mvList().length > 1) setMvIndex((i) => (i + 1) % mvList().length);
-  };
-
-  // Pre-buffering of next MV in rotation
-  createEffect(() => {
-    const list = mvList();
-    if (list.length > 1) {
-      const nextIdx = (mvIndex() + 1) % list.length;
-      const nextUrl = list[nextIdx]?.url;
-      if (nextUrl && typeof document !== 'undefined' && !/\.m3u8/i.test(nextUrl)) {
-        const link = document.createElement('link');
-        link.rel = 'preload';
-        link.as = 'video';
-        link.href = nextUrl;
-        document.head.appendChild(link);
-        onCleanup(() => {
-          if (link.parentNode) link.parentNode.removeChild(link);
-        });
-      }
-    }
-  });
-
-  const mvSource = () => chosenMv()?.url || null;
-  const usingMv = () => !!mvSource() && (mode() === 'mv' || !motionSource());
-  const wantedSource = () => (!wanted() ? null : usingMv() ? mvSource() : motionSource() || mvSource());
-
-  // Leaving a mode: keep the last clip mounted while it fades out, so the change is a dissolve, not a cut.
-  const [source, setSource] = createSignal<string | null>(wantedSource());
-  createEffect(() => {
-    const wanted_ = wantedSource();
-    if (wanted_) {
-      setSource(wanted_);
-      return;
-    }
-    const timer = window.setTimeout(() => setSource(null), 900);
-    onCleanup(() => window.clearTimeout(timer));
-  });
-
-  const isLooped = () => !usingMv() || mvList().length < 2;
-  const clip = useClip(source, () => visible() && wanted(), isLooped);
-  const aspect = () => (usingMv() ? chosenMv()?.aspect ?? 16 / 9 : query.data?.aspect ?? 1);
-
+  // Track visibility changes
   createEffect(() => {
     const update = () => setVisible(document.visibilityState === 'visible');
     document.addEventListener('visibilitychange', update);
     onCleanup(() => document.removeEventListener('visibilitychange', update));
   });
 
+  // 1. Query Apple Motion and music video cuts
+  const appleMotionQuery = useQuery(() => ({
+    queryKey: [
+      'apple-motion-v3',
+      props.track.id,
+      props.track.title,
+      (props.track.artists || []).join('|'),
+      props.track.album,
+    ],
+    queryFn: ({ signal }: { signal: AbortSignal }) => api.appleMotion(props.track, signal),
+    enabled: wanted() && !!props.track.title,
+    staleTime: 24 * 60 * 60_000,
+    gcTime: 48 * 60 * 60_000,
+    retry: 1,
+  }));
+
+  // 2. Query official YouTube Music Video
+  const ytMvQuery = useQuery(() => ({
+    queryKey: [
+      'yt-mv-resolve',
+      props.track.id,
+      props.track.title,
+      (props.track.artists || []).join('|'),
+    ],
+    queryFn: ({ signal }: { signal: AbortSignal }) => api.resolveMv(props.track, signal),
+    enabled: wanted() && !!props.track.title,
+    staleTime: 24 * 60 * 60_000,
+    gcTime: 48 * 60 * 60_000,
+    retry: 1,
+  }));
+
+  const liveAlbumArtUrl = () => appleMotionQuery.data?.url || null;
+
+  // List of MV versions available for Visualizer mode (30s clips)
+  const isLyricVideo = (v: { label?: string | null; title?: string | null }) =>
+    /lyric/i.test(`${v.label ?? ''} ${v.title ?? ''}`);
+
+  const mvVersions = () => {
+    const appleList = appleMotionQuery.data?.mvs?.length
+      ? appleMotionQuery.data.mvs
+      : appleMotionQuery.data?.mv
+        ? [appleMotionQuery.data.mv]
+        : [];
+    const nonLyric = appleList.filter((v) => !isLyricVideo(v as any));
+    const list = nonLyric.length ? nonLyric : appleList;
+
+    if (list.length > 0) {
+      return list.map((item, idx) => ({
+        url: item.url,
+        aspect: item.aspect || 16 / 9,
+        title: item.title || `Music Video ${idx + 1}`,
+        label: item.label || 'Music Video',
+      }));
+    }
+
+    // Fallback: If Apple has no MV preview, use the resolved YouTube MV as a 30s preview clip
+    const ytVideoId = ytMvQuery.data?.videoId || (props.track.source === 'yt' ? props.track.id : null);
+    if (ytVideoId) {
+      return [
+        {
+          url: videoStreamUrl(ytVideoId),
+          aspect: 16 / 9,
+          title: ytMvQuery.data?.title || 'Official Music Video',
+          label: 'Official Music Video',
+        },
+      ];
+    }
+    return [];
+  };
+
+  // Publish video versions to the global store for menus
   createEffect(() => {
-    const src = source();
-    const ratio = aspect();
-    if (src && props.onAspect && ratio > 0) props.onAspect(ratio);
+    const versions = mvVersions();
+    if (versions.length > 0) {
+      artModeStore.setVersions(versions.map((v) => v.label || v.title));
+    }
   });
 
-  const playing = () => (clip.ready() && wantedSource() ? clip.element() : null);
+  // -------------------------------------------------------------
+  // Visualizer Rotation Engine:
+  // Stage 0: Live album artwork (plays for 25 seconds)
+  // Stage 1..N: 30-second clips of each MV version
+  // Loops seamlessly back to Stage 0
+  // -------------------------------------------------------------
+  const [visualizerPhase, setVisualizerPhase] = createSignal<'live_art' | 'mv_clip'>('live_art');
+  const [currentMvIndex, setCurrentMvIndex] = createSignal(0);
+
+  // Reset on track change
   createEffect(() => {
-    const video = playing();
-    props.onVideo?.(video);
+    props.track.id;
+    setCurrentMvIndex(0);
+    setVisualizerPhase(liveAlbumArtUrl() ? 'live_art' : 'mv_clip');
+  });
+
+  // Cycle Visualizer timer
+  createEffect(() => {
+    if (!isVisualizerMode() || !visible()) return;
+    const hasLiveArt = !!liveAlbumArtUrl();
+    const versions = mvVersions();
+    if (!hasLiveArt && versions.length === 0) return;
+
+    // Time in current phase before switching
+    const currentPhase = visualizerPhase();
+    const durationSeconds = currentPhase === 'live_art' ? 25 : 30;
+
+    let secondsPassed = 0;
+    const interval = window.setInterval(() => {
+      // Only advance timer if music is playing
+      if (playerStore.playing && !playerStore.loading) {
+        secondsPassed++;
+        if (secondsPassed >= durationSeconds) {
+          secondsPassed = 0;
+          if (currentPhase === 'live_art') {
+            if (versions.length > 0) {
+              setVisualizerPhase('mv_clip');
+              setCurrentMvIndex(0);
+              artModeStore.setVisualizerPhase('mv_clip');
+              artModeStore.setVersionIndex(0);
+            }
+          } else {
+            const nextIdx = currentMvIndex() + 1;
+            if (nextIdx < versions.length) {
+              setCurrentMvIndex(nextIdx);
+              artModeStore.setVersionIndex(nextIdx);
+            } else {
+              // Completed all MV clips -> loop back to Live Album Art (or restart MVs if no live art)
+              if (hasLiveArt) {
+                setVisualizerPhase('live_art');
+                artModeStore.setVisualizerPhase('live_art');
+              } else {
+                setCurrentMvIndex(0);
+                artModeStore.setVersionIndex(0);
+              }
+            }
+          }
+        }
+      }
+    }, 1000);
+
+    onCleanup(() => window.clearInterval(interval));
+  });
+
+  // Source selection based on mode:
+  const activeSource = () => {
+    if (!wanted()) return null;
+
+    // MODE 3: Full YouTube Music Video Mode
+    if (isMvMode()) {
+      const ytId = ytMvQuery.data?.videoId || (props.track.source === 'yt' ? props.track.id : null);
+      if (ytId) return videoStreamUrl(ytId);
+      // Fallback to Apple MV or live art if YT MV not ready
+      const versions = mvVersions();
+      return versions[0]?.url || liveAlbumArtUrl();
+    }
+
+    // MODE 2: Visualizer Mode
+    if (isVisualizerMode()) {
+      const hasLiveArt = !!liveAlbumArtUrl();
+      const versions = mvVersions();
+
+      if (visualizerPhase() === 'live_art' && hasLiveArt) {
+        return liveAlbumArtUrl();
+      }
+
+      if (versions.length > 0) {
+        const item = versions[currentMvIndex() % versions.length];
+        return item?.url || liveAlbumArtUrl();
+      }
+
+      return liveAlbumArtUrl();
+    }
+
+    return null;
+  };
+
+  const activeAspect = () => {
+    if (isMvMode()) return 16 / 9;
+    if (isVisualizerMode()) {
+      if (visualizerPhase() === 'live_art') {
+        return appleMotionQuery.data?.aspect ?? 1;
+      }
+      const versions = mvVersions();
+      if (versions.length > 0) {
+        return versions[currentMvIndex() % versions.length]?.aspect ?? 16 / 9;
+      }
+    }
+    return 1;
+  };
+
+  // Video element and playback state
+  const [videoEl, setVideoEl] = createSignal<HTMLVideoElement | null>(null);
+  const [ready, setReady] = createSignal(false);
+  const [fit, setFit] = createSignal<Fit | null>(null);
+  let hlsHandle: ClipHandle | null = null;
+
+  // Mount/attach video source
+  createEffect(() => {
+    const src = activeSource();
+    const el = videoEl();
+    setReady(false);
+    setFit(null);
+    if (!el || !src) return;
+
+    let cancelled = false;
+    void attachHlsClip(el, src, { maxBufferLength: 10 }).then((attached) => {
+      if (cancelled) attached?.destroy();
+      else hlsHandle = attached;
+    });
+
+    onCleanup(() => {
+      cancelled = true;
+      hlsHandle?.destroy();
+      hlsHandle = null;
+      el.pause();
+    });
+  });
+
+  // Strict Audio-Video Synchronization
+  createEffect(() => {
+    const el = videoEl();
+    const isWanted = wanted();
+    if (!el || !isWanted) return;
+
+    const isAudioPlaying = playerStore.playing && !playerStore.loading;
+
+    // Full MV Mode: Lockstep audio-video sync
+    if (isMvMode()) {
+      if (isAudioPlaying && el.paused) {
+        el.play().catch(() => undefined);
+      } else if (!isAudioPlaying && !el.paused) {
+        el.pause();
+      }
+
+      // Seek sync & drift correction (<0.35s tolerance)
+      const curTime = playerStore.currentTime;
+      if (Math.abs(el.currentTime - curTime) > 0.35) {
+        el.currentTime = curTime;
+      }
+    } else {
+      // Visualizer Mode: Normal play/pause with audio
+      if (isAudioPlaying && visible()) {
+        el.play().catch(() => undefined);
+      } else {
+        el.pause();
+      }
+    }
+  });
+
+  // Report aspect ratio and video element to caller (FullScreenPlayer, ArtworkBackdrop)
+  createEffect(() => {
+    const ratio = activeAspect();
+    if (props.onAspect && ratio > 0) props.onAspect(ratio);
+  });
+
+  createEffect(() => {
+    const el = ready() && activeSource() ? videoEl() : null;
+    props.onVideo?.(el);
     onCleanup(() => props.onVideo?.(null));
   });
 
+  // Measure letterbox bars on visualizer clips to eliminate black bars
+  createEffect(() => {
+    const el = videoEl();
+    const isReady = ready();
+    if (!isReady || !el || isMvMode()) return;
+    const timer = window.setTimeout(() => setFit(detectBars(el)), 600);
+    onCleanup(() => window.clearTimeout(timer));
+  });
+
   return (
-    <Show when={source()} keyed>
+    <Show when={activeSource()} keyed>
       {(src) => (
         <video
-          ref={clip.setElement}
+          ref={setVideoEl}
           src={src}
           crossOrigin="anonymous"
           muted
           playsinline
           autoplay
           preload="auto"
-          loop={isLooped()}
-          onEnded={() => {
-            if (usingMv() && mvList().length > 1) {
-              nextMv();
-            }
-          }}
+          loop={!isMvMode()}
           aria-hidden="true"
-          class={`pointer-events-none absolute inset-0 z-10 size-full rounded-[inherit] object-cover transition-opacity duration-[800ms] ease-in-out ${clip.ready() && wantedSource() ? 'opacity-100' : 'opacity-0'}`}
-          style={clip.fit() ? { transform: `scale(${clip.fit()!.scale}) translateY(${clip.fit()!.shift}%)` } : undefined}
-          onPlaying={() => clip.setReady(true)}
-          onLoadedData={(event) => {
-            clip.setReady(true);
-            if (visible()) event.currentTarget.play().catch(() => undefined);
+          class={`pointer-events-none absolute inset-0 z-10 size-full rounded-[inherit] object-cover transition-opacity duration-700 ease-in-out ${
+            ready() && activeSource() ? 'opacity-100' : 'opacity-0'
+          }`}
+          style={
+            fit() && !isMvMode()
+              ? { transform: `scale(${fit()!.scale}) translateY(${fit()!.shift}%)` }
+              : undefined
+          }
+          onPlaying={() => setReady(true)}
+          onLoadedData={(e) => {
+            setReady(true);
+            if (playerStore.playing && visible()) e.currentTarget.play().catch(() => undefined);
           }}
-          onCanPlay={(event) => {
-            clip.setReady(true);
-            if (visible()) event.currentTarget.play().catch(() => undefined);
+          onCanPlay={(e) => {
+            setReady(true);
+            if (playerStore.playing && visible()) e.currentTarget.play().catch(() => undefined);
           }}
           onError={() => {
-            clip.setReady(false);
-            if (usingMv() && mvList().length > 1) nextMv();
+            setReady(false);
           }}
         />
       )}

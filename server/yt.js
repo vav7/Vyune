@@ -1849,3 +1849,157 @@ export async function resolveStream(videoId, { skipClients = [], preferOpus = fa
   if (opened) return opened;
   return resolveWithYtDlp(videoId);
 }
+
+const videoMetaCache = new Map();
+const mvResolveCache = new Map();
+
+/**
+ * Resolves official Music Video for the artwork visualizer & MV player
+ */
+export async function resolveMusicVideo(title, artist, songVideoId) {
+  const cleanTitle = (title || '')
+    .replace(/\(.*?\)/g, '')
+    .replace(/\[.*?\]/g, '')
+    .replace(/official\s+(?:music\s+)?video/gi, '')
+    .replace(/full\s+(?:audio|video)\s+song/gi, '')
+    .replace(/lyrics?/gi, '')
+    .trim();
+
+  const cleanArtist = (artist || '')
+    .replace(/\(.*?\)/g, '')
+    .replace(/\[.*?\]/g, '')
+    .replace(/feat\..*$/i, '')
+    .replace(/ft\..*$/i, '')
+    .trim();
+
+  const queryKey = `${cleanTitle} ${cleanArtist}`.toLowerCase();
+  if (mvResolveCache.has(queryKey)) {
+    return mvResolveCache.get(queryKey);
+  }
+
+  try {
+    const yt = await getYT();
+    const query = `${cleanTitle} ${cleanArtist} official music video`.trim();
+    const search = await yt.search(query, { type: 'video' });
+    const videos = search.videos || [];
+    if (videos.length > 0) {
+      const v = videos[0];
+      const result = {
+        videoId: v.id,
+        title: v.title?.text || v.title || title,
+        thumbnail: `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`,
+      };
+      mvResolveCache.set(queryKey, result);
+      return result;
+    }
+  } catch (err) {
+    console.warn('[yt] resolveMusicVideo failed:', err?.message || err);
+  }
+
+  if (songVideoId) {
+    const fallback = {
+      videoId: songVideoId,
+      title: `${title} - Video`,
+      thumbnail: `https://i.ytimg.com/vi/${songVideoId}/hqdefault.jpg`,
+    };
+    mvResolveCache.set(queryKey, fallback);
+    return fallback;
+  }
+
+  return null;
+}
+
+/**
+ * High-definition Video Stream Resolver (1080p/720p H.264 MP4)
+ * Returns direct or deciphered Google Video stream metadata for hardware-accelerated playback.
+ */
+export async function resolveVideoStream(videoId) {
+  if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) return null;
+  const now = Date.now();
+  const cached = videoMetaCache.get(videoId);
+  if (cached && now < cached.expiresAt) {
+    return cached;
+  }
+
+  const yt = await getYT();
+  const clients = ['IOS', 'ANDROID', 'WEB'];
+
+  for (const client of clients) {
+    try {
+      const options = { client };
+      const info = await withTimeout(yt.getInfo(videoId, options), 6500, null);
+      if (!info) continue;
+
+      const adaptive = info.streaming_data?.adaptive_formats || [];
+      const vFormats = adaptive.filter(
+        (f) => f.has_video && (/mp4/i.test(f.mime_type || '') || /webm/i.test(f.mime_type || ''))
+      );
+      if (!vFormats.length) continue;
+
+      // Prefer 1080p or 720p MP4 for ultra-smooth hardware-accelerated decoding
+      const chosen =
+        vFormats.find((f) => /mp4/i.test(f.mime_type || '') && (f.quality_label === '1080p' || f.height === 1080)) ||
+        vFormats.find((f) => /mp4/i.test(f.mime_type || '') && (f.quality_label === '720p' || f.height === 720)) ||
+        vFormats.find((f) => /mp4/i.test(f.mime_type || '') && f.height && f.height <= 1080 && f.height >= 480) ||
+        vFormats.find((f) => f.height && f.height <= 1080) ||
+        vFormats[0];
+
+      if (!chosen) continue;
+
+      let url = chosen.url || null;
+      if (!url && typeof chosen.decipher === 'function') {
+        try {
+          url = await chosen.decipher(yt.session.player);
+        } catch {
+          url = null;
+        }
+      }
+
+      if (!url || typeof url !== 'string') continue;
+
+      const meta = {
+        videoId,
+        url,
+        mime: chosen.mime_type?.split(';')[0] || 'video/mp4',
+        contentLength: Number(chosen.content_length) || null,
+        width: chosen.width || 1280,
+        height: chosen.height || 720,
+        quality: chosen.quality_label || `${chosen.height}p`,
+        expiresAt: now + 3 * 3600_000,
+      };
+
+      videoMetaCache.set(videoId, meta);
+      return meta;
+    } catch {
+      // try next client
+    }
+  }
+
+  // Fallback: yt-dlp if installed on host
+  try {
+    const bin = ytDlpExecutable();
+    const { stdout } = await execFile(bin, [
+      '-g',
+      '-f', 'bestvideo[ext=mp4][height<=1080]/bestvideo[height<=1080]/bestvideo',
+      `https://www.youtube.com/watch?v=${videoId}`,
+    ], { timeout: 12000 });
+    const url = stdout.trim().split('\n')[0];
+    if (url && /^https?:\/\//i.test(url)) {
+      const meta = {
+        videoId,
+        url,
+        mime: 'video/mp4',
+        contentLength: null,
+        width: 1280,
+        height: 720,
+        quality: '720p',
+        expiresAt: now + 2 * 3600_000,
+      };
+      videoMetaCache.set(videoId, meta);
+      return meta;
+    }
+  } catch {}
+
+  return null;
+}
+

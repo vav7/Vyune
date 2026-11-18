@@ -592,6 +592,72 @@ app.get('/api/apple-motion', async (c) => {
   return c.json({ ...(art || { url: null, aspect: null }), mv: mvs[0] || null, mvs });
 });
 
+/**
+ * Official Music Video Resolver for the visualizer & full MV player.
+ * GET /api/mv/resolve?title=&artist=&id=
+ */
+app.get('/api/mv/resolve', async (c) => {
+  const title = String(c.req.query('title') || '').trim();
+  const artist = String(c.req.query('artist') || '').trim();
+  const id = String(c.req.query('id') || '').trim();
+  if (!title && !id) return c.json({ error: 'title or id required' }, 400);
+
+  const mv = await yt.resolveMusicVideo(title, artist, id);
+  if (!mv) return c.json({ error: 'mv_not_found' }, 404);
+  return c.json(mv);
+});
+
+/**
+ * High-definition Video Stream Proxy (1080p/720p H.264 MP4)
+ * Streams native hardware-accelerated video to HTML5 <video> with byte ranges (HTTP 206).
+ * GET /api/video/:id
+ */
+app.get('/api/video/:id', async (c) => {
+  const videoId = String(c.req.param('id') || '').trim();
+  if (!videoId) return c.json({ error: 'id required' }, 400);
+
+  const meta = await yt.resolveVideoStream(videoId);
+  if (!meta?.url) {
+    return c.json({ error: 'video_not_found' }, 404);
+  }
+
+  const rangeHeader = c.req.header('range');
+  const headers = {
+    'User-Agent': 'com.google.ios.youtube/19.45.4 (iPhone16,2; U; CPU iOS 18_1_0 like Mac OS X; US)',
+    'Accept': '*/*',
+    'Origin': 'https://www.youtube.com',
+    'Referer': 'https://www.youtube.com/',
+  };
+  if (rangeHeader) {
+    headers['Range'] = rangeHeader;
+  }
+
+  try {
+    const upstream = await fetch(meta.url, { headers });
+    const resHeaders = new Headers();
+    resHeaders.set('Content-Type', meta.mime || upstream.headers.get('content-type') || 'video/mp4');
+    resHeaders.set('Accept-Ranges', 'bytes');
+    resHeaders.set('Cache-Control', 'public, max-age=7200');
+    resHeaders.set('Access-Control-Allow-Origin', '*');
+    resHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    resHeaders.set('Access-Control-Allow-Headers', 'Range, Content-Range, Accept-Ranges, Content-Type');
+    resHeaders.set('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
+
+    const cr = upstream.headers.get('content-range');
+    if (cr) resHeaders.set('Content-Range', cr);
+    const cl = upstream.headers.get('content-length');
+    if (cl) resHeaders.set('Content-Length', cl);
+
+    return new Response(upstream.body, {
+      status: upstream.status,
+      headers: resHeaders,
+    });
+  } catch (err) {
+    return c.json({ error: 'stream_fetch_failed' }, 502);
+  }
+});
+
+
 /** Song identity: canonical metadata + ISRC (iTunes × Deezer × lrc.red). */
 app.get('/api/identify', async (c) => {
   const title = String(c.req.query('title') || '').trim();
