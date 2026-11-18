@@ -456,6 +456,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
               artworkUrl={poster()[0] ?? thumbCandidates(artworkTrack())[0] ?? current().thumb ?? null}
               fallbackUrl={current().thumb}
               motionVideo={settled() ? motionVideo() : null}
+              mode={artModeStore.mode}
             />
 
             {/* The pull handle spans the top edge so it is easy to catch with a thumb. */}
@@ -554,9 +555,13 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                   </Show>
                 </div>
 
-                {/* Classic Apple Music square poster box — stretched/covered video inside so zero black bars */}
+                {/* Classic Apple Music square poster box with modern liquid glass frame in visualizer/MV mode */}
                 <div
-                  class={`fs-poster group/poster relative w-(--art) aspect-square cursor-pointer rounded-[14px] overflow-hidden bg-black/40 backdrop-blur-md transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-data-[idle=true]:scale-[0.96]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.92]'}`}
+                  class={`fs-poster group/poster relative w-(--art) aspect-square cursor-pointer rounded-[20px] overflow-hidden ${
+                    artModeStore.mode === 'art'
+                      ? 'bg-black/40 backdrop-blur-md shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10'
+                      : 'bg-white/[0.04] backdrop-blur-3xl shadow-[0_25px_65px_-12px_rgba(0,0,0,0.7),_inset_0_1px_1px_rgba(255,255,255,0.35),_inset_0_0_24px_rgba(255,255,255,0.05)] border border-white/20 ring-1 ring-white/10'
+                  } transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-data-[idle=true]:scale-[0.96]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.92]'}`}
                   onClick={() => artModeStore.cycle()}
                 >
                   <div class="absolute inset-0 size-full">
@@ -565,12 +570,12 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                         candidates={poster()}
                         track={artworkTrack()}
                         displayWidth={800}
-                        radius="14px"
+                        radius="20px"
                         eager
-                        class="size-full rounded-[14px] object-cover"
+                        class="size-full rounded-[20px] object-cover"
                       />
                     </Show>
-                    <div class="absolute inset-0 size-full overflow-hidden rounded-[14px]">
+                    <div class="absolute inset-0 size-full overflow-hidden rounded-[20px]">
                       <Show when={settled() || artModeStore.mode === 'mv'}>
                         <AppleMotionArtwork
                           track={current()}

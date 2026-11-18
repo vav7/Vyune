@@ -72,10 +72,7 @@ void main() {
   float veil = mix(uDim * 0.8, uDim + 0.32, vUv.y);
   c = mix(c, vec3(0.024, 0.024, 0.04), clamp(veil, 0.0, 0.92));
 
-  // triangular dither, one 8-bit step: no banding in the long gradients
-  float n = hash(gl_FragCoord.xy) + hash(gl_FragCoord.xy + 17.0) - 1.0;
-  c += n / 255.0;
-
+  // Pure modern liquid glass: zero noise grain, crystal-smooth gradient transitions
   outColor = vec4(clamp(c, 0.0, 1.0), uAlpha);
 }`;
 
