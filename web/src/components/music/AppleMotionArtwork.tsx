@@ -5,7 +5,7 @@ import type { Track } from '@/lib/types';
 import { api, videoStreamUrl } from '@/lib/api';
 import { attachHlsClip, type ClipHandle } from '@/lib/hlsClip';
 import { useTier } from '@/lib/perf';
-import { audio } from '@/store/player';
+import { audio, playerStore, subscribeProgress } from '@/store/player';
 
 const reducedMotionQuery = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
 
@@ -63,7 +63,7 @@ function MvPlayer(props: {
   onVideo?: (video: HTMLVideoElement | null) => void;
   onAspect?: (aspect: number) => void;
 }) {
-  let videoEl: HTMLVideoElement | undefined;
+  const [videoEl, setVideoEl] = createSignal<HTMLVideoElement | null>(null);
   const [videoReady, setVideoReady] = createSignal(false);
 
   // 1. Resolve official music video
@@ -77,115 +77,109 @@ function MvPlayer(props: {
   const videoId = () => ytMvQuery.data?.videoId || (props.track.source === 'yt' ? props.track.id : null);
   const videoSrc = () => (videoId() ? videoStreamUrl(videoId()!) : null);
 
-  // 2. Play / Pause & Seek synchronization directly with native audio element
-  onMount(() => {
-    const onAudioPlay = () => {
-      if (videoEl && videoEl.paused) {
-        videoEl.play().catch(() => {});
-      }
-    };
-    const onAudioPause = () => {
-      if (videoEl && !videoEl.paused) {
-        videoEl.pause();
-      }
-    };
-    const onAudioSeeked = () => {
-      if (videoEl && Number.isFinite(audio.currentTime)) {
-        videoEl.currentTime = audio.currentTime;
-      }
-    };
-
-    audio.addEventListener('play', onAudioPlay);
-    audio.addEventListener('pause', onAudioPause);
-    audio.addEventListener('seeking', onAudioSeeked);
-    audio.addEventListener('seeked', onAudioSeeked);
-
-    // Initial sync
-    if (videoEl) {
-      if (Number.isFinite(audio.currentTime)) {
-        videoEl.currentTime = audio.currentTime;
-      }
-      if (!audio.paused) {
-        videoEl.play().catch(() => {});
-      }
+  // 2. Play / Pause synchronization with Solid store (runs reactively on mount & state change)
+  createEffect(() => {
+    const el = videoEl();
+    if (!el) return;
+    const isPlaying = playerStore.playing;
+    if (isPlaying && el.paused) {
+      el.play().catch(() => {});
+    } else if (!isPlaying && !el.paused) {
+      el.pause();
     }
+  });
 
-    // Drift correction: check periodically, snap only if drift > 0.45s
-    const driftInterval = window.setInterval(() => {
-      if (!videoEl || audio.paused || videoEl.seeking || !Number.isFinite(audio.currentTime)) return;
-      const drift = Math.abs(videoEl.currentTime - audio.currentTime);
+  // 3. High-precision drift correction & seek synchronization
+  onMount(() => {
+    const unsub = subscribeProgress((cur) => {
+      const el = videoEl();
+      if (!el || el.seeking || !playerStore.playing) return;
+      const drift = Math.abs(el.currentTime - cur);
       if (drift > 0.45) {
-        videoEl.currentTime = audio.currentTime;
+        el.currentTime = cur;
       }
-    }, 1000);
+    });
+
+    const onSeeked = () => {
+      const el = videoEl();
+      if (el && Number.isFinite(audio.currentTime)) {
+        el.currentTime = audio.currentTime;
+      }
+    };
+    audio.addEventListener('seeking', onSeeked);
+    audio.addEventListener('seeked', onSeeked);
 
     onCleanup(() => {
-      audio.removeEventListener('play', onAudioPlay);
-      audio.removeEventListener('pause', onAudioPause);
-      audio.removeEventListener('seeking', onAudioSeeked);
-      audio.removeEventListener('seeked', onAudioSeeked);
-      window.clearInterval(driftInterval);
+      unsub();
+      audio.removeEventListener('seeking', onSeeked);
+      audio.removeEventListener('seeked', onSeeked);
     });
   });
 
   createEffect(() => {
-    if (videoReady() && videoEl) {
-      props.onVideo?.(videoEl);
-    } else {
-      props.onVideo?.(null);
-    }
+    const el = videoReady() ? videoEl() : null;
+    props.onVideo?.(el);
     onCleanup(() => props.onVideo?.(null));
   });
 
   return (
-    <Show when={videoSrc()} fallback={null}>
-      {(src) => (
-        <video
-          ref={(el) => {
-            videoEl = el;
-            if (el) {
-              if (Number.isFinite(audio.currentTime)) {
+    <div class="relative size-full overflow-hidden rounded-[inherit]">
+      <Show when={videoSrc()} fallback={null}>
+        {(src) => (
+          <video
+            ref={setVideoEl}
+            src={src()}
+            autoplay
+            muted
+            playsinline
+            preload="auto"
+            loop
+            aria-hidden="true"
+            class={`absolute inset-0 z-10 size-full rounded-[inherit] object-cover transition-opacity duration-700 ease-in-out ${
+              videoReady() ? 'opacity-100' : 'opacity-0'
+            }`}
+            onLoadedMetadata={(e) => {
+              const el = e.currentTarget;
+              const w = el.videoWidth;
+              const h = el.videoHeight;
+              if (w > 0 && h > 0) props.onAspect?.(w / h);
+              if (Number.isFinite(audio.currentTime) && audio.currentTime > 0) {
                 el.currentTime = audio.currentTime;
               }
-              if (!audio.paused) {
+              if (playerStore.playing && el.paused) {
                 el.play().catch(() => {});
               }
-            }
-          }}
-          src={src()}
-          autoplay
-          muted
-          playsinline
-          preload="auto"
-          aria-hidden="true"
-          class={`absolute inset-0 z-10 size-full rounded-[inherit] object-cover transition-opacity duration-700 ease-in-out ${
-            videoReady() ? 'opacity-100' : 'opacity-0'
-          }`}
-          onLoadedMetadata={(e) => {
-            const w = e.currentTarget.videoWidth;
-            const h = e.currentTarget.videoHeight;
-            if (w > 0 && h > 0) props.onAspect?.(w / h);
-            if (Number.isFinite(audio.currentTime)) {
-              e.currentTarget.currentTime = audio.currentTime;
-            }
-            if (!audio.paused) {
-              e.currentTarget.play().catch(() => {});
-            }
-          }}
-          onCanPlay={(e) => {
-            setVideoReady(true);
-            if (!audio.paused && e.currentTarget.paused) {
-              e.currentTarget.play().catch(() => {});
-            }
-          }}
-          onPlaying={() => setVideoReady(true)}
-          onError={(e) => {
-            console.warn('[MvPlayer] error loading video:', e);
-            setVideoReady(false);
-          }}
-        />
-      )}
-    </Show>
+            }}
+            onCanPlay={(e) => {
+              setVideoReady(true);
+              if (playerStore.playing && e.currentTarget.paused) {
+                e.currentTarget.play().catch(() => {});
+              }
+            }}
+            onPlaying={() => setVideoReady(true)}
+            onTimeUpdate={(e) => {
+              if (!videoReady() && e.currentTarget.currentTime > 0) {
+                setVideoReady(true);
+              }
+            }}
+            onError={(e) => {
+              console.warn('[MvPlayer] error loading video:', e);
+              setVideoReady(false);
+            }}
+          />
+        )}
+      </Show>
+
+      {/* Luxury GlassCN Buffering Badge */}
+      <Show when={!videoReady() && !!videoSrc()}>
+        <div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-[3px] transition-opacity duration-500">
+          <div class="flex items-center gap-2 rounded-full border border-white/20 bg-black/70 px-4 py-2 backdrop-blur-xl shadow-2xl">
+            <span class="size-2 rounded-full bg-red-500 animate-ping" />
+            <span class="text-[11px] font-bold tracking-wider text-white uppercase [font-family:var(--font-display)]">Buffering MV...</span>
+          </div>
+        </div>
+      </Show>
+    </div>
   );
 }
 
@@ -289,7 +283,7 @@ function VisualizerPlayer(props: {
 
     let secondsPassed = 0;
     const interval = window.setInterval(() => {
-      if (!audio.paused) {
+      if (playerStore.playing) {
         secondsPassed++;
         if (secondsPassed >= durationSeconds) {
           secondsPassed = 0;
@@ -372,29 +366,23 @@ function VisualizerPlayer(props: {
     } else {
       el.src = src;
       el.load();
-      if (!audio.paused) el.play().catch(() => {});
+      if (playerStore.playing) el.play().catch(() => {});
       onCleanup(() => {
         el.pause();
       });
     }
   });
 
-  // Play/pause sync with audio
-  onMount(() => {
-    const onPlay = () => {
-      const el = videoEl();
-      if (el && el.paused) el.play().catch(() => {});
-    };
-    const onPause = () => {
-      const el = videoEl();
-      if (el && !el.paused) el.pause();
-    };
-    audio.addEventListener('play', onPlay);
-    audio.addEventListener('pause', onPause);
-    onCleanup(() => {
-      audio.removeEventListener('play', onPlay);
-      audio.removeEventListener('pause', onPause);
-    });
+  // Play/pause sync with Solid store
+  createEffect(() => {
+    const el = videoEl();
+    if (!el) return;
+    const isPlaying = playerStore.playing;
+    if (isPlaying && el.paused) {
+      el.play().catch(() => {});
+    } else if (!isPlaying && !el.paused) {
+      el.pause();
+    }
   });
 
   createEffect(() => {
@@ -431,9 +419,12 @@ function VisualizerPlayer(props: {
         style={fit() ? { transform: `scale(${fit()!.scale}) translateY(${fit()!.shift}%)` } : undefined}
         onCanPlay={() => {
           setReady(true);
-          if (!audio.paused && videoEl()?.paused) videoEl()?.play().catch(() => {});
+          if (playerStore.playing && videoEl()?.paused) videoEl()?.play().catch(() => {});
         }}
         onPlaying={() => setReady(true)}
+        onTimeUpdate={(e) => {
+          if (!ready() && e.currentTarget.currentTime > 0) setReady(true);
+        }}
         onError={() => setReady(false)}
       />
     </Show>

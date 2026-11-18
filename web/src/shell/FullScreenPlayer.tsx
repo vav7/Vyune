@@ -502,11 +502,11 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
             >
               <section class={`poster-col flex w-(--art) min-w-0 flex-col${showQueue() ? ' max-md:order-2 max-md:w-full' : ''}`} aria-label="Player">
                 {/* 3-Mode Selector Pill: Art | Visualizer | MV */}
-                <div class={`${fades} mb-3.5 flex items-center justify-between`}>
-                  <div class="inline-flex items-center gap-1 rounded-full p-1 bg-white/[0.06] border border-white/10 backdrop-blur-2xl shadow-[0_4px_20px_rgba(0,0,0,0.35)] select-none">
+                <div class="relative z-30 mb-3.5 flex items-center justify-between pointer-events-auto">
+                  <div class="inline-flex items-center gap-1 rounded-full p-1 bg-white/[0.08] border border-white/15 backdrop-blur-2xl shadow-[0_4px_20px_rgba(0,0,0,0.35)] select-none pointer-events-auto">
                     <button
                       type="button"
-                      class={`px-3.5 py-1 text-[11px] font-bold tracking-wider uppercase rounded-full transition-all duration-300 [font-family:var(--font-display)] ${
+                      class={`cursor-pointer px-3.5 py-1 text-[11px] font-bold tracking-wider uppercase rounded-full transition-all duration-300 [font-family:var(--font-display)] ${
                         artModeStore.mode === 'art'
                           ? 'bg-white text-black shadow-[0_2px_10px_rgba(255,255,255,0.4)]'
                           : 'text-white/60 hover:text-white hover:bg-white/10'
@@ -517,7 +517,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                     </button>
                     <button
                       type="button"
-                      class={`px-3.5 py-1 text-[11px] font-bold tracking-wider uppercase rounded-full transition-all duration-300 [font-family:var(--font-display)] ${
+                      class={`cursor-pointer px-3.5 py-1 text-[11px] font-bold tracking-wider uppercase rounded-full transition-all duration-300 [font-family:var(--font-display)] ${
                         artModeStore.mode === 'visualiser'
                           ? 'bg-white text-black shadow-[0_2px_10px_rgba(255,255,255,0.4)]'
                           : 'text-white/60 hover:text-white hover:bg-white/10'
@@ -528,7 +528,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                     </button>
                     <button
                       type="button"
-                      class={`px-3.5 py-1 text-[11px] font-bold tracking-wider uppercase rounded-full transition-all duration-300 [font-family:var(--font-display)] ${
+                      class={`cursor-pointer px-3.5 py-1 text-[11px] font-bold tracking-wider uppercase rounded-full transition-all duration-300 [font-family:var(--font-display)] ${
                         artModeStore.mode === 'mv'
                           ? 'bg-white text-black shadow-[0_2px_10px_rgba(255,255,255,0.4)]'
                           : 'text-white/60 hover:text-white hover:bg-white/10'
@@ -573,7 +573,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                         class="size-full rounded-[14px]"
                       />
                       <div class="absolute inset-0 overflow-hidden rounded-[14px]">
-                        <Show when={settled()}>
+                        <Show when={settled() || artModeStore.mode === 'mv'}>
                           <AppleMotionArtwork
                             track={current()}
                             mode={artModeStore.mode}

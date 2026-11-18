@@ -645,10 +645,28 @@ app.get('/api/video/:id', async (c) => {
     headers.Referer = 'https://www.youtube.com/';
     headers['X-Origin'] = 'https://www.youtube.com';
   }
-  if (range) headers.Range = range;
+
+  // Google Video hard-caps video chunks at 1MB (1048576 bytes).
+  // Unbounded range requests (e.g. bytes=0-) or missing ranges are capped to 1MB chunks so Google Video responds with HTTP 206.
+  const rangeHeader = c.req.header('range');
+  let start = 0;
+  let end = null;
+  if (rangeHeader && rangeHeader.startsWith('bytes=')) {
+    const parts = rangeHeader.replace('bytes=', '').split('-');
+    start = parseInt(parts[0], 10) || 0;
+    if (parts[1]) {
+      end = parseInt(parts[1], 10);
+    }
+  }
+  const total = meta.contentLength;
+  const CHUNK_SIZE = 1024 * 1024;
+  const chunkEnd = end !== null ? Math.min(end, start + CHUNK_SIZE - 1) : (total ? Math.min(total - 1, start + CHUNK_SIZE - 1) : start + CHUNK_SIZE - 1);
+  headers.Range = `bytes=${start}-${chunkEnd}`;
 
   try {
     const upstream = await fetch(finalUrl.href, { headers });
+    const buf = await upstream.arrayBuffer();
+
     const resHeaders = new Headers();
     resHeaders.set('Content-Type', meta.mime || upstream.headers.get('content-type') || 'video/mp4');
     resHeaders.set('Accept-Ranges', 'bytes');
@@ -659,12 +677,15 @@ app.get('/api/video/:id', async (c) => {
     resHeaders.set('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
 
     const cr = upstream.headers.get('content-range');
-    if (cr) resHeaders.set('Content-Range', cr);
-    const cl = upstream.headers.get('content-length');
-    if (cl) resHeaders.set('Content-Length', cl);
+    if (cr) {
+      resHeaders.set('Content-Range', cr);
+    } else {
+      resHeaders.set('Content-Range', `bytes ${start}-${start + buf.byteLength - 1}/${total || '*'}`);
+    }
+    resHeaders.set('Content-Length', String(buf.byteLength));
 
-    return new Response(upstream.body, {
-      status: upstream.status,
+    return new Response(buf, {
+      status: upstream.status === 200 && rangeHeader ? 206 : upstream.status,
       headers: resHeaders,
     });
   } catch (err) {
