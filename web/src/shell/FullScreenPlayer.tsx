@@ -455,7 +455,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
             <ArtworkBackdrop
               artworkUrl={poster()[0] ?? thumbCandidates(artworkTrack())[0] ?? current().thumb ?? null}
               fallbackUrl={current().thumb}
-              motionVideo={settled() ? motionVideo() : null}
+              motionVideo={(settled() || artModeStore.mode === 'mv' || artModeStore.mode === 'visualiser') ? motionVideo() : null}
               mode={artModeStore.mode}
             />
 

@@ -63,16 +63,11 @@ void main() {
     c += textureLod(uTex, uv + d * t * 2.6, uLod + 1.0).rgb * 0.0433;
   }
 
-  // colour: lifted saturation and contrast
-  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
-  c = mix(vec3(l), c, 1.75);
-  c = (c - 0.5) * 1.05 + 0.5;
-
   // the veil keeps white text readable: light at the top, deeper toward the bottom
-  float veil = mix(uDim * 0.8, uDim + 0.32, vUv.y);
-  c = mix(c, vec3(0.024, 0.024, 0.04), clamp(veil, 0.0, 0.92));
+  float veil = mix(uDim * 0.75, uDim + 0.28, vUv.y);
+  c = mix(c, vec3(0.02, 0.02, 0.035), clamp(veil, 0.0, 0.9));
 
-  // Pure modern liquid glass: zero noise grain, crystal-smooth gradient transitions
+  // Pure modern liquid glass: zero noise grain, natural authentic video colors
   outColor = vec4(clamp(c, 0.0, 1.0), uAlpha);
 }`;
 
@@ -155,8 +150,8 @@ export function MotionFrost(props: {
           gl.generateMipmap(gl.TEXTURE_2D);
           const vw = source.videoWidth;
           gl.uniform2f(uVideo, vw, source.videoHeight);
-          // read the level where the picture is ~32 px wide: pure colour, no detail
-          gl.uniform1f(uLod, Math.max(0, Math.log2(vw / (props.detail ?? 32))));
+          // High-resolution liquid glass mip level: pure optical video blur without 32px macroblocks
+          gl.uniform1f(uLod, Math.max(0, Math.log2(vw / (props.detail ?? 180))));
           gl.uniform1f(uDim, props.dim ?? 0.42);
           gl.uniform1f(uAlpha, primed ? 0.4 : 1);
           gl.uniform1f(uSeed, (now % 1000) / 1000);
@@ -256,7 +251,7 @@ export function MotionFrost(props: {
               ref={setFlatCanvas}
               width={tier.frostSize[0]}
               height={tier.frostSize[1]}
-              class={`absolute inset-0 size-full object-cover ${tier.blur ? '[filter:blur(32px)_saturate(1.8)_contrast(1.05)] [transform:translateZ(0)_scale(1.14)]' : '[filter:saturate(1.5)] scale-[1.12]'}`}
+              class={`absolute inset-0 size-full object-cover ${tier.blur ? '[filter:blur(40px)] [transform:translateZ(0)_scale(1.14)]' : 'scale-[1.12]'}`}
             />
             <div
               class="absolute inset-0"

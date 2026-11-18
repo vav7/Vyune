@@ -213,7 +213,7 @@ function MvPlayer(props: {
   });
 
   createEffect(() => {
-    const el = videoReady() ? videoEl() : null;
+    const el = videoEl();
     props.onVideo?.(el);
     onCleanup(() => props.onVideo?.(null));
   });
@@ -484,7 +484,7 @@ function VisualizerPlayer(props: {
   });
 
   createEffect(() => {
-    const el = ready() && activeSource() ? videoEl() : null;
+    const el = videoEl();
     props.onVideo?.(el);
     onCleanup(() => props.onVideo?.(null));
   });
