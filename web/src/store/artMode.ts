@@ -14,16 +14,16 @@ export const ART_MODE_LABEL: Record<ArtMode, string> = {
   mv: 'Music video',
 };
 
-const KEY = 'mc_artmode';
+const KEY = 'mc_artmode_v3';
 const read = (): ArtMode => {
   try {
+    // Clear legacy storage key so browsers aren't stuck on the previous 'visualiser' default
+    localStorage.removeItem('mc_artmode');
     const saved = localStorage.getItem(KEY);
     if (saved === 'art' || saved === 'visualiser' || saved === 'mv') return saved;
-    if (saved === 'static') return 'art';
-    if (saved === 'motion') return 'visualiser';
-    return 'visualiser';
+    return 'art';
   } catch {
-    return 'visualiser';
+    return 'art';
   }
 };
 const write = (mode: ArtMode) => {
