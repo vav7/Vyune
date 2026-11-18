@@ -232,13 +232,13 @@ function MvPlayer(props: {
             preload="auto"
             loop
             aria-hidden="true"
-            class={`absolute inset-0 z-10 size-full rounded-[inherit] object-cover transition-opacity duration-700 ease-in-out ${
-              videoReady() ? 'opacity-100' : 'opacity-0'
+            class={`absolute inset-0 z-10 size-full rounded-[inherit] object-cover transition-opacity duration-1000 ease-in-out ${
+              videoReady() ? 'opacity-100' : 'opacity-0 pointer-events-none'
             }`}
             style={{
               transform: fit() ? `scale(${fit()!.scale}) translate(${fit()!.shiftX}%, ${fit()!.shiftY}%)` : undefined,
               'transition-property': 'transform, opacity',
-              'transition-duration': '700ms',
+              'transition-duration': '1000ms',
               'transition-timing-function': 'cubic-bezier(0.22, 1, 0.36, 1)',
             }}
             onLoadedMetadata={(e) => {
@@ -271,16 +271,6 @@ function MvPlayer(props: {
             }}
           />
         )}
-      </Show>
-
-      {/* Luxury GlassCN Buffering Badge */}
-      <Show when={!videoReady() && !!videoSrc()}>
-        <div class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-[3px] transition-opacity duration-500">
-          <div class="flex items-center gap-2 rounded-full border border-white/20 bg-black/70 px-4 py-2 backdrop-blur-xl shadow-2xl">
-            <span class="size-2 rounded-full bg-red-500 animate-ping" />
-            <span class="text-[11px] font-bold tracking-wider text-white uppercase [font-family:var(--font-display)]">Buffering MV...</span>
-          </div>
-        </div>
       </Show>
     </div>
   );

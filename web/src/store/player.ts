@@ -528,13 +528,25 @@ async function loadTrack(index: number, autoplay = true) {
   const { queue } = snap();
   if (index < 0 || index >= queue.length) return;
   const track = queue[index];
+
+  // 1. Immediately kill old song playback so it never lingers
+  audio.pause();
+  audio.removeAttribute('src');
+  audio.load();
+
   clearStallTimer();
   recoveredTrackId = null;
   releaseIframeFallback();
-  setPlayerStore({ index, current: track, loading: true });
+
+  setPlayerStore({ index, current: track, loading: true, playing: false });
   prewarmArtworkColor(track.thumb);
   updateNowPlaying(track);
   schedulePrefetch();
+
+  // 2. Unlock browser audio element in user gesture context
+  if (autoplay) {
+    audio.play().catch(() => {});
+  }
 
   // If the track came from search/top-songs without an albumId, resolve it in the background
   if (!track.albumId && track.source === 'yt') {
@@ -563,7 +575,15 @@ async function loadTrack(index: number, autoplay = true) {
     audio.src = stream.proxy || stream.url;
     audio.load();
     streamResolved = true;
-    if (autoplay) await audio.play();
+    if (autoplay) {
+      const p = audio.play();
+      if (p) {
+        await p.catch((err) => {
+          console.warn('[player] autoplay warning:', err?.message || err);
+        });
+      }
+    }
+    setPlayerStore({ loading: false, playing: true });
     fadeIn();
     schedulePrefetch();
   } catch (error) {
@@ -579,6 +599,7 @@ async function loadTrack(index: number, autoplay = true) {
         audio.src = fallback.proxy || fallback.url;
         audio.load();
         await audio.play();
+        setPlayerStore({ loading: false, playing: true });
         fadeIn();
         schedulePrefetch();
         return;
@@ -592,6 +613,7 @@ async function loadTrack(index: number, autoplay = true) {
               return;
             }
             await audio.play();
+            setPlayerStore({ loading: false, playing: true });
             return;
           } catch {
             releaseIframeFallback();

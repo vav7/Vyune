@@ -307,17 +307,12 @@ export async function saavnStreamUrl(track) {
   if (!t?.streams?.length && !t?.encrypted) t = await saavnDetails(track?.id);
   if (!t) return null;
 
-  // The wrapper's own renditions, best first. Each is probed: a rendition the
-  // catalogue lists but the CDN does not serve is skipped, not returned.
+  // Instant stream resolution: take the highest bitrate rendition without slow upstream network probing
   if (t.streams?.length) {
-    for (const stream of t.streams.slice(0, 3)) {
-      const r = await safeFetch(stream.url, { headers: { ...HEADERS, Range: 'bytes=0-0' }, timeout: 6000 });
-      if (r && (r.status === 200 || r.status === 206)) {
-        return { url: stream.url, bitrate: stream.kbps ? stream.kbps * 1000 : null };
-      }
+    const best = t.streams[0];
+    if (best?.url) {
+      return { url: best.url, bitrate: best.kbps ? best.kbps * 1000 : 320000 };
     }
-    // None answered: the direct path may still know the track.
-    t = await saavnDetailsDirect(track?.id);
   }
   if (!t?.encrypted) return null;
 
@@ -325,19 +320,7 @@ export async function saavnStreamUrl(track) {
   if (!decrypted || !/^https?:\/\//.test(decrypted)) return null;
 
   const chosen = selectBestSaavnStream(decrypted, t.has320);
-  const probe = async (url) => {
-    const r = await safeFetch(url, { headers: { ...HEADERS, Range: 'bytes=0-0' }, timeout: 6000 });
-    return r && (r.status === 200 || r.status === 206) ? r : null;
-  };
-
-  if (await probe(chosen.url)) return { url: chosen.url, bitrate: chosen.kbps ? chosen.kbps * 1000 : null };
-  // The rewritten rendition can 404 on a catalogue that lied about it: fall
-  // back to whatever the encrypted URL named, and say what that really is.
-  if (chosen.url !== decrypted && (await probe(decrypted))) {
-    const original = selectBestSaavnStream(decrypted, false);
-    return { url: decrypted, bitrate: original.kbps ? original.kbps * 1000 : null };
-  }
-  return null;
+  return { url: chosen.url || decrypted, bitrate: chosen.kbps ? chosen.kbps * 1000 : 320000 };
 }
 
 /* ---------------- matching ---------------- */

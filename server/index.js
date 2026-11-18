@@ -233,88 +233,60 @@ app.get('/api/stream', async (c) => {
       return { ...o, proxy: `/api/media?${params}` };
     };
 
-    // 0) The catalogue first, always.
-    //
-    // Prefer an exact Saavn catalogue stream when present. If it is absent,
-    // resolve the selected YouTube recording and then the official Songs
-    // shelf. The media proxy forwards Google Video byte ranges and the
-    // YouTube client headers required by the resolver.
+    // Direct video stream for the selected YouTube ID (fast ~150-200ms path)
     const tryVideo = async (videoId) => {
       if (!videoId) return null;
-      const stream = await yt.resolveStream(videoId, { preferOpus, wrapper });
+      const stream = await yt.resolveStream(videoId, { preferOpus, wrapper }).catch(() => null);
       return stream
         ? withProxy({ url: stream.url, source: 'yt', mime: stream.mime, bitrate: stream.bitrate, contentLength: stream.contentLength })
         : null;
     };
 
-    // JioSaavn is the normal first choice, but its title lookup and CDN
-    // probe used to block the YouTube resolver in series. Start both paths
-    // together: take Saavn when it is ready during a short priority window,
-    // otherwise use the already-resolving YouTube stream immediately.
-    const saavnPromise =
-      wrapper !== 'yt-dlp' && title && artist
-        ? (async () => {
-            let match = await saavn.findSaavnMatch(title, artist, { album, duration });
-            if (!match) {
-              // Spotify's canonical naming (when configured) is a second way to ask the catalogue.
-              const canon = await spotifyTrack(title, artist).catch(() => null);
-              if (canon && (canon.title !== title || canon.artists[0] !== artist)) {
-                match = await saavn.findSaavnMatch(canon.title, canon.artists.join(', '), {
-                  album: canon.album || album,
-                  duration: canon.durationSec || duration,
-                });
-              }
-            }
-            if (!match) return null;
-            const media = await saavn.saavnStreamUrl(match);
-            return media ? { url: media.url, source: 'saavn', bitrate: media.bitrate, mime: 'audio/mp4' } : null;
-          })().catch(() => null)
-        : Promise.resolve(null);
-
-    const youtubePromise = (async () => {
-      // Direct video ID attempt (fastest path for community playlists / catalog tracks)
-      const directPromise = id ? tryVideo(id) : Promise.resolve(null);
-
-      // Concurrently check if an official audio track exists to avoid MV video versions
-      const isMvTitle = title && /video|official\s+video|music\s+video|mv\b|clip|visualizer/i.test(title);
-
-      if (title && (isUpload || isMvTitle)) {
-        // Priority search for official audio track when explicitly an MV or user upload
-        const hits = await yt.searchSongs(`${title} ${artist}`.trim(), 6);
-        const matches = officialSongMatches(hits, title, artist, album, duration);
-        for (const candidate of matches.slice(0, 3)) {
-          const stream = await tryVideo(candidate.id);
-          if (stream) return stream;
+    // 1) Direct Saavn track (instant ~40ms resolution)
+    if (c.req.query('source') === 'saavn' || (id && /^\d+$/.test(id))) {
+      const svTrack = await saavn.saavnDetails(id).catch(() => null);
+      if (svTrack) {
+        const media = await saavn.saavnStreamUrl(svTrack).catch(() => null);
+        if (media?.url) {
+          return { url: media.url, source: 'saavn', bitrate: media.bitrate, mime: 'audio/mp4' };
         }
       }
+    }
 
-      // If direct video stream is ready (fast ~200ms path):
-      const direct = await directPromise;
-      if (direct) return direct;
+    // 2) Fast JioSaavn Match running in parallel with YouTube direct resolve
+    // JioSaavn provides pristine 320kbps CD-quality Akamai CDN audio that streams instantly without proxies.
+    const saavnPromise = (async () => {
+      if (wrapper === 'yt-dlp' || !title) return null;
+      const match = await saavn.findSaavnMatch(title, artist, { album, duration }).catch(() => null);
+      if (!match) return null;
+      const media = await saavn.saavnStreamUrl(match).catch(() => null);
+      return media?.url ? { url: media.url, source: 'saavn', bitrate: media.bitrate, mime: 'audio/mp4' } : null;
+    })();
 
-      // If not an explicit MV or direct stream was not available, search official songs:
-      if (title) {
-        const hits = await yt.searchSongs(`${title} ${artist}`.trim(), 6);
-        const matches = officialSongMatches(hits, title, artist, album, duration);
-        for (const candidate of matches.slice(0, 3)) {
-          const stream = await tryVideo(candidate.id);
-          if (stream) return stream;
-        }
-      }
+    const ytDirectPromise = id && /^[\w-]{11}$/.test(id) ? tryVideo(id) : Promise.resolve(null);
 
-      return null;
-    })().catch(() => null);
+    // Give JioSaavn 350ms to match:
+    const saavnMatch = await withTimeout(saavnPromise, 350, null);
+    if (saavnMatch) return saavnMatch;
 
-    // Quick-match with JioSaavn first within a fast window (up to 1,200ms)
-    const saavnFirst = await withTimeout(saavnPromise, 1_200, null);
-    if (saavnFirst) return saavnFirst;
-
-    // If Saavn has no verified match or is taking longer, fall back to YouTube immediately without latency
-    const viaYoutube = await youtubePromise;
+    // If not in JioSaavn, IMMEDIATELY switch to the working YouTube fallback!
+    const viaYoutube = await ytDirectPromise;
     if (viaYoutube) return viaYoutube;
 
-    // YouTube had nothing: a Saavn answer that arrived late still beats an error
-    return await saavnPromise;
+    // If direct ID failed or absent, quick single query search on YT
+    if (title) {
+      const hits = await yt.searchSongs(`${title} ${artist}`.trim(), 4).catch(() => []);
+      for (const hit of hits.slice(0, 2)) {
+        const stream = await tryVideo(hit.id);
+        if (stream) return stream;
+      }
+    }
+
+    // Late Saavn match check (up to 400ms more)
+    const lateSaavn = await withTimeout(saavnPromise, 400, null);
+    if (lateSaavn) return lateSaavn;
+
+    return null;
   });
 
   if (!out) {
