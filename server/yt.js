@@ -1798,56 +1798,42 @@ export async function resolveStream(videoId, { skipClients = [], preferOpus = fa
     if (result) return result;
   }
 
-  // Match the working player's YouTube.js stream path when there is no
-  // configured VISIONOS route (or when it was explicitly requested).
-  if (!visionOSFirst || wrapper === 'innertube') {
-    try {
-      const format = await withTimeout(yt.getStreamingData(videoId, { type: 'audio', quality: 'best' }), 12_000, null);
-      if (format) {
-        let url = format.url || null;
-        if (!url && typeof format.decipher === 'function') {
-          try { url = await format.decipher(); } catch (err) { console.warn(`[stream] ${videoId} YouTube.js decipher failed: ${err?.message || err}`); }
-        }
-        if (typeof url === 'string' && url) {
-          let rejectedMweb = false;
-          try { rejectedMweb = new URL(url).searchParams.get('c')?.toUpperCase() === 'MWEB'; } catch {}
-          if (!rejectedMweb) {
-            return { url, mime: format.mime_type || format.mime, bitrate: format.bitrate, contentLength: Number(format.content_length) || null, client: 'YouTube.js' };
-          }
-          console.warn(`[stream] ${videoId} YouTube.js selected the MWEB URL family that returned 403; trying the proven AAC resolver first`);
-          const proven = await resolveWithYtDlp(videoId);
-          if (proven) return proven;
-        }
-      }
-    } catch (err) {
-      console.warn(`[stream] ${videoId} YouTube.js stream lookup failed: ${err?.message || err}`);
+  // Sureshot Fast Path: Race YTMUSIC and ANDROID clients simultaneously.
+  // These mobile/music client endpoints bypass Web cipher blockage and return working streams in <1s.
+  const sureshot = await Promise.any(
+    ['YTMUSIC', 'ANDROID'].map(async (client) => {
+      const res = await resolveWithClient(client);
+      if (!res?.url) throw new Error(`No stream from ${client}`);
+      return res;
+    })
+  ).catch(() => null);
+  if (sureshot) return sureshot;
+
+  // Direct IOS fallback
+  const iosRes = await resolveWithClient('IOS');
+  if (iosRes?.url) return iosRes;
+
+  // Reliable native fallback via @distube/ytdl-core (no external binary dependencies)
+  try {
+    const { Ytdl, chooseFormat } = await import('@distube/ytdl-core');
+    const ytdl = new Ytdl();
+    const info = await ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`);
+    const audioFmt =
+      info.formats.find((f) => f.hasAudio && !f.hasVideo && f.url && f.container === 'mp4') ||
+      info.formats.find((f) => f.hasAudio && !f.hasVideo && f.url) ||
+      chooseFormat(info.formats, { quality: 'highestaudio' });
+    if (audioFmt?.url) {
+      return {
+        url: audioFmt.url,
+        mime: audioFmt.mimeType?.split(';')[0] || 'audio/mp4',
+        bitrate: audioFmt.audioBitrate ? audioFmt.audioBitrate * 1000 : 128000,
+        contentLength: audioFmt.contentLength ? parseInt(audioFmt.contentLength, 10) : null,
+        client: 'ytdl-core',
+      };
     }
-  }
-  if (wrapper === 'innertube') return null;
+  } catch {}
 
-  // Let the three independent mainstream clients race. One stalled player
-  // response no longer serially delays the other clients and a playable URL
-  // can return as soon as its own client succeeds.
-  const primary = clients.splice(0, Math.min(3, clients.length));
-  if (primary.length) {
-    const winner = await Promise.any(primary.map(async (client) => {
-      const result = await resolveWithClient(client);
-      if (!result) throw new Error(`No stream from ${client}`);
-      return result;
-    })).catch(() => null);
-    if (winner) return winner;
-  }
-
-  // Remaining clients are a bounded fallback, not a reason to abandon the
-  // exact selected recording or move the queue to the next song.
-  for (const client of clients) {
-    const result = await resolveWithClient(client);
-    if (result) return result;
-  }
-  // Open-source front-ends (Piped / Invidious) before the heavy last resort.
-  const opened = await openStream(videoId);
-  if (opened) return opened;
-  return resolveWithYtDlp(videoId);
+  return null;
 }
 
 const videoMetaCache = new Map();

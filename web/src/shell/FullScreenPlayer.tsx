@@ -184,7 +184,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
   const [settled, setSettled] = createSignal(false);
   // The playing song's motion artwork, once it is on screen: the backdrop frosts a copy of it.
   const [motionVideo, setMotionVideo] = createSignal<HTMLVideoElement | null>(null);
-  const [aspectRatio, setAspectRatio] = createSignal<number>(1);
+  const [aspectRatio, setAspectRatio] = createSignal<number>(16 / 9);
   const tint = useSongTint();
 
   let close!: HTMLButtonElement;
@@ -420,6 +420,23 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
         const showQueue = () => panel() === 'queue';
         const column = () => showLyrics() || showQueue();
 
+        const isWidescreenMode = () =>
+          artModeStore.mode === 'mv' || (artModeStore.mode === 'visualiser' && artModeStore.visualizerPhase === 'mv_clip');
+        const effectiveAspect = () => {
+          if (!isWidescreenMode()) return 1;
+          const r = aspectRatio();
+          return r && r > 1.2 ? r : 16 / 9;
+        };
+
+        const stageWidth = createMemo(() => {
+          if (!isWidescreenMode()) return 'var(--art)';
+          const aspect = Number(effectiveAspect().toFixed(4));
+          if (column()) {
+            return `min(48vw, calc((100dvh - 210px) * ${aspect}), 700px)`;
+          }
+          return `min(56vw, calc((100dvh - 190px) * ${aspect}), 920px)`;
+        });
+
         const playingContext = () => playerStore.sourceContext;
         const playingFromHeader = createMemo(() => {
           const ctx = playingContext();
@@ -492,16 +509,26 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
               </button>
             </Show>
 
-            {/* One layout for every mode: the artwork is the same big square in the same place; only the right column changes. */}
+            {/* Master stage layout: smoothly scales into cinematic 16:9 width for MV */}
             <div
-              class={`fs-lyrics grid h-full items-center justify-center py-16 max-md:px-6 max-md:pb-18 grid-cols-[var(--art)_minmax(0,44vw)] gap-x-[clamp(44px,6vw,96px)] pl-[clamp(32px,5vw,96px)] pr-[clamp(24px,4vw,72px)] ${
+              class={`fs-lyrics grid h-full items-center justify-center py-16 max-md:px-6 max-md:pb-18 gap-x-[clamp(36px,5vw,84px)] pl-[clamp(28px,4.5vw,88px)] pr-[clamp(20px,3.5vw,68px)] transition-[grid-template-columns] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 showLyrics()
                   ? 'max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[minmax(0,1fr)_auto] max-md:items-stretch max-md:gap-y-4'
                   : 'max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[auto_minmax(0,1fr)] max-md:items-stretch max-md:gap-y-4'
               }`}
+              style={{
+                'grid-template-columns': `${stageWidth()} minmax(0, ${column() ? '42vw' : '1fr'})`,
+              }}
               data-lyrics={column() || undefined}
             >
-              <section class={`poster-col flex w-(--art) min-w-0 flex-col${showQueue() ? ' max-md:order-2 max-md:w-full' : ''}`} aria-label="Player">
+              <section
+                class={`poster-col flex min-w-0 flex-col transition-[width] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]${showQueue() ? ' max-md:order-2 max-md:w-full' : ''}`}
+                style={{
+                  width: stageWidth(),
+                  'max-width': '100%',
+                }}
+                aria-label="Player"
+              >
                 {/* 3-Mode Selector Pill: Art | Visualizer | MV */}
                 <div class="relative z-30 mb-3.5 flex items-center justify-between pointer-events-auto">
                   <div class="inline-flex items-center gap-1 rounded-full p-1 bg-white/[0.08] border border-white/15 backdrop-blur-2xl shadow-[0_4px_20px_rgba(0,0,0,0.35)] select-none pointer-events-auto">
@@ -540,7 +567,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                     </button>
                   </div>
 
-                  {/* Visualizer phase badge / MV status */}
+                  {/* Visualizer phase badge / MV status (60fps label removed) */}
                   <Show when={artModeStore.mode === 'visualiser'}>
                     <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[10px] font-bold tracking-wider uppercase text-white/70 backdrop-blur-md">
                       <span class="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -550,18 +577,23 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                   <Show when={artModeStore.mode === 'mv'}>
                     <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[10px] font-bold tracking-wider uppercase text-white/70 backdrop-blur-md">
                       <span class="size-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
-                      <span>Full MV 60fps</span>
+                      <span>Official MV</span>
                     </div>
                   </Show>
                 </div>
 
-                {/* Classic Apple Music square poster box with modern liquid glass frame in visualizer/MV mode */}
+                {/* 16:9 Cinema mode in MV, 1:1 Square in Art mode with zero black bars */}
                 <div
-                  class={`fs-poster group/poster relative w-(--art) aspect-square cursor-pointer rounded-[20px] overflow-hidden ${
+                  class={`fs-poster group/poster relative cursor-pointer rounded-[20px] overflow-hidden ${
                     artModeStore.mode === 'art'
                       ? 'bg-black/40 backdrop-blur-md shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10'
                       : 'bg-white/[0.04] backdrop-blur-3xl shadow-[0_25px_65px_-12px_rgba(0,0,0,0.7),_inset_0_1px_1px_rgba(255,255,255,0.35),_inset_0_0_24px_rgba(255,255,255,0.05)] border border-white/20 ring-1 ring-white/10'
-                  } transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-data-[idle=true]:scale-[0.96]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.92]'}`}
+                  } transition-[scale,aspect-ratio,width] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-data-[idle=true]:scale-[0.96]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.92]'}`}
+                  style={{
+                    width: stageWidth(),
+                    'aspect-ratio': `${effectiveAspect()}`,
+                    'max-width': '100%',
+                  }}
                   onClick={() => artModeStore.cycle()}
                 >
                   <div class="absolute inset-0 size-full">
@@ -609,8 +641,13 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
               {/* Not in lyrics or Up Next: the track's names, the line being sung, the seek bar and the transport, beside the artwork. */}
               <Show when={!column()}>
                 <section
-                  class="flex min-h-0 min-w-0 animate-fade-in flex-col justify-between self-center py-2"
-                  style={{ height: 'var(--art)', 'max-height': '100%' }}
+                  class="flex min-h-0 min-w-0 animate-fade-in flex-col justify-between self-center py-2 transition-[height] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                  style={{
+                    height: isWidescreenMode()
+                      ? `min(calc(${stageWidth()} / ${effectiveAspect()}), var(--art))`
+                      : 'var(--art)',
+                    'max-height': '100%',
+                  }}
                   aria-label="Now playing controls"
                 >
                   {/* Apple Music: Playing from search/album at top parallel to artwork on same line */}
