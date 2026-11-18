@@ -31,6 +31,7 @@ import { spotifyTrack } from './spotify.js';
 import { artistArt, trackMotionArt, trackMusicVideos, warmAppleCatalog } from './appleart.js';
 import { ranked as rankRecordings } from './match.js';
 import { saavnPlaylist } from './feeds.js';
+import { proxyVideoStream } from './videoStream.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -609,88 +610,15 @@ app.get('/api/mv/resolve', async (c) => {
 
 /**
  * High-definition Video Stream Proxy (1080p/720p H.264 MP4)
- * Streams native hardware-accelerated video to HTML5 <video> with byte ranges (HTTP 206).
+ * Streams native hardware-accelerated video to HTML5 <video> with full RFC 7233 byte ranges (HTTP 206).
+ * Powered by @distube/ytdl-core chunking to eliminate YouTube's 12MB / 30s cutoff limits.
  * GET /api/video/:id
  */
-app.get('/api/video/:id', async (c) => {
+app.on(['GET', 'HEAD'], '/api/video/:id', async (c) => {
   const videoId = String(c.req.param('id') || '').trim();
   if (!videoId) return c.json({ error: 'id required' }, 400);
 
-  const meta = await yt.resolveVideoStream(videoId);
-  if (!meta?.url) {
-    return c.json({ error: 'video_not_found' }, 404);
-  }
-
-  const range = c.req.header('range');
-  const finalUrl = new URL(meta.url);
-  const streamClient = (finalUrl.searchParams.get('c') || '').toUpperCase();
-  const clientVersion = finalUrl.searchParams.get('cver');
-  const clientIds = {
-    WEB: '1', MWEB: '2', ANDROID: '3', IOS: '5',
-    ANDROID_MUSIC: '21', ANDROID_VR: '28', WEB_REMIX: '67', VISIONOS: '82',
-  };
-
-  const session = await yt.getYT().catch(() => null);
-  const headers = {
-    'User-Agent': session?.session?.user_agent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    'Accept': '*/*',
-  };
-  if (clientVersion) headers['X-YouTube-Client-Version'] = clientVersion;
-  if (clientIds[streamClient]) headers['X-YouTube-Client-Name'] = clientIds[streamClient];
-  if (session?.session?.context?.client?.visitorData) {
-    headers['X-Goog-Visitor-Id'] = session.session.context.client.visitorData;
-  }
-  if (streamClient !== 'VISIONOS') {
-    headers.Origin = 'https://www.youtube.com';
-    headers.Referer = 'https://www.youtube.com/';
-    headers['X-Origin'] = 'https://www.youtube.com';
-  }
-
-  // Google Video hard-caps video chunks at 1MB (1048576 bytes).
-  // Unbounded range requests (e.g. bytes=0-) or missing ranges are capped to 1MB chunks so Google Video responds with HTTP 206.
-  const rangeHeader = c.req.header('range');
-  let start = 0;
-  let end = null;
-  if (rangeHeader && rangeHeader.startsWith('bytes=')) {
-    const parts = rangeHeader.replace('bytes=', '').split('-');
-    start = parseInt(parts[0], 10) || 0;
-    if (parts[1]) {
-      end = parseInt(parts[1], 10);
-    }
-  }
-  const total = meta.contentLength;
-  const CHUNK_SIZE = 1024 * 1024;
-  const chunkEnd = end !== null ? Math.min(end, start + CHUNK_SIZE - 1) : (total ? Math.min(total - 1, start + CHUNK_SIZE - 1) : start + CHUNK_SIZE - 1);
-  headers.Range = `bytes=${start}-${chunkEnd}`;
-
-  try {
-    const upstream = await fetch(finalUrl.href, { headers });
-    const buf = await upstream.arrayBuffer();
-
-    const resHeaders = new Headers();
-    resHeaders.set('Content-Type', meta.mime || upstream.headers.get('content-type') || 'video/mp4');
-    resHeaders.set('Accept-Ranges', 'bytes');
-    resHeaders.set('Cache-Control', 'public, max-age=7200');
-    resHeaders.set('Access-Control-Allow-Origin', '*');
-    resHeaders.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    resHeaders.set('Access-Control-Allow-Headers', 'Range, Content-Range, Accept-Ranges, Content-Type');
-    resHeaders.set('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length');
-
-    const cr = upstream.headers.get('content-range');
-    if (cr) {
-      resHeaders.set('Content-Range', cr);
-    } else {
-      resHeaders.set('Content-Range', `bytes ${start}-${start + buf.byteLength - 1}/${total || '*'}`);
-    }
-    resHeaders.set('Content-Length', String(buf.byteLength));
-
-    return new Response(buf, {
-      status: upstream.status === 200 && rangeHeader ? 206 : upstream.status,
-      headers: resHeaders,
-    });
-  } catch (err) {
-    return c.json({ error: 'stream_fetch_failed' }, 502);
-  }
+  return await proxyVideoStream(videoId, c.req.header('range'), c.req.method);
 });
 
 

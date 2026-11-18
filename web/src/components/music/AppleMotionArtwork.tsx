@@ -19,36 +19,98 @@ function useReducedMotion(): Accessor<boolean> {
 
 interface Fit {
   scale: number;
-  shift: number;
+  shiftX: number;
+  shiftY: number;
+  effectiveAspect?: number;
 }
 
 function detectBars(video: HTMLVideoElement): Fit | null {
   try {
+    if (!video || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+      return null;
+    }
     const canvas = document.createElement('canvas');
-    canvas.width = 48;
-    canvas.height = 48;
+    const S = 64;
+    canvas.width = S;
+    canvas.height = S;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return null;
-    ctx.drawImage(video, 0, 0, 48, 48);
-    const { data } = ctx.getImageData(0, 0, 48, 48);
+    ctx.drawImage(video, 0, 0, S, S);
+    const { data } = ctx.getImageData(0, 0, S, S);
+
+    // 1. Guard against blank / dark intro frames
+    let centerLumaSum = 0;
+    const cStart = 20;
+    const cEnd = 44;
+    const cCount = (cEnd - cStart) * (cEnd - cStart);
+    for (let y = cStart; y < cEnd; y++) {
+      for (let x = cStart; x < cEnd; x++) {
+        const i = (y * S + x) * 4;
+        centerLumaSum += data[i]! * 0.299 + data[i + 1]! * 0.587 + data[i + 2]! * 0.114;
+      }
+    }
+    if (centerLumaSum / cCount < 14) {
+      return null;
+    }
+
+    // 2. Check top & bottom horizontal rows (letterbox bars)
     const rowIsBar = (row: number) => {
       let sum = 0;
       let peak = 0;
-      for (let x = 0; x < 48; x++) {
-        const i = (row * 48 + x) * 4;
+      for (let x = 0; x < S; x++) {
+        const i = (row * S + x) * 4;
         const luma = data[i]! * 0.299 + data[i + 1]! * 0.587 + data[i + 2]! * 0.114;
         sum += luma;
-        peak = Math.max(peak, luma);
+        if (luma > peak) peak = luma;
       }
-      return sum / 48 < 14 && peak < 40;
+      return sum / S < 18 && peak < 45;
     };
+
     let top = 0;
-    while (top < 20 && rowIsBar(top)) top++;
+    while (top < 26 && rowIsBar(top)) top++;
     let bottom = 0;
-    while (bottom < 20 && rowIsBar(47 - bottom)) bottom++;
-    const bars = (top + bottom) / 48;
-    if (bars < 0.08) return null;
-    return { scale: Math.min(1.7, 1 / (1 - bars)), shift: ((bottom - top) / 48) * 50 };
+    while (bottom < 26 && rowIsBar(S - 1 - bottom)) bottom++;
+
+    // 3. Check left & right vertical columns (pillarbox bars)
+    const colIsBar = (col: number) => {
+      let sum = 0;
+      let peak = 0;
+      for (let y = 0; y < S; y++) {
+        const i = (y * S + col) * 4;
+        const luma = data[i]! * 0.299 + data[i + 1]! * 0.587 + data[i + 2]! * 0.114;
+        sum += luma;
+        if (luma > peak) peak = luma;
+      }
+      return sum / S < 18 && peak < 45;
+    };
+
+    let left = 0;
+    while (left < 26 && colIsBar(left)) left++;
+    let right = 0;
+    while (right < 26 && colIsBar(S - 1 - right)) right++;
+
+    const vBars = (top + bottom) / S;
+    const hBars = (left + right) / S;
+
+    if (vBars < 0.04 && hBars < 0.04) {
+      return null;
+    }
+
+    const scaleY = vBars > 0.04 ? 1 / Math.max(0.25, 1 - vBars) : 1;
+    const scaleX = hBars > 0.04 ? 1 / Math.max(0.25, 1 - hBars) : 1;
+    const scale = Math.min(2.2, Math.max(scaleX, scaleY));
+    const shiftX = ((right - left) / S) * 50;
+    const shiftY = ((bottom - top) / S) * 50;
+
+    let effectiveAspect: number | undefined;
+    if (video.videoWidth > 0 && video.videoHeight > 0) {
+      const rawAspect = video.videoWidth / video.videoHeight;
+      const contentW = 1 - hBars;
+      const contentH = 1 - vBars;
+      effectiveAspect = rawAspect * (contentW / Math.max(0.1, contentH));
+    }
+
+    return { scale, shiftX, shiftY, effectiveAspect };
   } catch {
     return null;
   }
@@ -65,6 +127,7 @@ function MvPlayer(props: {
 }) {
   const [videoEl, setVideoEl] = createSignal<HTMLVideoElement | null>(null);
   const [videoReady, setVideoReady] = createSignal(false);
+  const [fit, setFit] = createSignal<Fit | null>(null);
 
   // 1. Resolve official music video
   const ytMvQuery = useQuery(() => ({
@@ -89,14 +152,25 @@ function MvPlayer(props: {
     }
   });
 
-  // 3. High-precision drift correction & seek synchronization
+  // 3. High-precision cinematic drift correction & seek synchronization
   onMount(() => {
     const unsub = subscribeProgress((cur) => {
       const el = videoEl();
-      if (!el || el.seeking || !playerStore.playing) return;
-      const drift = Math.abs(el.currentTime - cur);
-      if (drift > 0.45) {
+      if (!el || el.seeking || !playerStore.playing || !videoReady() || el.readyState < 2) return;
+      const drift = el.currentTime - cur;
+      // If drift is substantial (> 2.0s, e.g. large scrubber jump), seek directly
+      if (Math.abs(drift) > 2.0) {
         el.currentTime = cur;
+        el.playbackRate = 1.0;
+        return;
+      }
+      // Micro-drift correction: smoothly nudge playback rate (±5%) for butter-smooth 60fps sync without re-buffering
+      if (drift < -0.15) {
+        el.playbackRate = 1.05;
+      } else if (drift > 0.15) {
+        el.playbackRate = 0.95;
+      } else {
+        el.playbackRate = 1.0;
       }
     });
 
@@ -104,15 +178,37 @@ function MvPlayer(props: {
       const el = videoEl();
       if (el && Number.isFinite(audio.currentTime)) {
         el.currentTime = audio.currentTime;
+        el.playbackRate = 1.0;
       }
     };
-    audio.addEventListener('seeking', onSeeked);
     audio.addEventListener('seeked', onSeeked);
 
     onCleanup(() => {
       unsub();
-      audio.removeEventListener('seeking', onSeeked);
       audio.removeEventListener('seeked', onSeeked);
+    });
+  });
+
+  // 4. Zero-Black-Bars active detector: scans frames and scales out any encoded letterbox/pillarbox
+  createEffect(() => {
+    const el = videoEl();
+    if (!videoReady() || !el) return;
+    const checkBars = () => {
+      const detected = detectBars(el);
+      if (detected) {
+        setFit(detected);
+        if (detected.effectiveAspect) {
+          props.onAspect?.(detected.effectiveAspect);
+        }
+      }
+    };
+    const t1 = window.setTimeout(checkBars, 600);
+    const t2 = window.setTimeout(checkBars, 2000);
+    const t3 = window.setTimeout(checkBars, 5000);
+    onCleanup(() => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
     });
   });
 
@@ -129,6 +225,7 @@ function MvPlayer(props: {
           <video
             ref={setVideoEl}
             src={src()}
+            crossorigin="anonymous"
             autoplay
             muted
             playsinline
@@ -138,6 +235,12 @@ function MvPlayer(props: {
             class={`absolute inset-0 z-10 size-full rounded-[inherit] object-cover transition-opacity duration-700 ease-in-out ${
               videoReady() ? 'opacity-100' : 'opacity-0'
             }`}
+            style={{
+              transform: fit() ? `scale(${fit()!.scale}) translate(${fit()!.shiftX}%, ${fit()!.shiftY}%)` : undefined,
+              'transition-property': 'transform, opacity',
+              'transition-duration': '700ms',
+              'transition-timing-function': 'cubic-bezier(0.22, 1, 0.36, 1)',
+            }}
             onLoadedMetadata={(e) => {
               const el = e.currentTarget;
               const w = el.videoWidth;
@@ -399,14 +502,28 @@ function VisualizerPlayer(props: {
   createEffect(() => {
     const el = videoEl();
     if (!ready() || !el) return;
-    const timer = window.setTimeout(() => setFit(detectBars(el)), 600);
-    onCleanup(() => window.clearTimeout(timer));
+    const checkBars = () => {
+      const detected = detectBars(el);
+      if (detected) {
+        setFit(detected);
+        if (detected.effectiveAspect) {
+          props.onAspect?.(detected.effectiveAspect);
+        }
+      }
+    };
+    const t1 = window.setTimeout(checkBars, 600);
+    const t2 = window.setTimeout(checkBars, 2000);
+    onCleanup(() => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    });
   });
 
   return (
     <Show when={activeSource()} fallback={null}>
       <video
         ref={setVideoEl}
+        crossorigin="anonymous"
         autoplay
         muted
         playsinline
@@ -416,7 +533,12 @@ function VisualizerPlayer(props: {
         class={`pointer-events-none absolute inset-0 z-10 size-full rounded-[inherit] object-cover transition-opacity duration-700 ease-in-out ${
           ready() ? 'opacity-100' : 'opacity-0'
         }`}
-        style={fit() ? { transform: `scale(${fit()!.scale}) translateY(${fit()!.shift}%)` } : undefined}
+        style={{
+          transform: fit() ? `scale(${fit()!.scale}) translate(${fit()!.shiftX}%, ${fit()!.shiftY}%)` : undefined,
+          'transition-property': 'transform, opacity',
+          'transition-duration': '700ms',
+          'transition-timing-function': 'cubic-bezier(0.22, 1, 0.36, 1)',
+        }}
         onCanPlay={() => {
           setReady(true);
           if (playerStore.playing && videoEl()?.paused) videoEl()?.play().catch(() => {});

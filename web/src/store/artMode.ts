@@ -78,3 +78,7 @@ export function getArtModeState(): ArtModeState {
   return unwrap(artModeStore) as ArtModeState;
 }
 
+if (typeof window !== 'undefined') {
+  (window as unknown as { __artModeStore: typeof artModeStore }).__artModeStore = artModeStore;
+}
+

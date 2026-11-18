@@ -1,7 +1,7 @@
 {
   "name": "vyune-player",
   "version": "2.0.0",
-  "description": "VYUNE \u2014 Feel every frequency.",
+  "description": "VYUNE — Feel every frequency.",
   "type": "module",
   "main": "server/index.js",
   "scripts": {
@@ -21,6 +21,7 @@
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {
+    "@distube/ytdl-core": "^5.2.1",
     "@xmldom/xmldom": "^0.9.12",
     "bgutils-js": "^4.0.3",
     "crypto-js": "^4.2.0",
