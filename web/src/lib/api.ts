@@ -141,13 +141,17 @@ export const api = {
     return getJSON<AppleMotionArt>(`/api/apple-motion?${p}`, signal);
   },
   /** Official YouTube Music Video resolver for the visualizer & full MV player */
-  resolveMv: (track: Track, signal?: AbortSignal) => {
-    const p = new URLSearchParams({
-      id: track.id || '',
-      title: track.title || '',
-      artist: (track.artists || []).join(', '),
-    });
-    return getJSON<{ videoId: string; title: string; thumbnail: string }>(`/api/mv/resolve?${p}`, signal);
+  resolveMv: async (track: Track, signal?: AbortSignal) => {
+    try {
+      const p = new URLSearchParams({
+        id: track.id || '',
+        title: track.title || '',
+        artist: (track.artists || []).join(', '),
+      });
+      return await getJSON<{ videoId: string; title: string; thumbnail: string }>(`/api/mv/resolve?${p}`, signal);
+    } catch {
+      return { videoId: track.id, title: track.title, thumbnail: track.thumb || '' };
+    }
   },
 };
 

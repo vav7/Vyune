@@ -621,19 +621,34 @@ app.get('/api/video/:id', async (c) => {
     return c.json({ error: 'video_not_found' }, 404);
   }
 
-  const rangeHeader = c.req.header('range');
-  const headers = {
-    'User-Agent': 'com.google.ios.youtube/19.45.4 (iPhone16,2; U; CPU iOS 18_1_0 like Mac OS X; US)',
-    'Accept': '*/*',
-    'Origin': 'https://www.youtube.com',
-    'Referer': 'https://www.youtube.com/',
+  const range = c.req.header('range');
+  const finalUrl = new URL(meta.url);
+  const streamClient = (finalUrl.searchParams.get('c') || '').toUpperCase();
+  const clientVersion = finalUrl.searchParams.get('cver');
+  const clientIds = {
+    WEB: '1', MWEB: '2', ANDROID: '3', IOS: '5',
+    ANDROID_MUSIC: '21', ANDROID_VR: '28', WEB_REMIX: '67', VISIONOS: '82',
   };
-  if (rangeHeader) {
-    headers['Range'] = rangeHeader;
+
+  const session = await yt.getYT().catch(() => null);
+  const headers = {
+    'User-Agent': session?.session?.user_agent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    'Accept': '*/*',
+  };
+  if (clientVersion) headers['X-YouTube-Client-Version'] = clientVersion;
+  if (clientIds[streamClient]) headers['X-YouTube-Client-Name'] = clientIds[streamClient];
+  if (session?.session?.context?.client?.visitorData) {
+    headers['X-Goog-Visitor-Id'] = session.session.context.client.visitorData;
   }
+  if (streamClient !== 'VISIONOS') {
+    headers.Origin = 'https://www.youtube.com';
+    headers.Referer = 'https://www.youtube.com/';
+    headers['X-Origin'] = 'https://www.youtube.com';
+  }
+  if (range) headers.Range = range;
 
   try {
-    const upstream = await fetch(meta.url, { headers });
+    const upstream = await fetch(finalUrl.href, { headers });
     const resHeaders = new Headers();
     resHeaders.set('Content-Type', meta.mime || upstream.headers.get('content-type') || 'video/mp4');
     resHeaders.set('Accept-Ranges', 'bytes');
