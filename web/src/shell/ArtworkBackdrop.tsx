@@ -54,23 +54,20 @@ export function ArtworkBackdrop(props: {
             {(video) => (
               <MotionFrost
                 video={video()}
-                detail={180}
-                dim={0.25}
-                class="absolute inset-0 size-full scale-[1.08] animate-[fade-in_1s_ease_both]"
+                detail={220}
+                dim={0.22}
+                class="absolute inset-0 size-full scale-[1.06] animate-[fade-in_1s_ease_both]"
               />
             )}
           </Show>
 
-          {/* Modern Liquid Glass Transparent Diffusion Overlay (Zero Grain, Pure Optical Blur) */}
-          <div class="absolute inset-0 size-full backdrop-blur-[55px] bg-[#07070b]/35" />
-
-          {/* Liquid Glass Specular Reflection Sheen & Depth Vignette */}
+          {/* Crystalline Liquid Glass Transparency & Specular Sheen Layer (Zero Dirty Grey, Pure Color Transmission) */}
           <div
-            class="absolute inset-0 size-full"
+            class="absolute inset-0 size-full pointer-events-none"
             style={{
               background:
-                'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, transparent 45%, rgba(255, 255, 255, 0.02) 100%), ' +
-                'radial-gradient(ellipse 95% 85% at 50% 50%, transparent 40%, rgba(7, 7, 11, 0.5) 80%, rgba(7, 7, 11, 0.88) 100%)',
+                'linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, transparent 40%, rgba(255, 255, 255, 0.02) 100%), ' +
+                'linear-gradient(to top, rgba(6, 6, 10, 0.62) 0%, rgba(6, 6, 10, 0.12) 40%, transparent 70%)',
             }}
           />
         </div>

@@ -587,7 +587,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                   class={`fs-poster group/poster relative cursor-pointer rounded-[20px] overflow-hidden ${
                     artModeStore.mode === 'art'
                       ? 'bg-black/40 backdrop-blur-md shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10'
-                      : 'bg-white/[0.04] backdrop-blur-3xl shadow-[0_25px_65px_-12px_rgba(0,0,0,0.7),_inset_0_1px_1px_rgba(255,255,255,0.35),_inset_0_0_24px_rgba(255,255,255,0.05)] border border-white/20 ring-1 ring-white/10'
+                      : 'bg-white/[0.03] shadow-[0_25px_65px_-12px_rgba(0,0,0,0.7),_inset_0_1px_1px_rgba(255,255,255,0.4),_inset_0_0_24px_rgba(255,255,255,0.05)] border border-white/25 ring-1 ring-white/15'
                   } transition-[scale,aspect-ratio,width] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-data-[idle=true]:scale-[0.96]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.92]'}`}
                   style={{
                     width: stageWidth(),

@@ -63,9 +63,10 @@ void main() {
     c += textureLod(uTex, uv + d * t * 2.6, uLod + 1.0).rgb * 0.0433;
   }
 
-  // the veil keeps white text readable: light at the top, deeper toward the bottom
-  float veil = mix(uDim * 0.75, uDim + 0.28, vUv.y);
-  c = mix(c, vec3(0.02, 0.02, 0.035), clamp(veil, 0.0, 0.9));
+  // Ultra-clean ambient liquid glass: preserve rich, authentic color hues and saturation
+  // Soft, smooth luminous scaling prevents dirty grey wash while ensuring text readability
+  float veil = clamp(uDim * 0.45 + vUv.y * 0.22, 0.0, 0.6);
+  c = c * (1.0 - veil * 0.5);
 
   // Pure modern liquid glass: zero noise grain, natural authentic video colors
   outColor = vec4(clamp(c, 0.0, 1.0), uAlpha);
@@ -135,7 +136,10 @@ export function MotionFrost(props: {
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-    const gap = 1000 / fps;
+    // Ambient lighting updates fluidly at 24 FPS with temporal alpha blending:
+    // eliminates GPU pipeline stalls while looking organic and smooth
+    const ambientFps = Math.min(fps, 24);
+    const gap = 1000 / ambientFps;
     let last = 0;
     let handle = 0;
     let stopped = false;
@@ -260,7 +264,7 @@ export function MotionFrost(props: {
           </>
         }
       >
-        <canvas ref={setGlCanvas} width={960} height={540} class="absolute inset-0 size-full object-cover" />
+        <canvas ref={setGlCanvas} width={1280} height={720} class="absolute inset-0 size-full object-cover" />
       </Show>
     </div>
   );

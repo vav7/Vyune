@@ -24,16 +24,18 @@ export async function proxyVideoStream(videoId, rangeHeader, method = 'GET') {
       (f) => f.hasVideo && (f.container === 'mp4' || f.container === 'webm')
     );
 
-    // Sort by height descending
-    videoFormats.sort((a, b) => (b.height || 0) - (a.height || 0));
+    // Filter out >1080p formats (e.g. 4K/8K re-uploads) to avoid severe decoding lag
+    const max1080p = videoFormats.filter((f) => !f.height || f.height <= 1080);
+    const candidates = max1080p.length > 0 ? max1080p : videoFormats;
 
     // Prefer MP4 1080p -> 720p -> 480p for hardware decoding
     const chosen =
-      videoFormats.find((f) => f.container === 'mp4' && f.height && f.height <= 1080 && f.height >= 720) ||
-      videoFormats.find((f) => f.height && f.height <= 1080 && f.height >= 720) ||
-      videoFormats.find((f) => f.height && f.height <= 1080) ||
-      videoFormats[0] ||
-      chooseFormat(info.formats, { quality: 'highestvideo' });
+      candidates.find((f) => f.container === 'mp4' && f.height === 1080) ||
+      candidates.find((f) => f.height === 1080) ||
+      candidates.find((f) => f.container === 'mp4' && f.height === 720) ||
+      candidates.find((f) => f.height === 720) ||
+      candidates.find((f) => f.height && f.height <= 1080) ||
+      candidates[0];
 
     if (!chosen) {
       return new Response(JSON.stringify({ error: 'no_video_format' }), { status: 404 });

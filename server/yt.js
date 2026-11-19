@@ -1840,7 +1840,61 @@ const videoMetaCache = new Map();
 const mvResolveCache = new Map();
 
 /**
+ * Intelligent Music Video scoring:
+ * - Prioritizes official record label channels (Sony Music, T-Series, Zee Music, YRF, Saregama, VEVO, etc.).
+ * - Prioritizes modern remastered re-uploads (8K 60fps, 4K Ultra HD, Remastered).
+ * - Strongly filters out Lyrical videos, Audio-only uploads, Teasers, Behind-the-Scenes, and Fan covers.
+ */
+function scoreMusicVideoCandidate(v, cleanTitle, cleanArtist) {
+  const t = (v.title?.text || v.title || '').toLowerCase();
+  const author = (v.author?.name || v.author?.text || '').toLowerCase();
+  const verified = !!(v.author?.is_verified || v.author?.is_official_artist);
+  let score = 0;
+
+  // 1. Authoritative Major Record Labels & Official Channels
+  const isMajorLabel = /(?:t-series|tseries|sony\s*music|sonymusic|zeemusiccompany|zee\s*music|yrf|yash\s*raj|saregama|tips\s*official|speed\s*records|eros\s*now|warner|universal\s*music|interscope|atlantic\s*records|columbia\s*records|republic\s*records|vevo|monstercat|spinnin|def\s*jam|geet\s*mp3|white\s*hill)/i.test(author);
+  if (isMajorLabel) score += 130;
+  if (verified) score += 80;
+
+  if (cleanArtist && author.includes(cleanArtist)) score += 70;
+
+  // 2. Official Visual Music Video Titles
+  if (/(?:official\s+(?:music\s+)?video|full\s+video(?:\s+song)?|official\s+mv)/i.test(t)) {
+    score += 170;
+  } else if (/(?:video\s+song|official\s+video)/i.test(t)) {
+    score += 120;
+  } else if (/music\s+video/i.test(t)) {
+    score += 80;
+  }
+
+  // 3. Modern 8K / 4K / Remastered re-uploads boost (Sony, T-Series high-definition masters)
+  if (/(?:8k\s*60fps|8k\s*uhd|8k|4k\s*60fps|4k\s*uhd|4k|remastered(?:\s+in\s+4k)?|ultra\s*hd|1080p\s*60fps|hd\s+video)/i.test(t)) {
+    score += 90;
+  }
+
+  // 4. Strict Penalties for Non-MVs / Lyrical / Audio / BTS / Teasers / Covers
+  if (/(?:lyric|lyrics|lyrical|बोल\s*के\s*साथ|गीत)/i.test(t)) {
+    score -= 450;
+  }
+  if (/(?:full\s+audio|audio\s+song|official\s+audio|audio\s+track|jukebox|\baudio\b)/i.test(t)) {
+    score -= 400;
+  }
+  if (/(?:visualiser|visualizer)/i.test(t)) {
+    score -= 220;
+  }
+  if (/(?:teaser|trailer|promo|sneak\s*peek|behind\s+the\s+scenes|making\s+of|bts)/i.test(t)) {
+    score -= 350;
+  }
+  if (/(?:cover|reaction|review|status|shorts?|slowed|reverb|8d|mashup|tribute|karaoke|live|concert|choreography)/i.test(t)) {
+    score -= 320;
+  }
+
+  return score;
+}
+
+/**
  * Resolves official Music Video for the artwork visualizer & MV player
+ * Intelligently picks the official video over lyrical/audio re-uploads.
  */
 export async function resolveMusicVideo(title, artist, songVideoId) {
   const cleanTitle = (title || '')
@@ -1865,18 +1919,29 @@ export async function resolveMusicVideo(title, artist, songVideoId) {
 
   try {
     const yt = await getYT();
-    const query = `${cleanTitle} ${cleanArtist} official music video`.trim();
+    const query = `${cleanTitle} ${cleanArtist} official video`.trim();
     const search = await yt.search(query, { type: 'video' });
     const videos = search.videos || [];
+    
     if (videos.length > 0) {
-      const v = videos[0];
-      const result = {
-        videoId: v.id,
-        title: v.title?.text || v.title || title,
-        thumbnail: `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`,
-      };
-      mvResolveCache.set(queryKey, result);
-      return result;
+      const scored = videos.map((v) => ({
+        video: v,
+        score: scoreMusicVideoCandidate(v, cleanTitle.toLowerCase(), cleanArtist.toLowerCase()),
+      })).sort((a, b) => b.score - a.score);
+
+      const top = scored[0];
+      // Pick best candidate if valid
+      if (top && top.video?.id) {
+        const v = top.video;
+        const result = {
+          videoId: v.id,
+          title: v.title?.text || v.title || title,
+          thumbnail: `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`,
+          score: top.score,
+        };
+        mvResolveCache.set(queryKey, result);
+        return result;
+      }
     }
   } catch (err) {
     console.warn('[yt] resolveMusicVideo failed:', err?.message || err);
@@ -1922,13 +1987,18 @@ export async function resolveVideoStream(videoId) {
       );
       if (!vFormats.length) continue;
 
-      // Prefer 1080p or 720p MP4 for ultra-smooth hardware-accelerated decoding
+      // Filter out >1080p formats (e.g. 4K/8K 60fps re-uploads) to avoid GPU decoding stalls
+      const max1080p = vFormats.filter((f) => !f.height || f.height <= 1080);
+      const candidates = max1080p.length > 0 ? max1080p : vFormats;
+
+      // Prefer 1080p MP4 -> 1080p WebM -> 720p for hardware decoding
       const chosen =
-        vFormats.find((f) => /mp4/i.test(f.mime_type || '') && (f.quality_label === '1080p' || f.height === 1080)) ||
-        vFormats.find((f) => /mp4/i.test(f.mime_type || '') && (f.quality_label === '720p' || f.height === 720)) ||
-        vFormats.find((f) => /mp4/i.test(f.mime_type || '') && f.height && f.height <= 1080 && f.height >= 480) ||
-        vFormats.find((f) => f.height && f.height <= 1080) ||
-        vFormats[0];
+        candidates.find((f) => /mp4/i.test(f.mime_type || '') && (f.quality_label === '1080p' || f.height === 1080)) ||
+        candidates.find((f) => f.quality_label === '1080p' || f.height === 1080) ||
+        candidates.find((f) => /mp4/i.test(f.mime_type || '') && (f.quality_label === '720p' || f.height === 720)) ||
+        candidates.find((f) => f.quality_label === '720p' || f.height === 720) ||
+        candidates.find((f) => f.height && f.height <= 1080) ||
+        candidates[0];
 
       if (!chosen) continue;
 

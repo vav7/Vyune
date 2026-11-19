@@ -24,16 +24,22 @@ interface Fit {
   effectiveAspect?: number;
 }
 
+let sharedBarCanvas: HTMLCanvasElement | null = null;
+let sharedBarCtx: CanvasRenderingContext2D | null = null;
+
 function detectBars(video: HTMLVideoElement): Fit | null {
   try {
     if (!video || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
       return null;
     }
-    const canvas = document.createElement('canvas');
     const S = 64;
-    canvas.width = S;
-    canvas.height = S;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!sharedBarCanvas) {
+      sharedBarCanvas = document.createElement('canvas');
+      sharedBarCanvas.width = S;
+      sharedBarCanvas.height = S;
+      sharedBarCtx = sharedBarCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    const ctx = sharedBarCtx;
     if (!ctx) return null;
     ctx.drawImage(video, 0, 0, S, S);
     const { data } = ctx.getImageData(0, 0, S, S);
