@@ -53,37 +53,37 @@
 ```mermaid
 flowchart TB
   subgraph Client["Client (Browser / PWA)"]
-    DOM[DOM & Compositor]
-    STORE[SolidJS Reactive Stores]
-    AUDIO[HTML5 Audio Engine]
-    VIDEO[HTML5 Video Element]
-    GL[WebGL2 Optical Diffusion Canvas]
+    DOM["DOM & Compositor"]
+    STORE["SolidJS Reactive Stores"]
+    AUDIO["HTML5 Audio Engine"]
+    VIDEO["HTML5 Video Element"]
+    GL["WebGL2 Optical Diffusion Canvas"]
   end
 
   subgraph Server["Server (Bun + Hono)"]
-    API[/api/* Routes]
-    CACHE[(In-Memory TTL & Persistent Disk Caches)]
-    YT_RESOLVE[Sureshot Audio Cascade<br/>YTMUSIC + ANDROID Race]
-    MV_RESOLVE[Intelligent MV Resolver<br/>Label & Title Scorer]
-    PROXY[RFC 7233 Byte-Range Stream Proxy<br/>1MB Chunk Pipeline]
-    LYRICS[10-Provider Lyrics Engine]
+    API["API Routes (/api/*)"]
+    CACHE[("In-Memory TTL & Disk Caches")]
+    YT_RESOLVE["Sureshot Audio Cascade<br/>YTMUSIC + ANDROID Race"]
+    MV_RESOLVE["Intelligent MV Resolver<br/>Label & Title Scorer"]
+    PROXY["RFC 7233 Stream Proxy<br/>1MB Chunk Pipeline"]
+    LYRICS["10-Provider Lyrics Engine"]
   end
 
   subgraph Upstreams["Upstream Services"]
-    YT_API[(YouTube Music / InnerTube)]
-    SAAVN[(JioSaavn 320kbps API)]
-    APPLE[(Apple Music & Tidal Metadata)]
-    LYRIC_PROVIDERS[(LRC.red · BiniLyrics · NetEase · KuGou · LRCLIB)]
-    GOOGLE_VIDEO[(Google Video CDNs)]
+    YT_API[("YouTube Music / InnerTube")]
+    SAAVN[("JioSaavn 320kbps API")]
+    APPLE[("Apple Music & Tidal Metadata")]
+    LYRIC_PROVIDERS[("Lyrics Providers (LRC.red · LRCLIB)")]
+    GOOGLE_VIDEO[("Google Video CDNs")]
   end
 
   DOM <--> STORE
   STORE --> AUDIO
   STORE --> VIDEO
-  VIDEO -. Video Frame Callback .-> GL
+  VIDEO -.->|"Video Frame Callback"| GL
 
-  AUDIO -- "Stream Request" --> API
-  VIDEO -- "Range GET /api/video/:id" --> PROXY
+  AUDIO -->|"Stream Request"| API
+  VIDEO -->|"Range GET /api/video/:id"| PROXY
   API --> YT_RESOLVE
   API --> MV_RESOLVE
   API --> LYRICS

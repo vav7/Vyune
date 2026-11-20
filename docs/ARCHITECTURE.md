@@ -32,39 +32,39 @@ VYUNE operates as an integrated single-process architecture powered by **Bun** a
 ```mermaid
 flowchart TB
   subgraph Client["Client (Browser / PWA)"]
-    DOM[DOM & Compositor]
-    STORE[SolidJS Reactive Stores<br/>playerStore · artModeStore]
-    AUDIO[HTML5 Audio Engine]
-    VIDEO[HTML5 Video Element]
-    GL[WebGL2 Optical Diffusion Canvas]
-    AM[AM-Lyrics Renderer]
+    DOM["DOM & Compositor"]
+    STORE["SolidJS Reactive Stores<br/>playerStore · artModeStore"]
+    AUDIO["HTML5 Audio Engine"]
+    VIDEO["HTML5 Video Element"]
+    GL["WebGL2 Optical Diffusion Canvas"]
+    AM["AM-Lyrics Renderer"]
   end
 
   subgraph Server["Server (Bun + Hono)"]
-    API[/api/* Routes]
-    CACHE[(In-Memory TTL & Persistent Disk Caches)]
-    YT_RESOLVE[Sureshot Audio Cascade<br/>YTMUSIC + ANDROID Race]
-    MV_RESOLVE[Intelligent MV Resolver<br/>Label & Title Scorer]
-    PROXY[RFC 7233 Byte-Range Stream Proxy<br/>1MB Chunk Pipeline]
-    LYRICS[10-Provider Lyrics Engine]
+    API["API Routes (/api/*)"]
+    CACHE[("In-Memory TTL & Disk Caches")]
+    YT_RESOLVE["Sureshot Audio Cascade<br/>YTMUSIC + ANDROID Race"]
+    MV_RESOLVE["Intelligent MV Resolver<br/>Label & Title Scorer"]
+    PROXY["RFC 7233 Stream Proxy<br/>1MB Chunk Pipeline"]
+    LYRICS["10-Provider Lyrics Engine"]
   end
 
   subgraph Upstreams["Upstream Services"]
-    YT_API[(YouTube Music / InnerTube)]
-    SAAVN[(JioSaavn 320kbps API)]
-    APPLE[(Apple Music & Tidal Metadata)]
-    LYRIC_PROVIDERS[(LRC.red · BiniLyrics · NetEase · KuGou · LRCLIB)]
-    GOOGLE_VIDEO[(Google Video CDNs)]
+    YT_API[("YouTube Music / InnerTube")]
+    SAAVN[("JioSaavn 320kbps API")]
+    APPLE[("Apple Music & Tidal Metadata")]
+    LYRIC_PROVIDERS[("Lyrics Providers (LRC.red · LRCLIB)")]
+    GOOGLE_VIDEO[("Google Video CDNs")]
   end
 
   DOM <--> STORE
   STORE --> AUDIO
   STORE --> VIDEO
-  VIDEO -. Video Frame Callback .-> GL
+  VIDEO -.->|"Video Frame Callback"| GL
   STORE --> AM
 
-  AUDIO -- "Stream Request" --> API
-  VIDEO -- "Range GET /api/video/:id" --> PROXY
+  AUDIO -->|"Stream Request"| API
+  VIDEO -->|"Range GET /api/video/:id"| PROXY
   API --> YT_RESOLVE
   API --> MV_RESOLVE
   API --> LYRICS
@@ -287,7 +287,7 @@ sequenceDiagram
   Server->>YT: Sureshot Parallel Race (YTMUSIC + ANDROID)
   YT-->>Server: Stream URL resolved in ~800ms
   Server-->>Store: { proxy: true, url: "/api/media?url=...", mime: "audio/mp4" }
-  Store->>Audio: audio.src = streamUrl; audio.play()
+  Store->>Audio: Set stream URL and start playback
   Audio-->>User: Instant Audio Playback
 ```
 
