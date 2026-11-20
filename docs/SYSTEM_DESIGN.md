@@ -1,6 +1,7 @@
 # VYUNE — System Design
 
 How the site fetches everything: what runs where, what is cached, what is allowed to fail, and why.
+For detailed architectural blueprints, state machine diagrams, and stream pipeline specifications, see **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 
 - [1. Principles](#1-principles)
 - [2. The shape of the system](#2-the-shape-of-the-system)
