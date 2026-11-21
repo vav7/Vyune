@@ -243,37 +243,59 @@ app.get('/api/stream', async (c) => {
     };
 
     // 1) Direct Saavn track (instant ~40ms resolution)
-    if (c.req.query('source') === 'saavn' || (id && /^\d+$/.test(id))) {
+    if (c.req.query('source') === 'saavn' || (id && !/^[\w-]{11}$/.test(id))) {
       const svTrack = await saavn.saavnDetails(id).catch(() => null);
       if (svTrack) {
         const media = await saavn.saavnStreamUrl(svTrack).catch(() => null);
         if (media?.url) {
-          return { url: media.url, source: 'saavn', bitrate: media.bitrate, mime: 'audio/mp4' };
+          return { url: media.url, source: 'saavn', bitrate: media.bitrate || 320000, mime: 'audio/mp4' };
         }
       }
     }
 
-    // 2) Fast JioSaavn Match running in parallel with YouTube direct resolve
-    // JioSaavn provides pristine 320kbps CD-quality Akamai CDN audio that streams instantly without proxies.
-    const saavnPromise = (async () => {
-      if (wrapper === 'yt-dlp' || !title) return null;
-      const match = await saavn.findSaavnMatch(title, artist, { album, duration }).catch(() => null);
-      if (!match) return null;
-      const media = await saavn.saavnStreamUrl(match).catch(() => null);
-      return media?.url ? { url: media.url, source: 'saavn', bitrate: media.bitrate, mime: 'audio/mp4' } : null;
-    })();
+    // 2) JioSaavn Match — FIRST PRIORITY
+    // Pristine 320kbps CD-quality Akamai CDN audio, zero decipher delays or proxies.
+    if (wrapper !== 'yt-dlp' && title) {
+      try {
+        const match = await withTimeout(
+          saavn.findSaavnMatch(title, artist, { album, duration }),
+          1200,
+          null
+        );
+        if (match) {
+          const media = await saavn.saavnStreamUrl(match).catch(() => null);
+          if (media?.url) {
+            return {
+              url: media.url,
+              source: 'saavn',
+              bitrate: media.bitrate || 320000,
+              mime: 'audio/mp4',
+            };
+          }
+        }
+      } catch (err) {
+        // Continue to YouTube fallback
+      }
+    }
 
-    const ytDirectPromise = id && /^[\w-]{11}$/.test(id) ? tryVideo(id) : Promise.resolve(null);
+    // 3) Sureshot YouTube Studio Audio Fallback (Only if not in JioSaavn)
+    // Strictly prioritizes clean studio audio (ATV) over video uploads with dialogue/skits that offset lyrics
+    if (isUpload && title) {
+      const studioTracks = await yt.searchSongs(`${title} ${artist}`.trim(), 4).catch(() => []);
+      const studioMatch = studioTracks.find((t) => !t.isUpload);
+      if (studioMatch?.id) {
+        const studioStream = await tryVideo(studioMatch.id);
+        if (studioStream) return studioStream;
+      }
+    }
 
-    // Give JioSaavn 350ms to match:
-    const saavnMatch = await withTimeout(saavnPromise, 350, null);
-    if (saavnMatch) return saavnMatch;
+    // Direct YouTube stream if valid ID provided
+    if (id && /^[\w-]{11}$/.test(id)) {
+      const viaYoutube = await tryVideo(id);
+      if (viaYoutube) return viaYoutube;
+    }
 
-    // If not in JioSaavn, IMMEDIATELY switch to the working YouTube fallback!
-    const viaYoutube = await ytDirectPromise;
-    if (viaYoutube) return viaYoutube;
-
-    // If direct ID failed or absent, quick single query search on YT
+    // Final search fallback on YouTube
     if (title) {
       const hits = await yt.searchSongs(`${title} ${artist}`.trim(), 4).catch(() => []);
       for (const hit of hits.slice(0, 2)) {
@@ -281,10 +303,6 @@ app.get('/api/stream', async (c) => {
         if (stream) return stream;
       }
     }
-
-    // Late Saavn match check (up to 400ms more)
-    const lateSaavn = await withTimeout(saavnPromise, 400, null);
-    if (lateSaavn) return lateSaavn;
 
     return null;
   });
