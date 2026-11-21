@@ -35,9 +35,9 @@ export const BUDGET = {
   total: 8_500, // the first answer, identification included
   response: 11_000, // the route's hard ceiling
   source: 7_500, // each provider's own
-  isrc: 1_800, // how long identification may hold the recording-aware providers back
+  isrc: 2_000, // how long identification may hold the recording-aware providers back
   wordGrace: 700, // a word sheet in hand: how long a better-placed provider may still beat it
-  lineGrace: 900, // a line sheet in hand: how long before it is answered (the word hunt goes on)
+  lineGrace: 2_200, // a line sheet in hand: give word timing up to 2.2s before settling for line timing
 };
 
 const DAY = 24 * 3600_000;
@@ -247,10 +247,12 @@ function alternatesOf(bk, exceptSource) {
 
 function answerFor(bk, winner, pool, upgrading) {
   remember(bk, [winner, ...pool]);
+  const allHeard = Object.values(book.get(bk) || {});
+  const combined = [...pool, ...allHeard];
   const listed = new Set([winner.source]);
   const alternates = [];
-  for (const sheet of pool) {
-    if (listed.has(sheet.source)) continue;
+  for (const sheet of combined) {
+    if (!sheet || listed.has(sheet.source)) continue;
     listed.add(sheet.source);
     const tier = tierOf(sheet);
     alternates.push({ source: sheet.source, tier: tier === 'estimated' ? 'plain' : tier });
@@ -273,7 +275,7 @@ async function secondChance(ctx, io, env) {
     duration: ctx.duration || identity.canonical?.duration,
     isrc: ctx.isrc || identity.isrc || undefined,
   };
-  const families = ['lrc.red', 'netease', 'kugou', 'betterlyrics-qq', 'lrclib'];
+  const families = ['amll', 'betterlyrics-ttml', 'betterlyrics-qq', 'lrc.red', 'netease', 'kugou', 'betterlyrics-kugou', 'lrclib'];
   const retry = await Promise.all(PROVIDERS.filter((p) => families.includes(p.id)).map((p) => runProvider(p, better, io, env)));
   return retry.filter(usable);
 }
@@ -334,12 +336,34 @@ async function lookup(params, forceSource, cacheKey) {
 
   if (weak(ctx)) ctx = withWatchMeta(ctx, await withTimeout(watchMetaP, Math.min(1_200, left()), null));
 
-  // Identification runs alongside the providers instead of in front of them.
+  // 1. Identify canonical metadata concurrently from the start (iTunes / Deezer ISRC)
+  const identityP = ctx.isrc
+    ? Promise.resolve({ isrc: ctx.isrc, canonical: null })
+    : withTimeout(identifyCanonical(ctx).catch(() => null), Math.min(BUDGET.isrc, left()), null);
+
+  // 2. Identification runs alongside the providers instead of in front of them
   const recordingP = recordingOf(ctx, io, Math.min(BUDGET.isrc, left()));
   const race = new Race(PROVIDERS, async (provider) => {
-    // Providers that can ask by recording get a short head start on it, then go regardless.
-    const env = provider.needsRecording ? { recording: await withTimeout(recordingP, BUDGET.isrc, { isrc: null, hit: null }) } : {};
-    return runProvider(provider, ctx, io, env);
+    let providerCtx = ctx;
+    let env = {};
+    if (provider.needsRecording || ['amll', 'betterlyrics-ttml', 'betterlyrics-qq', 'netease', 'kugou', 'lrc.red'].includes(provider.id)) {
+      const [recording, identity] = await Promise.all([
+        withTimeout(recordingP, 700, { isrc: null, hit: null }),
+        withTimeout(identityP, 700, null),
+      ]);
+      env = { recording };
+      if (identity?.canonical) {
+        providerCtx = {
+          ...ctx,
+          title: cleanTitle(identity.canonical.title) || ctx.title,
+          artist: ctx.artist && !isLabelish(ctx.artist) ? ctx.artist : (identity.canonical.artist || ctx.artist),
+          album: ctx.album || identity.canonical.album || undefined,
+          duration: ctx.duration || identity.canonical.duration || undefined,
+          isrc: ctx.isrc || identity.isrc || undefined,
+        };
+      }
+    }
+    return runProvider(provider, providerCtx, io, env);
   });
   const env = { recording: await withTimeout(recordingP, 50, { isrc: null, hit: null }) };
 
@@ -350,7 +374,7 @@ async function lookup(params, forceSource, cacheKey) {
     let winner = null;
     for (const sheet of await secondChance(ctx, io, env)) if (!winner || sheetScore(sheet) > sheetScore(winner)) winner = sheet;
     winner ||= await withTimeout(plainFallback(ctx, io).catch(() => null), 4_000, null);
-    return winner ? answerFor(bk, winner, [winner, ...race.heard()], false) : null; // null is negative-cached briefly
+    return winner ? answerFor(bk, winner, [winner, ...race.heard()], false) : null;
   }
   if (!upgrade) return answerFor(bk, first, race.heard(), false);
 
@@ -358,12 +382,22 @@ async function lookup(params, forceSource, cacheKey) {
   // under the same key, and the client — which polls while `upgrading` is true — swaps it in.
   void (async () => {
     try {
+      const identity = await identityP;
+      const canonicalCtx = identity?.canonical ? {
+        ...ctx,
+        title: cleanTitle(identity.canonical.title) || ctx.title,
+        artist: ctx.artist && !isLabelish(ctx.artist) ? ctx.artist : (identity.canonical.artist || ctx.artist),
+        album: ctx.album || identity.canonical.album || undefined,
+        duration: ctx.duration || identity.canonical.duration || undefined,
+        isrc: ctx.isrc || identity.isrc || undefined,
+      } : ctx;
+
       let best = await race.untilWord(BUDGET.source);
       const pool = race.heard();
-      if (!best) {
-        for (const sheet of await secondChance(ctx, io, env)) {
+      if (!best || !hasWordSync(best)) {
+        for (const sheet of await secondChance(canonicalCtx, io, env)) {
           pool.push(sheet);
-          if (hasWordSync(sheet) && !best) best = sheet;
+          if (hasWordSync(sheet) && (!best || sheetScore(sheet) > sheetScore(best))) best = sheet;
         }
       }
       const final = best || first;
