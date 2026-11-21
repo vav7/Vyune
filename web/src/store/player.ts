@@ -844,23 +844,37 @@ setInterval(() => {
 /* ------------------------------ thumbnail helpers ------------------------------ */
 
 /** Rewrite the size token in a CDN art URL (yt/saavn/googleusercontent). */
-const sized = (url: string, px: number) =>
-  String(url)
-    .replace(/([?&])w=\d+/, `$1w=${px}`)
-    .replace(/=w\d+-h\d+(-[a-z0-9-]+)?$/, `=w${px}-h${px}$1`)
-    .replace(/-w\d+-h\d+(-l90-rj)?$/, `-w${px}-h${px}$1`)
-    .replace(/\/\d+x\d+(?=\.(jpg|jpeg|png|webp))/i, `/${px}x${px}`);
-const hiRes = (url: string) => sized(url, 1080);
-const isVideoThumbnail = (url: string) => /(?:^|\/\/)(?:i\d*\.)?ytimg\.com\//i.test(url);
+const sized = (url: string, px: number) => {
+  if (!url) return '';
+  const u = String(url);
+  if (/googleusercontent\.com|ggpht\.com/.test(u)) {
+    const base = u.split(/[=?]/)[0];
+    return `${base}=w${px}-h${px}-l90-rj`;
+  }
+  if (/saavncdn\.com/.test(u)) {
+    const saavnSize = px >= 500 ? 500 : px >= 150 ? 150 : 50;
+    if (/-(50x50|150x150|500x500)(\.\w+)?$/.test(u)) {
+      return u.replace(/-(50x50|150x150|500x500)(\.\w+)?$/, `-${saavnSize}x${saavnSize}.jpg`);
+    }
+    return u.replace(/\.jpg$/, `-${saavnSize}x${saavnSize}.jpg`);
+  }
+  if (/ytimg\.com/i.test(u) && px >= 300) {
+    return u.replace(/(?:hqdefault|mqdefault|default|sddefault)\.(jpg|webp)/i, 'maxresdefault.$1');
+  }
+  return u;
+};
+
+const hiRes = (url: string) => sized(url, 1200);
 
 /** Use catalogue/album artwork preferred; falls back to available thumbnail. */
 export function thumbCandidates(t: Pick<Track, 'thumb' | 'source' | 'id' | 'title'>): string[] {
   if (!t.thumb) return [];
-  return !isVideoThumbnail(t.thumb) ? [sized(t.thumb, 480)] : [t.thumb];
+  return [sized(t.thumb, 544)];
 }
 
 /** Fullscreen poster: highest-resolution catalogue artwork preferred; falls back to available thumbnail. */
 export function posterCandidates(t: Pick<Track, 'thumb' | 'source' | 'id' | 'title'>): string[] {
   if (!t.thumb) return [];
-  return !isVideoThumbnail(t.thumb) ? [hiRes(t.thumb)] : [t.thumb];
+  const high = hiRes(t.thumb);
+  return high !== t.thumb ? [high, t.thumb] : [t.thumb];
 }

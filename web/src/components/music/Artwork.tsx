@@ -100,7 +100,7 @@ export function Artwork(props: ArtworkProps) {
       <Show when={sized()}>
         {(source) => (
           <img
-            class="absolute inset-0 size-full object-cover"
+            class="absolute inset-0 size-full object-cover transition-opacity duration-300 ease-out"
             src={source()}
             alt=""
             // googleusercontent throttles hotlinked images (429) by Referer.

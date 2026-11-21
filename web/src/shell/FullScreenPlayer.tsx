@@ -420,8 +420,17 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
         const showQueue = () => panel() === 'queue';
         const column = () => showLyrics() || showQueue();
 
+        const [mvReady, setMvReady] = createSignal(false);
+
+        // Reset video ready state when track changes or user switches away from video modes
+        createEffect(on([() => current().id, () => artModeStore.mode], () => {
+          setMvReady(false);
+        }));
+
+        // Apple-style transition: stay in 1:1 Art mode until the video stream is buffered and ready to play
         const isWidescreenMode = () =>
-          artModeStore.mode === 'mv' || (artModeStore.mode === 'visualiser' && artModeStore.visualizerPhase === 'mv_clip');
+          (artModeStore.mode === 'mv' && mvReady()) ||
+          (artModeStore.mode === 'visualiser' && artModeStore.visualizerPhase === 'mv_clip' && mvReady());
         const effectiveAspect = () => {
           if (!isWidescreenMode()) return 1;
           const r = aspectRatio();
@@ -474,6 +483,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
               fallbackUrl={current().thumb}
               motionVideo={(settled() || artModeStore.mode === 'mv' || artModeStore.mode === 'visualiser') ? motionVideo() : null}
               mode={artModeStore.mode}
+              videoReady={mvReady()}
             />
 
             {/* The pull handle spans the top edge so it is easy to catch with a thumb. */}
@@ -575,14 +585,24 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                     </div>
                   </Show>
                   <Show when={artModeStore.mode === 'mv'}>
-                    <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[10px] font-bold tracking-wider uppercase text-white/70 backdrop-blur-md">
-                      <span class="size-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
-                      <span>Official MV</span>
+                    <div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.08] border border-white/15 text-[10px] font-bold tracking-wider uppercase text-white/90 backdrop-blur-md transition-all duration-300">
+                      <Show
+                        when={mvReady()}
+                        fallback={
+                          <>
+                            <span class="size-1.5 rounded-full bg-amber-400 animate-ping" />
+                            <span class="text-white/80">Buffering MV...</span>
+                          </>
+                        }
+                      >
+                        <span class="size-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                        <span>Official MV</span>
+                      </Show>
                     </div>
                   </Show>
                 </div>
 
-                {/* 16:9 Cinema mode in MV, 1:1 Square in Art mode with zero black bars */}
+                {/* 16:9 Cinema mode in MV once buffered, 1:1 Square in Art mode with zero black bars */}
                 <div
                   class={`fs-poster group/poster relative cursor-pointer rounded-[20px] overflow-hidden ${
                     artModeStore.mode === 'art'
@@ -614,6 +634,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                           mode={artModeStore.mode}
                           onVideo={setMotionVideo}
                           onAspect={setAspectRatio}
+                          onReady={setMvReady}
                         />
                       </Show>
                     </div>

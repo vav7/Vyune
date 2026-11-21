@@ -130,10 +130,16 @@ function MvPlayer(props: {
   track: Track;
   onVideo?: (video: HTMLVideoElement | null) => void;
   onAspect?: (aspect: number) => void;
+  onReady?: (ready: boolean) => void;
 }) {
   const [videoEl, setVideoEl] = createSignal<HTMLVideoElement | null>(null);
   const [videoReady, setVideoReady] = createSignal(false);
   const [fit, setFit] = createSignal<Fit | null>(null);
+
+  createEffect(() => {
+    props.onReady?.(videoReady());
+    onCleanup(() => props.onReady?.(false));
+  });
 
   // 1. Resolve official music video
   const ytMvQuery = useQuery(() => ({
@@ -306,6 +312,7 @@ function VisualizerPlayer(props: {
   track: Track;
   onVideo?: (video: HTMLVideoElement | null) => void;
   onAspect?: (aspect: number) => void;
+  onReady?: (ready: boolean) => void;
 }) {
   const [videoEl, setVideoEl] = createSignal<HTMLVideoElement | null>(null);
   const [ready, setReady] = createSignal(false);
@@ -313,6 +320,11 @@ function VisualizerPlayer(props: {
   const [visualizerPhase, setVisualizerPhase] = createSignal<'live_art' | 'mv_clip'>('live_art');
   const [currentMvIndex, setCurrentMvIndex] = createSignal(0);
   let hlsHandle: ClipHandle | null = null;
+
+  createEffect(() => {
+    props.onReady?.(ready());
+    onCleanup(() => props.onReady?.(false));
+  });
 
   // Query Apple motion art
   const appleMotionQuery = useQuery(() => ({
@@ -577,6 +589,7 @@ export function AppleMotionArtwork(props: {
   mode?: ArtMode;
   onVideo?: (video: HTMLVideoElement | null) => void;
   onAspect?: (aspect: number) => void;
+  onReady?: (ready: boolean) => void;
 }) {
   const reduceMotion = useReducedMotion();
   const tier = useTier();
@@ -585,10 +598,10 @@ export function AppleMotionArtwork(props: {
   return (
     <Show when={!reduceMotion()}>
       <Show when={mode() === 'mv'}>
-        <MvPlayer track={props.track} onVideo={props.onVideo} onAspect={props.onAspect} />
+        <MvPlayer track={props.track} onVideo={props.onVideo} onAspect={props.onAspect} onReady={props.onReady} />
       </Show>
       <Show when={mode() === 'visualiser' && tier.motion}>
-        <VisualizerPlayer track={props.track} onVideo={props.onVideo} onAspect={props.onAspect} />
+        <VisualizerPlayer track={props.track} onVideo={props.onVideo} onAspect={props.onAspect} onReady={props.onReady} />
       </Show>
     </Show>
   );
