@@ -137,7 +137,7 @@ function MvPlayer(props: {
 
   // 1. Resolve official music video
   const ytMvQuery = useQuery(() => ({
-    queryKey: ['yt-mv-v6', props.track.id, props.track.title, (props.track.artists || []).join('|')],
+    queryKey: ['yt-mv-v7', props.track.id, props.track.title, (props.track.artists || []).join('|'), props.track.album || ''],
     queryFn: ({ signal }: { signal: AbortSignal }) => api.resolveMv(props.track, signal),
     staleTime: 24 * 3600_000,
     gcTime: 48 * 3600_000,
@@ -158,25 +158,41 @@ function MvPlayer(props: {
     }
   });
 
-  // 3. High-precision cinematic drift correction & seek synchronization
+  // 3. High-precision anti-stutter drift correction & seek synchronization
   onMount(() => {
+    let lastSyncTime = 0;
     const unsub = subscribeProgress((cur) => {
       const el = videoEl();
       if (!el || el.seeking || !playerStore.playing || !videoReady() || el.readyState < 2) return;
+
+      const now = performance.now();
       const drift = el.currentTime - cur;
-      // If drift is substantial (> 2.0s, e.g. large scrubber jump), seek directly
-      if (Math.abs(drift) > 2.0) {
+
+      // If drift is substantial (> 1.5s, e.g. large scrubber jump), seek directly
+      if (Math.abs(drift) > 1.5) {
         el.currentTime = cur;
-        el.playbackRate = 1.0;
+        if (el.playbackRate !== 1.0) el.playbackRate = 1.0;
+        lastSyncTime = now;
         return;
       }
-      // Micro-drift correction: smoothly nudge playback rate (±5%) for butter-smooth 60fps sync without re-buffering
-      if (drift < -0.15) {
-        el.playbackRate = 1.05;
-      } else if (drift > 0.15) {
-        el.playbackRate = 0.95;
-      } else {
-        el.playbackRate = 1.0;
+
+      // Throttle drift rate recalculations to once every 250ms to prevent clock reset stutter
+      if (now - lastSyncTime < 250) return;
+      lastSyncTime = now;
+
+      // Hysteresis deadband: inside [-0.08s, +0.08s] keep playbackRate smoothly at 1.0
+      let targetRate = 1.0;
+      if (drift < -0.16) {
+        // Video lagging behind audio: gently accelerate by 4%
+        targetRate = 1.04;
+      } else if (drift > 0.16) {
+        // Video ahead of audio: gently decelerate by 4%
+        targetRate = 0.96;
+      }
+
+      // Only invoke the DOM setter if the playback rate actually changed
+      if (Math.abs(el.playbackRate - targetRate) > 0.005) {
+        el.playbackRate = targetRate;
       }
     });
 
@@ -184,7 +200,7 @@ function MvPlayer(props: {
       const el = videoEl();
       if (el && Number.isFinite(audio.currentTime)) {
         el.currentTime = audio.currentTime;
-        el.playbackRate = 1.0;
+        if (el.playbackRate !== 1.0) el.playbackRate = 1.0;
       }
     };
     audio.addEventListener('seeked', onSeeked);
@@ -315,10 +331,11 @@ function VisualizerPlayer(props: {
   // Query YouTube MV fallback
   const ytMvQuery = useQuery(() => ({
     queryKey: [
-      'yt-mv-visualizer',
+      'yt-mv-visualizer-v3',
       props.track.id,
       props.track.title,
       (props.track.artists || []).join('|'),
+      props.track.album || '',
     ],
     queryFn: ({ signal }: { signal: AbortSignal }) => api.resolveMv(props.track, signal),
     staleTime: 24 * 60 * 60_000,

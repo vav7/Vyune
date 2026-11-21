@@ -147,6 +147,8 @@ export const api = {
         id: track.id || '',
         title: track.title || '',
         artist: (track.artists || []).join(', '),
+        album: track.album || '',
+        duration: track.duration ? String(track.duration) : '',
       });
       return await getJSON<{ videoId: string; title: string; thumbnail: string }>(`/api/mv/resolve?${p}`, signal);
     } catch {

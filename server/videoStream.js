@@ -6,12 +6,16 @@ const videoFormatCache = new Map();
 
 /**
  * Streams 1080p/720p hardware-accelerated YouTube music video with full RFC 7233 range support.
- * Uses chunked downloading (1MB chunks) to completely bypass YouTube's 12MB bandwidth/rate-limit ceiling,
- * ensuring continuous playback past 30 seconds and fast seek response.
+ * Uses chunked downloading (1MB chunks) to completely bypass YouTube's 12MB bandwidth/rate-limit ceiling.
+ * Immediately tears down abandoned Range requests via client AbortSignal to prevent socket starvation and stuttering.
  */
-export async function proxyVideoStream(videoId, rangeHeader, method = 'GET') {
+export async function proxyVideoStream(videoId, rangeHeader, method = 'GET', signal) {
   if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
     return new Response(JSON.stringify({ error: 'invalid_video_id' }), { status: 400 });
+  }
+
+  if (signal?.aborted) {
+    return new Response(null, { status: 499 });
   }
 
   const now = Date.now();
@@ -98,6 +102,24 @@ export async function proxyVideoStream(videoId, rangeHeader, method = 'GET') {
       range: rangeOpt,
       dlChunkSize: 1024 * 1024,
     });
+
+    let destroyed = false;
+    const cleanup = () => {
+      if (destroyed) return;
+      destroyed = true;
+      try {
+        if (!nodeStream.destroyed) {
+          nodeStream.destroy();
+        }
+      } catch {}
+    };
+
+    if (signal) {
+      signal.addEventListener('abort', cleanup, { once: true });
+    }
+    nodeStream.on('close', cleanup);
+    nodeStream.on('end', cleanup);
+    nodeStream.on('error', cleanup);
 
     const webStream = Readable.toWeb(nodeStream);
 

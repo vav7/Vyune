@@ -585,15 +585,17 @@ app.get('/api/apple-motion', async (c) => {
 
 /**
  * Official Music Video Resolver for the visualizer & full MV player.
- * GET /api/mv/resolve?title=&artist=&id=
+ * GET /api/mv/resolve?title=&artist=&album=&duration=&id=
  */
 app.get('/api/mv/resolve', async (c) => {
   const title = String(c.req.query('title') || '').trim();
   const artist = String(c.req.query('artist') || '').trim();
+  const album = String(c.req.query('album') || '').trim();
+  const duration = parseFloat(c.req.query('duration') || '0') > 0 ? parseFloat(c.req.query('duration') || '0') : 0;
   const id = String(c.req.query('id') || '').trim();
   if (!title && !id) return c.json({ error: 'title or id required' }, 400);
 
-  const mv = await yt.resolveMusicVideo(title, artist, id);
+  const mv = await yt.resolveMusicVideo(title, artist, id, { album, duration });
   if (!mv) return c.json({ error: 'mv_not_found' }, 404);
   return c.json(mv);
 });
@@ -602,13 +604,14 @@ app.get('/api/mv/resolve', async (c) => {
  * High-definition Video Stream Proxy (1080p/720p H.264 MP4)
  * Streams native hardware-accelerated video to HTML5 <video> with full RFC 7233 byte ranges (HTTP 206).
  * Powered by @distube/ytdl-core chunking to eliminate YouTube's 12MB / 30s cutoff limits.
+ * Uses request abort signals to immediately tear down abandoned upstream Range connections and prevent socket pool starvation.
  * GET /api/video/:id
  */
 app.on(['GET', 'HEAD'], '/api/video/:id', async (c) => {
   const videoId = String(c.req.param('id') || '').trim();
   if (!videoId) return c.json({ error: 'id required' }, 400);
 
-  return await proxyVideoStream(videoId, c.req.header('range'), c.req.method);
+  return await proxyVideoStream(videoId, c.req.header('range'), c.req.method, c.req.raw.signal);
 });
 
 
