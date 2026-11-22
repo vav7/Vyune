@@ -46,7 +46,7 @@ const rowKey = (row: SearchRow) => (row.kind === 'browse' ? `b:${row.item.id}` :
 /* ---------------------------------------------------------------- */
 
 const rowBase =
-  'group relative flex w-full items-center gap-3.5 rounded-[10px] px-2 py-2 text-left transition-colors hover:bg-white/[0.07] focus-visible:bg-white/[0.07]';
+  'group relative flex w-full items-center gap-3.5 rounded-[10px] px-2 py-2 text-left transition-colors hover:bg-white/[0.07] focus-visible:bg-white/[0.07] [content-visibility:auto] [contain-intrinsic-size:auto_56px]';
 
 function PlayingBars() {
   return (
@@ -568,7 +568,7 @@ export default function SearchPage() {
               Close
             </button>
           </div>
-          <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-44" data-search-scroll>
+          <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-44 [-webkit-overflow-scrolling:touch] will-change-[scroll-position] transform-gpu" data-search-scroll>
             <div class="mx-auto w-full max-w-[760px] px-(--body-gutter)">
               <Show when={view() === 'recents'}><Recents /></Show>
               <Show when={view() === 'suggest'}><Suggest /></Show>

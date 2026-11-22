@@ -12,7 +12,7 @@ import type { Track } from '@/lib/types';
 import { playerStore } from '@/store/player';
 
 /* Lockups (report §2), adapted to this app's items. */
-const lockup = 'flex min-w-0 flex-col';
+const lockup = 'flex min-w-0 flex-col lockup-card';
 const caption = 'mt-2 flex min-w-0 flex-col gap-px';
 const title = 'flex min-w-0 items-center type-callout [&>:first-child]:truncate';
 const subtitle = 'truncate type-callout text-secondary';
@@ -163,7 +163,7 @@ export function CircleLockup(props: { item: MusicItem; width?: number }) {
   return (
     <PrefetchLink
       to={hrefFor(item().kind, item().id) ?? '#'}
-      class="circle-lockup group/circle flex w-full min-w-0 flex-col items-center gap-2.5 rounded-[18px] p-2.5 outline-offset-0"
+      class="circle-lockup group/circle flex w-full min-w-0 flex-col items-center gap-2.5 rounded-[18px] p-2.5 outline-offset-0 [content-visibility:auto] [contain-intrinsic-size:auto_180px]"
     >
       <span class="circle-lockup-art relative block aspect-square w-full max-w-[160px] rounded-full overflow-hidden">
         <Artwork src={item().thumbnail} displayWidth={props.width ?? 160} radius="50%" class="size-full" />

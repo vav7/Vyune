@@ -313,3 +313,53 @@ html[data-dock-hover='sidebar'] .sidebar-glass {
   .hero-skeleton i:nth-child(3) { grid-column: 1; grid-row: auto; max-width: 260px; }
 }
 @media (prefers-reduced-motion: reduce) { .hero-skeleton i { animation: none; } }
+
+/* ================================================================== */
+/* 5. Fluid 120 FPS Compositor & Momentum Scrolling Engine           */
+/* ================================================================== */
+
+#scrollable-page,
+[data-search-scroll] {
+  scroll-behavior: auto !important;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  transform: translateZ(0);
+  will-change: scroll-position;
+  backface-visibility: hidden;
+}
+
+/* Off-screen layout skipping & containment for ultra-high FPS scrolling */
+.track-row,
+[data-track-row] {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 56px;
+  contain: layout style;
+}
+
+.lockup-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
+}
+
+.lockup-art,
+.lockup-frame {
+  contain: paint;
+}
+
+.curated-row,
+.shelf-item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 200px;
+}
+
+/* Fast hover state transitions on GPU without layout thrashing */
+@media (hover: hover) {
+  .track-row,
+  .glass-card,
+  .vy-btn {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+}
+
