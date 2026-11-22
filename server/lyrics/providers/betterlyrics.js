@@ -5,8 +5,6 @@
  *   TTML     Apple Music timings, per syllable (the extension's original host)
  *   QQ       QQ Music karaoke timings ("Portato")
  *   KuGou    whole lines
- * The original host (lyrics-api.boidu.dev) is tried first; its newer sibling puts the TTML route behind
- * a challenge, but the QQ and KuGou routes there are open, so they are the fallback.
  */
 
 import { parsePayload } from '../parse/envelope.js';
@@ -38,7 +36,11 @@ export const ttml = {
   async run(ctx, io) {
     const body = await ask('/getLyrics', HOSTS.slice(0, 1), ctx, io);
     const parsed = body ? parsePayload(body) : null;
-    return parsed?.lines?.some((l) => l.isWordSynced) ? { lines: parsed.lines, songwriters: parsed.songwriters } : null;
+    if (!parsed?.lines?.length) return null;
+    if (parsed.title && !isThisSong({ title: parsed.title, artist: parsed.artist || '', durationSec: ctx.duration || null, album: parsed.album || null }, ctx)) {
+      return null;
+    }
+    return parsed.lines.some((l) => l.isWordSynced) ? { lines: parsed.lines, songwriters: parsed.songwriters } : null;
   },
 };
 
@@ -49,8 +51,10 @@ export const qq = {
     const body = await ask('/qq/getLyrics', HOSTS, ctx, io);
     const parsed = body ? parsePayload(body) : null;
     if (!parsed?.lines?.length) return null;
-    // QQ says which song it thinks this is. Reissues change the album string, so title and artist decide.
-    if (parsed.title && parsed.artist && !isThisSong({ title: parsed.title, artist: parsed.artist, durationSec: ctx.duration || null }, ctx)) return null;
+    // QQ says which song it thinks this is.
+    if (parsed.title && !isThisSong({ title: parsed.title, artist: parsed.artist || '', durationSec: ctx.duration || null, album: parsed.album || null }, ctx)) {
+      return null;
+    }
     // A sheet that repeats the title as a timed row has not had its header stripped.
     const lines = parsed.lines.filter((l) => !(parsed.title && simWords(normWords(l.text.map((p) => p.text).join('')), normWords(parsed.title)) >= 0.8 && l.text.length < 8));
     return lines.length ? { lines } : null;
@@ -63,6 +67,9 @@ export const kugou = {
   async run(ctx, io) {
     const body = await ask('/kugou/getLyrics', HOSTS, ctx, io);
     const parsed = body ? parsePayload(body) : null;
+    if (parsed?.title && !isThisSong({ title: parsed.title, artist: parsed.artist || '', durationSec: ctx.duration || null, album: parsed.album || null }, ctx)) {
+      return null;
+    }
     const lines = parsed?.lines?.some((l) => l.timestamp > 0) ? parsed.lines : parseLrc(body || '');
     return lines.length ? { lines } : null;
   },

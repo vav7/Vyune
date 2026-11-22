@@ -14,6 +14,7 @@ import netease from './netease.js';
 import kugou from './kugou.js';
 import unison from './unison.js';
 import lrclib from './lrclib.js';
+import yt from './yt.js';
 import * as betterlyrics from './betterlyrics.js';
 
 export const PROVIDERS = [
@@ -26,6 +27,7 @@ export const PROVIDERS = [
   betterlyrics.qq,
   unison,
   lrclib,
+  yt,
   betterlyrics.kugou,
 ];
 

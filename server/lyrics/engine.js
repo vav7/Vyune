@@ -275,7 +275,7 @@ async function secondChance(ctx, io, env) {
     duration: ctx.duration || identity.canonical?.duration,
     isrc: ctx.isrc || identity.isrc || undefined,
   };
-  const families = ['amll', 'betterlyrics-ttml', 'betterlyrics-qq', 'lrc.red', 'netease', 'kugou', 'betterlyrics-kugou', 'lrclib'];
+  const families = ['amll', 'betterlyrics-ttml', 'betterlyrics-qq', 'lrc.red', 'netease', 'kugou', 'betterlyrics-kugou', 'lrclib', 'yt'];
   const retry = await Promise.all(PROVIDERS.filter((p) => families.includes(p.id)).map((p) => runProvider(p, better, io, env)));
   return retry.filter(usable);
 }

@@ -1,14 +1,10 @@
 /**
- * Unison — a community-submitted lyrics database. Every other provider is a window onto somebody's
- * catalogue; this one carries what listeners uploaded, so it occasionally has a track nobody else does
- * and is thin and uneven everywhere else. Entries are voted on; none of that is acted on here, since a
- * fresh submission has no votes at all and refusing those would refuse most of the database.
- *
- * Three shapes come back, and the entry says which: Apple-style TTML, LRC (possibly word-stamped), or plain.
+ * Unison — a community-submitted lyrics database.
  */
 
 import { parseLrc } from '../parse/lrc.js';
 import { parseTTML } from '../parse/ttml.js';
+import { isThisSong } from '../verify.js';
 
 export default {
   id: 'unison',
@@ -20,6 +16,13 @@ export default {
     if (ctx.duration) params.set('duration', String(Math.round(ctx.duration)));
     const data = await io.json(`https://unison.boidu.dev/lyrics?${params}`, { timeout: 6000 });
     const entry = data?.success ? data.data : null;
+    if (!entry) return null;
+
+    // Verify candidate identity
+    if (entry.song && !isThisSong({ title: entry.song, artist: entry.artist || '', album: entry.album || null }, ctx)) {
+      return null;
+    }
+
     const text = typeof entry?.lyrics === 'string' ? entry.lyrics : '';
     if (!text.trim()) return null;
     if (String(entry.format).toLowerCase() === 'ttml') {

@@ -23,7 +23,7 @@ export function decodeKrc(base64) {
 
 /** "Lyrics by: …", "作词：…" — credits the format gives timed words, but nobody sings. */
 export const CREDIT_LINE =
-  /^(?:lyrics?|words?|composed?|composer|arranged?|arranger|produced?|producer|written|music|作词|作曲|编曲|制作人|词|曲)\s*(?:by)?\s*[:：]/i;
+  /^(?:lyrics?|words?|composed?|composer|arranged?|arranger|produced?|producer|written|music|singer|vocals?|artist|album|作词|作曲|编曲|制作人|演唱|原唱|翻唱|和声|混音|母带|吉他|贝斯|鼓|录音|监制|词|曲)\s*(?:by)?\s*[:：]|(?:qq音乐|网易云音乐|酷狗音乐|kugou|netease)/i;
 
 const entities = (s) => s.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
 

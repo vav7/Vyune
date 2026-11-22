@@ -8,7 +8,7 @@
  */
 
 import { ensureIndicFonts } from '@/lib/fonts';
-import { Check, ChevronDown, Languages, RotateCw, SlidersHorizontal, Type, X } from 'lucide-solid';
+import { Check, ChevronDown, Languages, RotateCw, Type } from 'lucide-solid';
 import { createEffect, createMemo, createSignal, For, lazy, on, onCleanup, onMount, Show, Suspense } from 'solid-js';
 import { useQuery } from '@tanstack/solid-query';
 import { Menu, MenuHeader, MenuItem, MenuSeparator } from '@/components/Menu';
@@ -87,6 +87,7 @@ const ALL_KNOWN_PROVIDERS = [
   'KuGou',
   'NetEase',
   'LRC.RED',
+  'YouTube Music',
   'Unison',
   'BetterLyrics (QQ)',
   'AMLL',
@@ -106,7 +107,6 @@ function ProviderPicker(props: {
   onTranslation: () => void;
 }) {
   const [anchor, setAnchor] = createSignal<HTMLElement | null>(null);
-  const [showOffsetScrubber, setShowOffsetScrubber] = createSignal(false);
   const label = createMemo(() => {
     const picked = props.picked;
     if (picked) {
@@ -121,98 +121,85 @@ function ProviderPicker(props: {
   const alternates = createMemo(() => props.result?.alternates ?? []);
   const close = () => setAnchor(null);
   return (
-    <div class="flex flex-col">
-      <div
-        class={
-          props.full
-            ? 'flex items-center justify-between pb-1 opacity-100 transition-opacity duration-500 group-data-[idle=true]:pointer-events-none group-data-[idle=true]:opacity-0'
-            : 'flex items-center justify-between px-4 pt-4 pb-1'
-        }
-      >
-        <div class="flex min-w-0 items-center gap-1.5">
-          <button
-            class="inline-flex min-w-0 items-center gap-1.5 rounded-[10px] px-3 py-1.5 type-callout-emphasized text-secondary bg-white/[0.07] hover:bg-white/[0.13] hover:text-primary border border-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_2px_8px_rgba(0,0,0,0.3)] transition-all duration-200"
-            aria-haspopup="menu"
-            aria-label="Lyrics provider"
-            onClick={(e) => setAnchor(e.currentTarget)}
-          >
-            {serving() && <Check size={13} class="flex-none text-key" aria-hidden="true" />}
-            <span class="max-w-32 truncate">{label()}</span>
-            {props.loading ? <LoadingDots small /> : <ChevronDown size={14} />}
-          </button>
-
-          {/* Quick Timing Offset Scrubber Pill */}
-          <button
-            type="button"
-            class={`inline-flex items-center gap-1.5 rounded-[10px] px-2.5 py-1.5 text-[11px] font-mono tracking-wide transition-all duration-200 cursor-pointer ${
-              showOffsetScrubber() || lyricsStore.syncOffsetMs !== 0
-                ? 'bg-amber-400/20 text-amber-200 border border-amber-400/40 shadow-[0_0_12px_rgba(251,191,36,0.25)]'
-                : 'text-secondary bg-white/[0.07] hover:bg-white/[0.13] hover:text-primary border border-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]'
-            }`}
-            title="Adjust lyrics sync timing offset slider"
-            onClick={() => setShowOffsetScrubber((prev) => !prev)}
-          >
-            <SlidersHorizontal size={13} class={lyricsStore.syncOffsetMs !== 0 ? 'text-amber-300' : 'text-secondary'} />
-            <span>
-              {lyricsStore.syncOffsetMs === 0
-                ? 'Sync'
-                : `${lyricsStore.syncOffsetMs > 0 ? '+' : ''}${(lyricsStore.syncOffsetMs / 1000).toFixed(2)}s`}
+    <div
+      class={
+        props.full
+          ? 'flex items-center justify-between pb-1 opacity-100 transition-opacity duration-500 group-data-[idle=true]:pointer-events-none group-data-[idle=true]:opacity-0'
+          : 'flex items-center justify-between px-4 pt-4 pb-1'
+      }
+    >
+      <div class="flex min-w-0 items-center gap-1.5">
+        <button
+          class="inline-flex min-w-0 items-center gap-1.5 rounded-[10px] px-3 py-1.5 type-callout-emphasized text-secondary bg-white/[0.07] hover:bg-white/[0.13] hover:text-primary border border-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_2px_8px_rgba(0,0,0,0.3)] transition-all duration-200"
+          aria-haspopup="menu"
+          aria-label="Lyrics provider"
+          onClick={(e) => setAnchor(e.currentTarget)}
+        >
+          {serving() && <Check size={13} class="flex-none text-key" aria-hidden="true" />}
+          <span class="max-w-32 truncate">{label()}</span>
+          {lyricsStore.syncOffsetMs !== 0 && (
+            <span class="font-mono text-[10px] text-amber-300 font-bold px-1.5 py-0.5 rounded bg-amber-400/20 border border-amber-400/30">
+              {lyricsStore.syncOffsetMs > 0 ? `+${(lyricsStore.syncOffsetMs / 1000).toFixed(2)}s` : `${(lyricsStore.syncOffsetMs / 1000).toFixed(2)}s`}
             </span>
-          </button>
-        </div>
-        {anchor() && (
-          <Menu anchor={anchor()!} placement="below-end" onClose={close} label="Lyrics provider">
-            <MenuItem checked={!props.picked} onSelect={() => (close(), props.onPick(null))}>
-              Best available
+          )}
+          {props.loading ? <LoadingDots small /> : <ChevronDown size={14} />}
+        </button>
+      </div>
+      {anchor() && (
+        <Menu anchor={anchor()!} placement="below-end" onClose={close} label="Lyrics provider">
+          <MenuItem checked={!props.picked} onSelect={() => (close(), props.onPick(null))}>
+            Best available
+          </MenuItem>
+          <MenuItem onSelect={() => (close(), props.onFindBest())}>
+            Find best lyrics again
+          </MenuItem>
+          <MenuSeparator />
+          <MenuHeader>Providers with this song</MenuHeader>
+          {/* Only providers that actually answered are listed, so every row opens real lyrics. */}
+          {[
+            ...(props.result?.primary ? [{ source: props.result.primary.source, tier: props.result.primary.estimated ? 'estimated' : props.result.primary.isWordSynced ? 'word' : 'line' }] : []),
+            ...alternates(),
+          ].map((entry) => (
+            <MenuItem
+              checked={props.picked ? props.picked.toLowerCase() === entry.source.toLowerCase() : props.result?.primary?.source === entry.source}
+              trailing={<span class="type-caption-2">{TIER_LABEL[entry.tier] ?? entry.tier}</span>}
+              onSelect={() => (close(), props.onPick(entry.source))}
+            >
+              {entry.source}
             </MenuItem>
-            <MenuItem onSelect={() => (close(), props.onFindBest())}>
-              Find best lyrics again
+          ))}
+          <MenuSeparator />
+          <MenuHeader>Switch to provider</MenuHeader>
+          {ALL_KNOWN_PROVIDERS.filter((p) => {
+            const currentSource = props.result?.primary?.source?.toLowerCase() || '';
+            const alts = alternates().map((a) => a.source.toLowerCase());
+            return !currentSource.includes(p.toLowerCase()) && !alts.some((a) => a.includes(p.toLowerCase()));
+          }).map((p) => (
+            <MenuItem
+              checked={props.picked?.toLowerCase() === p.toLowerCase()}
+              onSelect={() => (close(), props.onPick(p))}
+            >
+              {p}
             </MenuItem>
-            <MenuSeparator />
-            <MenuHeader>Providers with this song</MenuHeader>
-            {/* Only providers that actually answered are listed, so every row opens real lyrics. */}
-            {[
-              ...(props.result?.primary ? [{ source: props.result.primary.source, tier: props.result.primary.estimated ? 'estimated' : props.result.primary.isWordSynced ? 'word' : 'line' }] : []),
-              ...alternates(),
-            ].map((entry) => (
-              <MenuItem
-                checked={props.picked ? props.picked.toLowerCase() === entry.source.toLowerCase() : props.result?.primary?.source === entry.source}
-                trailing={<span class="type-caption-2">{TIER_LABEL[entry.tier] ?? entry.tier}</span>}
-                onSelect={() => (close(), props.onPick(entry.source))}
+          ))}
+          <MenuSeparator />
+          <MenuHeader>Timing offset seek bar</MenuHeader>
+          <div class="flex flex-col gap-2.5 px-3 py-2 text-xs text-secondary min-w-[240px]">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-primary font-bold">
+                {lyricsStore.syncOffsetMs > 0 ? `+${lyricsStore.syncOffsetMs}ms` : `${lyricsStore.syncOffsetMs}ms`}
+                {lyricsStore.syncOffsetMs !== 0 && ` (${(lyricsStore.syncOffsetMs / 1000).toFixed(2)}s)`}
+              </span>
+              <button
+                type="button"
+                class="rounded bg-white/10 px-2 py-0.5 text-xs text-primary hover:bg-white/20 cursor-pointer transition"
+                onClick={() => lyricsStore.setSyncOffset(0)}
               >
-                {entry.source}
-              </MenuItem>
-            ))}
-            <MenuSeparator />
-            <MenuHeader>Switch to provider</MenuHeader>
-            {ALL_KNOWN_PROVIDERS.filter((p) => {
-              const currentSource = props.result?.primary?.source?.toLowerCase() || '';
-              const alts = alternates().map((a) => a.source.toLowerCase());
-              return !currentSource.includes(p.toLowerCase()) && !alts.some((a) => a.includes(p.toLowerCase()));
-            }).map((p) => (
-              <MenuItem
-                checked={props.picked?.toLowerCase() === p.toLowerCase()}
-                onSelect={() => (close(), props.onPick(p))}
-              >
-                {p}
-              </MenuItem>
-            ))}
-            <MenuSeparator />
-            <MenuHeader>Timing offset seek bar</MenuHeader>
-            <div class="flex flex-col gap-2 px-3 py-2 text-xs text-secondary min-w-[220px]">
-              <div class="flex items-center justify-between">
-                <span class="font-mono text-primary font-bold">
-                  {lyricsStore.syncOffsetMs > 0 ? `+${lyricsStore.syncOffsetMs}ms` : `${lyricsStore.syncOffsetMs}ms`}
-                  {lyricsStore.syncOffsetMs !== 0 && ` (${(lyricsStore.syncOffsetMs / 1000).toFixed(2)}s)`}
-                </span>
-                <button
-                  type="button"
-                  class="rounded bg-white/10 px-2 py-0.5 text-xs text-primary hover:bg-white/20 cursor-pointer"
-                  onClick={() => lyricsStore.setSyncOffset(0)}
-                >
-                  Reset
-                </button>
-              </div>
+                Reset
+              </button>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-[10px] text-white/40">-5.0s</span>
               <input
                 type="range"
                 min="-5000"
@@ -222,39 +209,55 @@ function ProviderPicker(props: {
                 onInput={(e) => lyricsStore.setSyncOffset(parseInt(e.currentTarget.value, 10))}
                 class="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-amber-400 focus:outline-none"
               />
-              <div class="flex items-center justify-between gap-1 pt-1 text-[11px]">
-                <button
-                  type="button"
-                  class="rounded bg-white/10 px-1.5 py-0.5 text-primary hover:bg-white/20 cursor-pointer"
-                  onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) - 100)}
-                >
-                  -100ms
-                </button>
-                <button
-                  type="button"
-                  class="rounded bg-white/10 px-1.5 py-0.5 text-primary hover:bg-white/20 cursor-pointer"
-                  onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) - 25)}
-                >
-                  -25ms
-                </button>
-                <button
-                  type="button"
-                  class="rounded bg-white/10 px-1.5 py-0.5 text-primary hover:bg-white/20 cursor-pointer"
-                  onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) + 25)}
-                >
-                  +25ms
-                </button>
-                <button
-                  type="button"
-                  class="rounded bg-white/10 px-1.5 py-0.5 text-primary hover:bg-white/20 cursor-pointer"
-                  onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) + 100)}
-                >
-                  +100ms
-                </button>
-              </div>
+              <span class="font-mono text-[10px] text-white/40">+5.0s</span>
             </div>
-          </Menu>
-        )}
+            <div class="grid grid-cols-6 gap-1 pt-0.5 text-[10px] font-mono">
+              <button
+                type="button"
+                class="rounded bg-white/10 py-1 text-center text-primary hover:bg-white/20 cursor-pointer transition"
+                onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) - 500)}
+              >
+                -0.5s
+              </button>
+              <button
+                type="button"
+                class="rounded bg-white/10 py-1 text-center text-primary hover:bg-white/20 cursor-pointer transition"
+                onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) - 100)}
+              >
+                -100ms
+              </button>
+              <button
+                type="button"
+                class="rounded bg-white/10 py-1 text-center text-primary hover:bg-white/20 cursor-pointer transition"
+                onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) - 25)}
+              >
+                -25ms
+              </button>
+              <button
+                type="button"
+                class="rounded bg-white/10 py-1 text-center text-primary hover:bg-white/20 cursor-pointer transition"
+                onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) + 25)}
+              >
+                +25ms
+              </button>
+              <button
+                type="button"
+                class="rounded bg-white/10 py-1 text-center text-primary hover:bg-white/20 cursor-pointer transition"
+                onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) + 100)}
+              >
+                +100ms
+              </button>
+              <button
+                type="button"
+                class="rounded bg-white/10 py-1 text-center text-primary hover:bg-white/20 cursor-pointer transition"
+                onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) + 500)}
+              >
+                +0.5s
+              </button>
+            </div>
+          </div>
+        </Menu>
+      )}
       {!props.full && (
         <div class="flex items-center gap-1.5">
           <button
@@ -275,98 +278,6 @@ function ProviderPicker(props: {
           >
             <Languages size={16} />
           </button>
-        </div>
-      )}
-      </div>
-
-      {/* Floating Interactive Liquid Glass Timing Scrubber Card */}
-      {showOffsetScrubber() && (
-        <div class={props.full ? "mb-2 p-3 rounded-2xl bg-white/[0.08] backdrop-blur-2xl border border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.4)] text-xs text-secondary flex flex-col gap-2.5" : "mx-4 mb-3 p-3 rounded-2xl bg-white/[0.08] backdrop-blur-2xl border border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.4)] text-xs text-secondary flex flex-col gap-2.5"}>
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="font-medium text-white/90">Lyrics Timing Offset</span>
-              <span class="font-mono text-amber-300 font-bold px-1.5 py-0.5 rounded bg-amber-400/15 border border-amber-400/30">
-                {lyricsStore.syncOffsetMs > 0 ? `+${lyricsStore.syncOffsetMs}ms` : `${lyricsStore.syncOffsetMs}ms`}
-                {lyricsStore.syncOffsetMs !== 0 && ` (${(lyricsStore.syncOffsetMs / 1000).toFixed(2)}s)`}
-              </span>
-            </div>
-            <div class="flex items-center gap-1.5">
-              <button
-                type="button"
-                class="rounded-lg bg-white/10 px-2 py-0.5 text-xs text-white/80 hover:bg-white/20 hover:text-white transition cursor-pointer"
-                onClick={() => lyricsStore.setSyncOffset(0)}
-              >
-                Reset
-              </button>
-              <button
-                type="button"
-                class="rounded-lg bg-white/10 p-1 text-white/80 hover:bg-white/20 hover:text-white transition cursor-pointer"
-                onClick={() => setShowOffsetScrubber(false)}
-                aria-label="Close timing offset scrubber"
-              >
-                <X size={13} />
-              </button>
-            </div>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <span class="font-mono text-[10px] text-white/40">-5.0s</span>
-            <input
-              type="range"
-              min="-5000"
-              max="5000"
-              step="50"
-              value={lyricsStore.syncOffsetMs}
-              onInput={(e) => lyricsStore.setSyncOffset(parseInt(e.currentTarget.value, 10))}
-              class="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-amber-400 focus:outline-none"
-            />
-            <span class="font-mono text-[10px] text-white/40">+5.0s</span>
-          </div>
-
-          <div class="flex items-center justify-between gap-1 text-[11px] font-mono">
-            <button
-              type="button"
-              class="flex-1 rounded-lg bg-white/10 py-1 text-center text-white/80 hover:bg-white/20 hover:text-white transition cursor-pointer"
-              onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) - 500)}
-            >
-              -0.5s
-            </button>
-            <button
-              type="button"
-              class="flex-1 rounded-lg bg-white/10 py-1 text-center text-white/80 hover:bg-white/20 hover:text-white transition cursor-pointer"
-              onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) - 100)}
-            >
-              -100ms
-            </button>
-            <button
-              type="button"
-              class="flex-1 rounded-lg bg-white/10 py-1 text-center text-white/80 hover:bg-white/20 hover:text-white transition cursor-pointer"
-              onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) - 25)}
-            >
-              -25ms
-            </button>
-            <button
-              type="button"
-              class="flex-1 rounded-lg bg-white/10 py-1 text-center text-white/80 hover:bg-white/20 hover:text-white transition cursor-pointer"
-              onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) + 25)}
-            >
-              +25ms
-            </button>
-            <button
-              type="button"
-              class="flex-1 rounded-lg bg-white/10 py-1 text-center text-white/80 hover:bg-white/20 hover:text-white transition cursor-pointer"
-              onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) + 100)}
-            >
-              +100ms
-            </button>
-            <button
-              type="button"
-              class="flex-1 rounded-lg bg-white/10 py-1 text-center text-white/80 hover:bg-white/20 hover:text-white transition cursor-pointer"
-              onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) + 500)}
-            >
-              +0.5s
-            </button>
-          </div>
         </div>
       )}
     </div>

@@ -9,6 +9,7 @@
  */
 
 import { lineSynced, makeLine, syl } from '../model.js';
+import { CREDIT_LINE } from './karaoke.js';
 
 const STAMP = /\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
 const WORD = /<(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?>([^<]*)/g;
@@ -40,7 +41,7 @@ export function parseLrc(text) {
 
   const lines = [];
   rows.forEach((row, i) => {
-    if (!row.body.trim()) return;
+    if (!row.body.trim() || CREDIT_LINE.test(row.body.trim())) return;
     const end = rows[i + 1] ? Math.max(rows[i + 1].at, row.at) : row.at + 5000;
     const words = [...row.body.matchAll(WORD)];
     if (words.length >= 2) {
@@ -80,7 +81,7 @@ export function parsePlain(text) {
   const out = [];
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
-    if (!line) continue;
+    if (!line || CREDIT_LINE.test(line)) continue;
     const heading = SECTION_LINE.exec(line)?.[1]?.trim();
     if (heading && SECTION_WORD.test(heading)) {
       out.push(makeLine({ text: [syl(heading, 0, 0)], section: true }));

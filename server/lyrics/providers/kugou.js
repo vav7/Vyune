@@ -7,10 +7,9 @@
  *     closest first → the lyric search by hash. A cover or a remix has a different length, so this
  *     cannot hand back the wrong cut;
  *  2. by name: the lyric search with "artist - title" and the duration, each candidate judged by the
- *     matcher; the first one only when none carries a name.
+ *     matcher.
  */
 
-import { sharesArtist } from '../../match.js';
 import { parseLrc } from '../parse/lrc.js';
 import { decodeKrc, parseKrc } from '../parse/karaoke.js';
 import { isThisSong } from '../verify.js';
@@ -27,12 +26,14 @@ async function byRecording(ctx, io) {
   const seconds = Math.round(ctx.duration || 0);
   const hashes = (data?.data?.info || [])
     .filter((s) => s?.hash && (!seconds || Math.abs((s.duration || 0) - seconds) <= DURATION_TOLERANCE_SEC))
-    .filter((s) => !ctx.artist || !s.singername || sharesArtist(ctx.artist, s.singername))
+    .filter((s) => isThisSong({ title: s.songname || s.filename || '', artist: s.singername || '', durationSec: s.duration }, ctx))
     .sort((a, b) => Math.abs((a.duration || 0) - seconds) - Math.abs((b.duration || 0) - seconds))
     .slice(0, 3);
   for (const { hash } of hashes) {
     const found = await io.json(`https://lyrics.kugou.com/search?${new URLSearchParams({ ver: '1', man: 'yes', client: 'pc', hash })}`, { timeout: 5000 });
-    const candidate = (found?.candidates || []).find((c) => c?.id && c?.accesskey);
+    const candidate = (found?.candidates || []).find((c) =>
+      c?.id && c?.accesskey && (!c.song || isThisSong({ title: c.song, artist: c.singer || '', durationSec: c.duration ? c.duration / 1000 : null }, ctx))
+    );
     if (candidate) return candidate;
   }
   return null;
@@ -45,10 +46,9 @@ async function byName(ctx, io) {
     `https://krcs.kugou.com/search?ver=1&man=yes&client=mobi&keyword=${encodeURIComponent(keyword)}&duration=${ms}&hash=`,
     { timeout: 5000 },
   );
-  const candidates = (data?.candidates || []).filter((c) => c?.id && c?.accesskey).slice(0, 4);
+  const candidates = (data?.candidates || []).filter((c) => c?.id && c?.accesskey).slice(0, 6);
   return (
-    candidates.find((c) => c.song && isThisSong({ title: c.song, artist: c.singer || '', durationSec: c.duration ? c.duration / 1000 : null }, ctx)) ||
-    (candidates.every((c) => !c.song) ? candidates[0] : null) ||
+    candidates.find((c) => isThisSong({ title: c.song || '', artist: c.singer || '', durationSec: c.duration ? c.duration / 1000 : null }, ctx)) ||
     null
   );
 }

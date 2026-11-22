@@ -8,14 +8,33 @@
  * requirement, not a score.
  */
 
-import { score as matchScore, sharesArtist } from '../match.js';
+import { score as matchScore, sharesArtist, albumKey } from '../match.js';
 import { cleanTitle, normKey, VERSION_WORDS } from './text.js';
 
+function extractPartNum(str) {
+  if (!str) return null;
+  const s = String(str).toLowerCase();
+  const m = s.match(/\b(?:part|pt|chapter|vol|volume)?\s*([0-9]+|[ivx]+)\b/i);
+  if (!m) return null;
+  const val = m[1].toLowerCase();
+  if (val === 'i' || val === '1') return 1;
+  if (val === 'ii' || val === '2') return 2;
+  if (val === 'iii' || val === '3') return 3;
+  if (val === 'iv' || val === '4') return 4;
+  if (val === 'v' || val === '5') return 5;
+  const num = parseInt(val, 10);
+  return Number.isFinite(num) ? num : null;
+}
+
 /**
- * The recording matcher's judgement, plus one rule for lyrics: the credit has to agree too.
- * A same-title cover can share a runtime to the second, so duration alone never validates a sheet.
+ * The recording matcher's judgement, plus strict rules for lyrics:
+ *  - Credit must agree when artist is known;
+ *  - Core song title must agree (never a substring of a completely different track);
+ *  - Sequels / Part 1 vs Part 2 / album clash must not match the wrong movie or take.
  */
 export function isThisSong(candidate, { title, artist, duration, album }) {
+  if (!candidate || !title) return false;
+
   const target = {
     title: title || '',
     artist: artist || '',
@@ -24,15 +43,72 @@ export function isThisSong(candidate, { title, artist, duration, album }) {
     isExplicit: null,
   };
   const cand = { isExplicit: null, album: null, ...candidate };
-  if (matchScore(cand, target) == null) return false;
-  if (artist && cand.artist && !sharesArtist(artist, cand.artist)) return false;
+
+  // 1. Core title check: candidate must share the core title
+  const targetCore = coreOf(title);
+  const candCore = coreOf(cand.title || '');
+  if (!targetCore || !candCore) return false;
+
+  // Title must match or have strong core similarity
+  const cleanT = normKey(cleanTitle(title, artist));
+  const cleanC = normKey(cleanTitle(cand.title || '', cand.artist || ''));
+  const titleMatches =
+    targetCore === candCore ||
+    cleanT === cleanC ||
+    (targetCore.length >= 5 && candCore.length >= 5 && (targetCore === candCore || targetCore.replace(/\s+/g, '') === candCore.replace(/\s+/g, '')));
+  
+  if (!titleMatches && matchScore(cand, target) == null) {
+    return false;
+  }
+
+  // 2. Artist verification
+  if (artist && cand.artist) {
+    if (!sharesArtist(artist, cand.artist)) return false;
+  } else if (artist && !cand.artist) {
+    // If target artist is known, candidate without artist MUST match title tightly
+    if (targetCore !== candCore && cleanT !== cleanC) return false;
+    // And if duration is known on both, must be within 6s
+    if (target.durationSec && cand.durationSec && Math.abs(target.durationSec - cand.durationSec) > 6) {
+      return false;
+    }
+  }
+
+  // 3. Sequel / Part Disambiguation (e.g. Awarapan 1 vs Awarapan 2, Hate Story 4 vs 2005 original)
+  const targetPart = extractPartNum(title) || extractPartNum(album);
+  const candPart = extractPartNum(cand.title) || extractPartNum(cand.album);
+  if (targetPart != null && candPart != null && targetPart !== candPart) {
+    return false;
+  }
+  if (targetPart != null && targetPart > 1 && candPart === 1) {
+    return false;
+  }
+
+  // 4. Album Disambiguation (if albums exist on both and distinctly conflict)
+  if (album && cand.album) {
+    const ak1 = albumKey(album);
+    const ak2 = albumKey(cand.album);
+    if (ak1 && ak2 && ak1 !== ak2) {
+      // If albums are completely different movie franchises/titles and duration differs by > 10s, reject
+      if (target.durationSec && cand.durationSec && Math.abs(target.durationSec - cand.durationSec) > 10) {
+        return false;
+      }
+    }
+  }
+
+  // 5. Version marker check: versions must not disagree
+  const v1 = versionOf(title);
+  const v2 = versionOf(cand.title || '');
+  if (!sameSet(v1, v2)) {
+    return false;
+  }
+
   return true;
 }
 
 /* ---- the strict matcher for free-text search hits ---- */
 
 const BRACKETED = /[(\[][^)\]]*[)\]]/g;
-const coreOf = (title) => {
+export const coreOf = (title) => {
   const stripped = String(title || '').replace(BRACKETED, ' ').trim();
   const parts = stripped.split(/\s*[-–—]\s*/);
   if (parts.length > 1) {
@@ -43,13 +119,13 @@ const coreOf = (title) => {
   }
   return normKey(stripped) || normKey(title);
 };
-const versionOf = (title) => {
+export const versionOf = (title) => {
   const extras = `${(title.match(BRACKETED) || []).join(' ')} ${title.split(' - ').slice(1).join(' ')}`;
   return new Set(normKey(extras).split(' ').filter((w) => VERSION_WORDS.has(w)));
 };
-const artistsOf = (artist) =>
+export const artistsOf = (artist) =>
   new Set(String(artist).split(/\s*(?:,|&|;|\/|\s+and\s+|\s+x\s+|\s+with\s+|\s+feat\.?\s+|\s+ft\.?\s+)\s*/i).map(normKey).filter(Boolean));
-const sameSet = (a, b) => a.size === b.size && [...a].every((x) => b.has(x));
+export const sameSet = (a, b) => a.size === b.size && [...a].every((x) => b.has(x));
 
 /**
  * The hit that is this recording, or null if none of them surely is:
@@ -59,7 +135,7 @@ const sameSet = (a, b) => a.size === b.size && [...a].every((x) => b.has(x));
  *  - the length is within `tolerance` seconds, when both are known.
  * Of the hits that pass, the closest in length wins; the search's own rank breaks a tie.
  */
-export function bestHit(hits, { title, artist, duration }, { tolerance = 3, accept = () => true } = {}) {
+export function bestHit(hits, { title, artist, duration }, { tolerance = 4, accept = () => true } = {}) {
   const wantedTitle = coreOf(title);
   const wantedVersion = versionOf(title);
   const wantedArtists = artistsOf(artist);
