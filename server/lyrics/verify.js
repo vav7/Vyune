@@ -61,7 +61,16 @@ export function isThisSong(candidate, { title, artist, duration, album }) {
     return false;
   }
 
-  // 2. Artist verification
+  // 2. Duration check: if both durations are known, they must not severely disagree
+  if (target.durationSec && cand.durationSec) {
+    const diff = Math.abs(target.durationSec - cand.durationSec);
+    const maxDiff = Math.max(8, Math.min(18, target.durationSec * 0.08));
+    if (diff > maxDiff) {
+      return false;
+    }
+  }
+
+  // 3. Artist verification
   if (artist && cand.artist) {
     if (!sharesArtist(artist, cand.artist)) return false;
   } else if (artist && !cand.artist) {
@@ -73,7 +82,7 @@ export function isThisSong(candidate, { title, artist, duration, album }) {
     }
   }
 
-  // 3. Sequel / Part Disambiguation (e.g. Awarapan 1 vs Awarapan 2, Hate Story 4 vs 2005 original)
+  // 4. Sequel / Part Disambiguation (e.g. Awarapan 1 vs Awarapan 2, Hate Story 4 vs 2005 original)
   const targetPart = extractPartNum(title) || extractPartNum(album);
   const candPart = extractPartNum(cand.title) || extractPartNum(cand.album);
   if (targetPart != null && candPart != null && targetPart !== candPart) {
@@ -83,7 +92,7 @@ export function isThisSong(candidate, { title, artist, duration, album }) {
     return false;
   }
 
-  // 4. Album Disambiguation (if albums exist on both and distinctly conflict)
+  // 5. Album Disambiguation (if albums exist on both and distinctly conflict)
   if (album && cand.album) {
     const ak1 = albumKey(album);
     const ak2 = albumKey(cand.album);
@@ -95,7 +104,7 @@ export function isThisSong(candidate, { title, artist, duration, album }) {
     }
   }
 
-  // 5. Version marker check: versions must not disagree
+  // 6. Version marker check: versions must not disagree
   const v1 = versionOf(title);
   const v2 = versionOf(cand.title || '');
   if (!sameSet(v1, v2)) {
@@ -113,14 +122,12 @@ export const coreOf = (title) => {
   const parts = stripped.split(/\s*[-–—]\s*/);
   if (parts.length > 1) {
     const p1 = normKey(parts[0]);
-    const p2 = normKey(parts[1]);
-    if (p2 && !VERSION_WORDS.has(p2)) return p2;
-    return p1;
+    if (p1 && p1.length >= 2) return p1;
   }
   return normKey(stripped) || normKey(title);
 };
 export const versionOf = (title) => {
-  const extras = `${(title.match(BRACKETED) || []).join(' ')} ${title.split(' - ').slice(1).join(' ')}`;
+  const extras = `${(title.match(BRACKETED) || []).join(' ')} ${title.split(/\s*[-–—]\s*/).slice(1).join(' ')} ${title}`;
   return new Set(normKey(extras).split(' ').filter((w) => VERSION_WORDS.has(w)));
 };
 export const artistsOf = (artist) =>

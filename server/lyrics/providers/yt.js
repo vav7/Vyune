@@ -1,17 +1,96 @@
 /**
- * yt.js — YouTube & YouTube Music Official Synced Lyrics Provider.
+ * yt.js — YouTube Official Synced Lyrics & Caption Provider.
  *
- * Direct integration with YouTube's official captions and YouTube Music:
- *  1. YouTube Timed Text / Captions: fetches signed timedtext captions (English, Hindi,
- *     original audio language) and converts them to precise time-stamped lyrics.
- *  2. YouTube Music Official Lyrics: queries YouTube Music's licensed Musixmatch lyrics
- *     as an authoritative fallback.
+ * Accurate timing extraction:
+ *  1. Direct extraction of signed timedtext captions from YouTube via WEB client / player.
+ *  2. If the current playback is an art-track without captions, looks up the official
+ *     music video / lyric video and extracts its timed captions.
+ *  3. Parses exact millisecond start, duration, and syllable/word-level offsets from JSON3 events.
+ *  4. NEVER returns 0-timestamp plain text as timed lyrics (preventing inaccurate estimation).
  */
 
-import { getYT, getYTMusicLyrics } from '../../yt.js';
+import { getYT } from '../../yt.js';
 import { lineSynced, makeLine, syl } from '../model.js';
-import { parsePlain } from '../parse/lrc.js';
+import { cleanTitle } from '../text.js';
 import { isThisSong } from '../verify.js';
+
+/**
+ * Fetch signed timedtext JSON3 and parse into accurately timed lines.
+ */
+async function parseCaptionTrack(baseUrl, io) {
+  if (!baseUrl) return null;
+  const res = await io.json(`${baseUrl}&fmt=json3`, { timeout: 4500 }).catch(() => null);
+  const rawEvents = (res?.events || []).filter((e) => e.segs && e.tStartMs != null);
+  if (rawEvents.length < 4) return null;
+
+  const lines = [];
+  for (const e of rawEvents) {
+    const start = e.tStartMs;
+    const end = start + (e.dDurationMs || 3000);
+    const segs = e.segs || [];
+    const text = segs.map((s) => s.utf8 || '').join('').trim();
+    if (!text || text === '\n') continue;
+
+    // Check if word-level offsets exist
+    const hasWordOffsets = segs.length > 1 && segs.some((s) => s.tOffsetMs != null);
+    if (hasWordOffsets) {
+      const words = [];
+      for (let si = 0; si < segs.length; si++) {
+        const s = segs[si];
+        const wText = s.utf8 || '';
+        if (!wText.trim() && wText !== ' ') continue;
+        const wStart = start + (s.tOffsetMs || 0);
+        const nextSeg = segs[si + 1];
+        const wEnd = nextSeg?.tOffsetMs != null ? start + nextSeg.tOffsetMs : end;
+        words.push(syl(wText, wStart, Math.max(wStart, wEnd), { part: !/\s$/.test(wText) }));
+      }
+      if (words.length > 0) {
+        lines.push(makeLine({ text: words, timestamp: start, endtime: end, isWordSynced: true }));
+        continue;
+      }
+    }
+
+    lines.push(lineSynced(text, start, end));
+  }
+
+  return lines.length >= 4 ? lines : null;
+}
+
+/**
+ * Extract caption tracks from a videoId using Innertube WEB client or Player endpoint.
+ */
+async function getCaptionTracks(yt, videoId) {
+  let tracks = [];
+  try {
+    const info = await yt.getInfo(videoId, 'WEB');
+    tracks = info?.captions?.caption_tracks || [];
+  } catch {
+    /* try player */
+  }
+
+  if (!tracks.length) {
+    try {
+      const player = await yt.actions.execute('/player', { videoId, client: 'WEB' });
+      tracks = player?.data?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return tracks;
+}
+
+function pickBestCaptionTrack(captionTracks) {
+  if (!captionTracks || !captionTracks.length) return null;
+  // Prioritize manual / official captions over ASR, prioritizing common/original languages
+  const chosen =
+    captionTracks.find((t) => t.kind !== 'asr' && (t.language_code === 'en' || t.language_code === 'hi')) ||
+    captionTracks.find((t) => t.kind !== 'asr') ||
+    captionTracks.find((t) => t.language_code === 'en' || t.language_code === 'hi') ||
+    captionTracks[0];
+
+  return chosen?.base_url || chosen?.baseUrl || null;
+}
 
 export default {
   id: 'yt',
@@ -21,97 +100,64 @@ export default {
       const yt = await getYT();
       let videoId = ctx.videoId;
 
-      // If videoId is not provided, search YouTube for the official track
-      if (!videoId && ctx.title) {
-        const query = `${ctx.title} ${ctx.artist || ''}`.trim();
-        const searchRes = await yt.music.search(query, { type: 'song' }).catch(() => null);
-        const item = searchRes?.contents?.[0]?.contents?.[0];
-        if (item?.id) {
-          const cand = {
-            title: item.title || '',
-            artist: (item.artists || []).map((a) => a.name).join(', '),
-            durationSec: item.duration?.seconds || null,
-          };
-          if (isThisSong(cand, ctx)) {
-            videoId = item.id;
+      // 1. If videoId provided, attempt caption extraction directly
+      if (videoId) {
+        const tracks = await getCaptionTracks(yt, videoId);
+        const baseUrl = pickBestCaptionTrack(tracks);
+        if (baseUrl) {
+          const lines = await parseCaptionTrack(baseUrl, io);
+          if (lines) {
+            return {
+              lines,
+              source: 'YouTube Music',
+            };
           }
         }
       }
 
-      if (!videoId) return null;
+      // 2. If videoId had no captions (e.g. YouTube Music art track) or no videoId,
+      // search YouTube for official lyric video or music video that carries accurate timed captions
+      if (ctx.title) {
+        const queries = [
+          `${cleanTitle(ctx.title)} ${ctx.artist || ''} official lyric video`.trim(),
+          `${cleanTitle(ctx.title)} ${ctx.artist || ''} lyric video`.trim(),
+          `${cleanTitle(ctx.title)} ${ctx.artist || ''} official video`.trim(),
+        ];
 
-      // 1. Try extracting YouTube Timed Text captions
-      const info = await yt.getInfo(videoId).catch(() => null);
-      const captionTracks = info?.captions?.caption_tracks || [];
+        for (const q of queries) {
+          const search = await yt.search(q, { type: 'video' }).catch(() => null);
+          const candidates = search?.videos || search?.results || [];
 
-      if (captionTracks.length > 0) {
-        // Prefer manual / official captions over ASR, prioritizing English and Hindi or original
-        const chosen =
-          captionTracks.find((t) => t.kind !== 'asr' && (t.language_code === 'en' || t.language_code === 'hi')) ||
-          captionTracks.find((t) => t.kind !== 'asr') ||
-          captionTracks.find((t) => t.language_code === 'en' || t.language_code === 'hi') ||
-          captionTracks[0];
+          for (const cand of candidates.slice(0, 4)) {
+            const candDur = cand.duration?.seconds || cand.durationSec || 0;
+            // Verify candidate song identity and duration agreement
+            if (ctx.duration && candDur && Math.abs(candDur - ctx.duration) > 14) continue;
+            const candObj = {
+              title: cand.title?.text || cand.title || '',
+              artist: cand.author?.name || cand.channel?.name || '',
+              durationSec: candDur || null,
+            };
+            if (!isThisSong(candObj, ctx)) continue;
 
-        if (chosen?.base_url) {
-          const res = await io.json(`${chosen.base_url}&fmt=json3`, { timeout: 4500 });
-          const events = (res?.events || []).filter((e) => e.segs && e.tStartMs != null);
-
-          if (events.length >= 4) {
-            const lines = [];
-            for (const e of events) {
-              const start = e.tStartMs;
-              const end = start + (e.dDurationMs || 3000);
-              const segs = e.segs || [];
-              const text = segs.map((s) => s.utf8 || '').join('').trim();
-              if (!text || text === '\n') continue;
-
-              // Check if word-level offsets exist
-              const hasWordOffsets = segs.length > 1 && segs.some((s) => s.tOffsetMs != null);
-              if (hasWordOffsets) {
-                const words = [];
-                for (let si = 0; si < segs.length; si++) {
-                  const s = segs[si];
-                  const wText = s.utf8 || '';
-                  if (!wText.trim()) continue;
-                  const wStart = start + (s.tOffsetMs || 0);
-                  const nextSeg = segs[si + 1];
-                  const wEnd = nextSeg?.tOffsetMs != null ? start + nextSeg.tOffsetMs : end;
-                  words.push(syl(wText, wStart, Math.max(wStart, wEnd), { part: !/\s$/.test(wText) }));
-                }
-                if (words.length > 0) {
-                  lines.push(makeLine({ text: words, timestamp: start, endtime: end, isWordSynced: true }));
-                  continue;
-                }
+            const candTracks = await getCaptionTracks(yt, cand.id);
+            const baseUrl = pickBestCaptionTrack(candTracks);
+            if (baseUrl) {
+              const lines = await parseCaptionTrack(baseUrl, io);
+              if (lines) {
+                return {
+                  lines,
+                  source: 'YouTube Music',
+                };
               }
-
-              lines.push(lineSynced(text, start, end));
-            }
-
-            if (lines.length >= 4) {
-              return {
-                lines,
-                source: 'YouTube Music',
-              };
             }
           }
-        }
-      }
-
-      // 2. Fallback to YouTube Music official lyrics (plain)
-      const plainText = await getYTMusicLyrics(videoId);
-      if (plainText && plainText.trim()) {
-        const plainLines = parsePlain(plainText);
-        if (plainLines.length >= 4) {
-          return {
-            lines: plainLines,
-            source: 'YouTube Music',
-          };
         }
       }
     } catch {
       return null;
     }
 
+    // Do NOT return un-timed plain text with 0 timestamps. Accurate timing only.
     return null;
   },
 };

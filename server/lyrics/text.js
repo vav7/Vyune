@@ -94,4 +94,5 @@ export const cleanIsrc = (value) => {
 export const VERSION_WORDS = new Set([
   'live', 'remix', 'remixed', 'mix', 'acoustic', 'unplugged', 'instrumental', 'karaoke', 'cappella', 'acapella',
   'demo', 'edit', 'version', 'cover', 'sped', 'slowed', 'reverb', 'nightcore', 'lofi', 'orchestral', 'extended',
+  'sad', 'reprise', 'female', 'male', 'duet', 'dialogue', 'intro', 'outro', 'part', 'fast', 'slow', 'club', 'radio', 'jhankar',
 ]);

@@ -75,12 +75,13 @@ export const REPUTATION = {
   amll: 50,
   'lrc.red': 40,
   bini: 36,
-  netease: 30,
-  kugou: 24,
+  netease: 32,
+  kugou: 30,
+  lrclib: 28,
+  yt: 26,
   'betterlyrics-ttml': 22,
   'betterlyrics-qq': 20,
   unison: 10,
-  lrclib: 6,
   'betterlyrics-kugou': 4,
 };
 

@@ -7,7 +7,7 @@ import https from 'node:https';
 import { TTLCache } from '../../cache.js';
 import { parseLrc } from '../parse/lrc.js';
 import { parseYrc } from '../parse/karaoke.js';
-import { normKey } from '../text.js';
+import { cleanTitle, normKey } from '../text.js';
 import { isThisSong } from '../verify.js';
 
 const NETEASE_VIP = '103.135.240.78';
@@ -81,20 +81,38 @@ export function neteaseFind(ctx, io) {
   const pending = (async () => {
     const keyword = ctx.artist ? `${ctx.title} ${ctx.artist}` : ctx.title;
     // Use cloudsearch/pc which returns unencrypted results worldwide (unlike deprecated search/get/web)
-    const data = await neteaseGetJson(
+    let data = await neteaseGetJson(
       `/api/cloudsearch/pc?s=${encodeURIComponent(keyword)}&type=1&offset=0&limit=8`,
     );
-    const songs = Array.isArray(data?.result?.songs) ? data.result.songs : [];
-    return (
-      songs.find((s) => {
+    let songs = Array.isArray(data?.result?.songs) ? data.result.songs : [];
+    let match = songs.find((s) => {
+      const artists = (s.ar || s.artists || []).map((a) => a.name).join(', ');
+      const durationSec = s.dt ? s.dt / 1000 : s.duration ? s.duration / 1000 : null;
+      return isThisSong(
+        { title: s.name, artist: artists, durationSec },
+        ctx,
+      );
+    });
+    if (match) return match;
+
+    // Fallback: search clean title
+    if (ctx.artist) {
+      data = await neteaseGetJson(
+        `/api/cloudsearch/pc?s=${encodeURIComponent(cleanTitle(ctx.title))}&type=1&offset=0&limit=8`,
+      );
+      songs = Array.isArray(data?.result?.songs) ? data.result.songs : [];
+      match = songs.find((s) => {
         const artists = (s.ar || s.artists || []).map((a) => a.name).join(', ');
         const durationSec = s.dt ? s.dt / 1000 : s.duration ? s.duration / 1000 : null;
         return isThisSong(
           { title: s.name, artist: artists, durationSec },
           ctx,
         );
-      }) || null
-    );
+      });
+      if (match) return match;
+    }
+
+    return null;
   })();
   finds.set(key, pending);
   return pending;

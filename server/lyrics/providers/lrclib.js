@@ -27,6 +27,11 @@ function fromRecord(record) {
 
 async function candidates(ctx, io) {
   const { title, artist, album } = ctx;
+  const artists = String(artist || '')
+    .split(/\s*(?:,|&|\/|\bfeat\.?|\bft\.?|\bx\b|\bwith\b)\s*/i)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   const structured = new URLSearchParams({ track_name: title, artist_name: artist });
   if (album) structured.set('album_name', album);
   let found = await ask(io, `/search?${structured}`);
@@ -35,23 +40,46 @@ async function candidates(ctx, io) {
   found = await ask(io, `/search?${new URLSearchParams({ q: `${artist} ${title}` })}`);
   if (Array.isArray(found) && found.length) return found;
 
-  // Indian releases credit several names ("Arijit Singh, Pritam"); LRCLIB files the song under one of them.
-  const lead = String(artist).split(/\s*(?:,|&|\bfeat\.?|\bft\.?|\bx\b|\bwith\b)\s*/i)[0]?.trim();
-  for (const q of [lead && lead !== artist ? `${lead} ${title}` : null, title].filter(Boolean)) {
-    found = await ask(io, `/search?${new URLSearchParams({ q })}`);
-    if (Array.isArray(found) && found.length) return found;
+  // Indian and collaborative releases credit several names; LRCLIB often files under one of them
+  for (const a of artists) {
+    if (a && a !== artist) {
+      found = await ask(io, `/search?${new URLSearchParams({ track_name: title, artist_name: a })}`);
+      if (Array.isArray(found) && found.length) return found;
+
+      found = await ask(io, `/search?${new URLSearchParams({ q: `${a} ${title}` })}`);
+      if (Array.isArray(found) && found.length) return found;
+    }
   }
+
+  found = await ask(io, `/search?${new URLSearchParams({ q: title })}`);
+  if (Array.isArray(found) && found.length) return found;
+
   return [];
 }
 
 /** { lines, synced, meta } for this song, or null. */
 export async function lookupLrclib(ctx, io) {
   if (!ctx.title || !ctx.artist) return null;
+  const artists = String(ctx.artist)
+    .split(/\s*(?:,|&|\/|\bfeat\.?|\bft\.?|\bx\b|\bwith\b)\s*/i)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   if (ctx.duration) {
-    const params = new URLSearchParams({ track_name: ctx.title, artist_name: ctx.artist, duration: String(Math.round(ctx.duration)) });
+    const dStr = String(Math.round(ctx.duration));
+    const params = new URLSearchParams({ track_name: ctx.title, artist_name: ctx.artist, duration: dStr });
     if (ctx.album) params.set('album_name', ctx.album);
     const exact = fromRecord(await ask(io, `/get?${params}`));
     if (exact) return exact;
+
+    // Try individual artists for collaborative tracks
+    for (const a of artists) {
+      if (a && a !== ctx.artist) {
+        const aParams = new URLSearchParams({ track_name: ctx.title, artist_name: a, duration: dStr });
+        const aExact = fromRecord(await ask(io, `/get?${aParams}`));
+        if (aExact) return aExact;
+      }
+    }
   }
   const pool = (await candidates(ctx, io))
     .map((x) => {

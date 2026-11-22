@@ -12,29 +12,37 @@
 
 import { parseLrc } from '../parse/lrc.js';
 import { decodeKrc, parseKrc } from '../parse/karaoke.js';
+import { cleanTitle } from '../text.js';
 import { isThisSong } from '../verify.js';
 
 const DURATION_TOLERANCE_SEC = 8;
 const base64Text = (b64) => Buffer.from(b64, 'base64').toString('utf8');
 
 async function byRecording(ctx, io) {
-  const keyword = [ctx.title, ctx.artist].filter(Boolean).join(' - ');
-  const data = await io.json(
-    `https://mobileservice.kugou.com/api/v3/search/song?${new URLSearchParams({ version: '9108', plat: '0', pagesize: '8', showtype: '0', keyword })}`,
-    { timeout: 5000 },
-  );
+  const keywords = [
+    [ctx.title, ctx.artist].filter(Boolean).join(' - '),
+    cleanTitle(ctx.title),
+  ].filter(Boolean);
+
   const seconds = Math.round(ctx.duration || 0);
-  const hashes = (data?.data?.info || [])
-    .filter((s) => s?.hash && (!seconds || Math.abs((s.duration || 0) - seconds) <= DURATION_TOLERANCE_SEC))
-    .filter((s) => isThisSong({ title: s.songname || s.filename || '', artist: s.singername || '', durationSec: s.duration }, ctx))
-    .sort((a, b) => Math.abs((a.duration || 0) - seconds) - Math.abs((b.duration || 0) - seconds))
-    .slice(0, 3);
-  for (const { hash } of hashes) {
-    const found = await io.json(`https://lyrics.kugou.com/search?${new URLSearchParams({ ver: '1', man: 'yes', client: 'pc', hash })}`, { timeout: 5000 });
-    const candidate = (found?.candidates || []).find((c) =>
-      c?.id && c?.accesskey && (!c.song || isThisSong({ title: c.song, artist: c.singer || '', durationSec: c.duration ? c.duration / 1000 : null }, ctx))
+
+  for (const keyword of keywords) {
+    const data = await io.json(
+      `https://mobileservice.kugou.com/api/v3/search/song?${new URLSearchParams({ version: '9108', plat: '0', pagesize: '8', showtype: '0', keyword })}`,
+      { timeout: 5000 },
     );
-    if (candidate) return candidate;
+    const hashes = (data?.data?.info || [])
+      .filter((s) => s?.hash && (!seconds || Math.abs((s.duration || 0) - seconds) <= DURATION_TOLERANCE_SEC))
+      .filter((s) => isThisSong({ title: s.songname || s.filename || '', artist: s.singername || '', durationSec: s.duration }, ctx))
+      .sort((a, b) => Math.abs((a.duration || 0) - seconds) - Math.abs((b.duration || 0) - seconds))
+      .slice(0, 3);
+    for (const { hash } of hashes) {
+      const found = await io.json(`https://lyrics.kugou.com/search?${new URLSearchParams({ ver: '1', man: 'yes', client: 'pc', hash })}`, { timeout: 5000 });
+      const candidate = (found?.candidates || []).find((c) =>
+        c?.id && c?.accesskey && (!c.song || isThisSong({ title: c.song, artist: c.singer || '', durationSec: c.duration ? c.duration / 1000 : null }, ctx))
+      );
+      if (candidate) return candidate;
+    }
   }
   return null;
 }

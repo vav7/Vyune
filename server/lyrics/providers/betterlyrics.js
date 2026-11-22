@@ -12,7 +12,7 @@ import { parseLrc } from '../parse/lrc.js';
 import { simWords, normWords } from '../text.js';
 import { isThisSong } from '../verify.js';
 
-const HOSTS = ['https://lyrics-api.boidu.dev', 'https://api.betterlyrics.org'];
+const HOSTS = ['https://api.betterlyrics.org', 'https://lyrics-api.boidu.dev'];
 
 function query({ title, artist, album, duration }) {
   const p = new URLSearchParams({ s: title, a: artist });
@@ -24,7 +24,7 @@ function query({ title, artist, album, duration }) {
 async function ask(route, hosts, ctx, io) {
   if (!ctx.title || !ctx.artist) return null;
   for (const host of hosts) {
-    const body = await io.text(`${host}${route}?${query(ctx)}`, { timeout: 4500 });
+    const body = await io.text(`${host}${route}?${query(ctx)}`, { timeout: 3500 });
     if (body) return body;
   }
   return null;
@@ -34,7 +34,7 @@ export const ttml = {
   id: 'betterlyrics-ttml',
   label: 'Better Lyrics',
   async run(ctx, io) {
-    const body = await ask('/getLyrics', HOSTS.slice(0, 1), ctx, io);
+    const body = await ask('/getLyrics', HOSTS, ctx, io);
     const parsed = body ? parsePayload(body) : null;
     if (!parsed?.lines?.length) return null;
     if (parsed.title && !isThisSong({ title: parsed.title, artist: parsed.artist || '', durationSec: ctx.duration || null, album: parsed.album || null }, ctx)) {

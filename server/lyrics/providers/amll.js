@@ -8,12 +8,18 @@ import { parseTTML } from '../parse/ttml.js';
 import { isThisSong } from '../verify.js';
 import { neteaseFind } from './netease.js';
 
-const RAW = 'https://raw.githubusercontent.com/Steve-xmh/amll-ttml-db/main';
+const RAW_HOSTS = [
+  'https://raw.githubusercontent.com/amll-community/amll-ttml-db/main',
+  'https://raw.githubusercontent.com/Steve-xmh/amll-ttml-db/main',
+];
 
 async function sheet(dir, id, io) {
-  const ttml = await io.text(`${RAW}/${dir}/${id}.ttml`, { timeout: 4500 });
-  const parsed = ttml ? parseTTML(ttml) : null;
-  return parsed?.lines?.length ? { lines: parsed.lines, songwriters: parsed.songwriters } : null;
+  for (const host of RAW_HOSTS) {
+    const ttml = await io.text(`${host}/${dir}/${id}.ttml`, { timeout: 3500 }).catch(() => null);
+    const parsed = ttml ? parseTTML(ttml) : null;
+    if (parsed?.lines?.length) return { lines: parsed.lines, songwriters: parsed.songwriters };
+  }
+  return null;
 }
 
 async function appleId(ctx, io) {

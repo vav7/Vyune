@@ -23,11 +23,11 @@ export const PROVIDERS = [
   bini,
   netease,
   kugou,
+  lrclib,
   betterlyrics.ttml,
   betterlyrics.qq,
-  unison,
-  lrclib,
   yt,
+  unison,
   betterlyrics.kugou,
 ];
 
