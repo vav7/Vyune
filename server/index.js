@@ -259,7 +259,7 @@ app.get('/api/stream', async (c) => {
       try {
         const match = await withTimeout(
           saavn.findSaavnMatch(title, artist, { album, duration }),
-          1200,
+          2500,
           null
         );
         if (match) {

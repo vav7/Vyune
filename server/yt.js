@@ -1875,135 +1875,177 @@ function detectPart(str) {
  * - Prioritizes modern remastered re-uploads (8K 60fps, 4K Ultra HD, Remastered).
  * - Strongly filters out Lyrical videos, Audio-only uploads, Teasers, BTS, and Fan covers.
  */
-function scoreMusicVideoCandidate(v, cleanTitle, cleanArtist, album = '', targetDuration = 0) {
-  const t = (v.title?.text || v.title || '').toLowerCase();
-  const tNorm = normSequel(t);
-  const author = (v.author?.name || v.author?.text || '').toLowerCase();
+/**
+ * Hardened Music Video Scoring & Elimination Engine:
+ * - STRICT DISQUALIFICATION of Reactions, Reviews, Vlogs, Podcasts, BTS, Trailers, Teasers.
+ * - STRICT DISQUALIFICATION of Lyrics, Lyrical videos, Subtitles, Karaoke, Text videos.
+ * - STRICT DISQUALIFICATION of Jukeboxes, Full Albums, Non-Stop, Compilations, Mashups.
+ * - STRICT DISQUALIFICATION of Lofi, Flip, Slowed, Reverb, Shorts, Status, Dance covers.
+ * - STRICT DISQUALIFICATION of Audio-only tracks, Static visualizers, and - Topic channels.
+ * - STRICT DISQUALIFICATION of videos with excessive runtime (> 1.55x song duration).
+ * - Massive +300 bonus for Authoritative Major Labels (T-Series, Sony Music, Zee, YRF, etc.).
+ * - Massive +350 bonus for Official Music Video markers.
+ * - Part / Sequel disambiguation (Awarapan 1 vs 2, Hate Story 4 vs original 2005).
+ * - Minimum score threshold of 350 to eliminate false positives.
+ */
+export function scoreMusicVideoCandidate(v, cleanTitle, cleanArtist, album = '', targetDuration = 0) {
+  const t = (v.title?.text || v.title || '').trim();
+  const author = (v.author?.name || v.author?.text || '').trim().toLowerCase();
   const verified = !!(v.author?.is_verified || v.author?.is_official_artist);
-  let score = 0;
+  const dur = v.duration?.seconds || 0;
 
-  // 1. Title Match Requirement: Candidate title must match the actual song title, not just the movie credit!
-  const firstSegment = t.split(/[|/•–—]/)[0] || t;
-  const firstNorm = normSequel(firstSegment);
+  // 1. HARD DISQUALIFICATIONS (Instant Rejection -> -99999)
+  // Reactions, reviews, vlogs, breakdowns, bts, trailers, podcasts
+  if (/(?:reaction|reacts?|reacting|first\s*time\s*(?:hearing|listening)|vocal\s*coach|breakdown|review|vlog|interview|podcast|trailer|teaser|promo|sneak\s*peek|motion\s*poster|first\s*look|bts|making\s+of|behind\s+the\s+scenes)/i.test(t)) {
+    return -99999;
+  }
+  if (/(?:reaction|reacts?|vlog|reviews?|breakdown)/i.test(author)) {
+    return -99999;
+  }
+
+  // Lyrics / lyrical / karaoke / subtitles / text videos
+  if (/(?:lyrics?|lyrical(?:\s+video)?|with\s+lyrics?|song\s+with\s+lyrics?|subtitles?|eng\s*sub|बोल\s*के\s*साथ|गीत|karaoke|instrumental)/i.test(t)) {
+    return -99999;
+  }
+
+  // Jukeboxes, full albums, compilations, mashups, non-stop
+  if (/(?:jukebox|audio\s+jukebox|video\s+jukebox|all\s+songs|full\s+album|complete\s+album|full\s+ost|compilation|mega\s*mix|megamix|non\s*stop|mashup|best\s+of|top\s+10|top\s+20|collection)/i.test(t)) {
+    return -99999;
+  }
+
+  // Covers, fan edits, status, shorts, lofi, remix, choreography
+  if (/(?:shorts?|#shorts?|status|whatsapp\s+status|slowed(?:\s*\+\s*reverb)?|reverb|8d|lofi|lo-fi|flip|remix|dance\s+cover|choreography|unplugged\s+cover|acoustic\s+cover)/i.test(t)) {
+    return -99999;
+  }
+
+  // Audio-only uploads, visualizers, topic channels (unless legitimate video)
+  if (/(?:full\s+audio|audio\s+song|official\s+audio|audio\s+track|पूरा\s*ऑडियो|ऑडियो\s*गाना|visualiser|visualizer)/i.test(t)) {
+    return -99999;
+  }
+  if (/-\s*topic$/i.test(author)) {
+    return -99999;
+  }
+
+  // Interviews, documentaries, stories, commentaries
+  if (/(?:interview|podcast|story|documentary|commentary|untold|why\s+|how\s+|talks?|confession)/i.test(t)) {
+    return -99999;
+  }
+  if (/(?:lallantop|news|podcast|media|review|react)/i.test(author)) {
+    return -99999;
+  }
+
+  // Duration sanity: Music videos are rarely < 45s or > 9.5 mins (unless targetDuration is also that long)
+  if (dur > 0) {
+    if (dur < 45) return -99999; // Short/teaser
+    if (targetDuration > 0) {
+      const maxAllowed = Math.max(540, targetDuration * 1.55 + 75);
+      if (dur > maxAllowed) return -99999; // Jukebox/compilation
+    } else if (dur > 660) {
+      return -99999; // 11+ minutes is almost certainly a jukebox
+    }
+  }
+
+  // 2. CORE SONG TITLE REQUIREMENT
+  const tNorm = normSequel(t);
   const titleNorm = normSequel(cleanTitle);
-
   const titleWords = titleNorm
     .split(' ')
     .filter((w) => w.length > 2 && !/^(the|song|soundtrack|audio|video)$/.test(w));
 
   if (titleWords.length > 0) {
-    const inFirstSegment = titleWords.every((w) => firstNorm.includes(w));
-    const inAnywhere = titleWords.filter((w) => tNorm.includes(w)).length / titleWords.length;
-
-    if (inFirstSegment) {
-      score += 250; // Exact song title match in primary title segment
-    } else if (inAnywhere >= 0.8) {
-      if (t.includes('|') || t.includes(' - ')) {
-        score -= 400; // It's another track from the same movie soundtrack!
-      } else {
-        score += 80;
-      }
-    } else {
-      score -= 600; // Completely different song
+    const matchCount = titleWords.filter((w) => tNorm.includes(w)).length;
+    const ratio = matchCount / titleWords.length;
+    if (ratio < 0.6) {
+      return -99999; // Does not even contain the song title!
     }
   }
 
-  // 2. Title Track boost for movies where album === song title
-  if (/(?:title\s+track|title\s+song)/i.test(t)) {
-    score += 100;
-  }
+  const firstSegment = t.split(/[|/•–—]/)[0] || t;
+  const firstNorm = normSequel(firstSegment);
 
-  // 3. Authoritative Major Record Labels & Official Channels
-  const isMajorLabel = /(?:t-series|tseries|sony\s*music|sonymusic|zeemusiccompany|zee\s*music|yrf|yash\s*raj|saregama|tips\s*official|speed\s*records|eros\s*now|warner|universal\s*music|interscope|atlantic\s*records|columbia\s*records|republic\s*records|vevo|monstercat|spinnin|def\s*jam|geet\s*mp3|white\s*hill|vishesh\s*films)/i.test(author);
-  if (isMajorLabel) score += 130;
-  if (verified) score += 80;
-
-  if (cleanArtist) {
-    const artistTokens = cleanArtist.toLowerCase().split(/[,&|]/).map((s) => s.trim()).filter(Boolean);
-    for (const art of artistTokens) {
-      if (author.includes(art) || t.includes(art)) score += 60;
+  // Movie/Album title track disambiguation:
+  // When album/movie name === song title (e.g. "Tera Chehra" or "Aashiq Banaya Aapne"),
+  // ensure the video is the actual Title Track, NOT another song from the same album
+  // (e.g. "Chain Mujhe Ab [Full Song] Tera Chehra" or "Aap Ki Kashish | Aashiq Banaya Aapne").
+  if (album && titleNorm === normSequel(album)) {
+    const isTitleTrack = /(?:title\s+track|title\s+song)/i.test(t);
+    const cleanFirst = normSequel(t.split(/\[|\(|\||\/|•|–|—/)[0] || t);
+    const startsWithTitle = cleanFirst.startsWith(titleNorm) || (titleWords.length > 0 && titleWords.every((w) => cleanFirst.includes(w)));
+    if (!isTitleTrack && !startsWithTitle) {
+      return -99999; // It's another song from the same album!
     }
   }
 
-  // 4. Official Visual Music Video Titles
-  if (/(?:official\s+(?:music\s+)?video|full\s+video(?:\s+song)?|official\s+mv)/i.test(t)) {
-    score += 170;
+  let score = 200; // Base score for passing hard filters
+
+  // 3. TITLE PROMINENCE
+  if (titleWords.length > 0 && titleWords.every((w) => firstNorm.includes(w))) {
+    score += 250; // Exact song title in primary segment
+  }
+
+  // 4. OFFICIAL VIDEO BADGING
+  if (/(?:official\s+(?:music\s+)?video|full\s+video(?:\s+song)?|official\s+mv|पूरा\s*वीडियो\s*गाना|वीडियो\s*गाना)/i.test(t)) {
+    score += 350;
   } else if (/(?:video\s+song|official\s+video)/i.test(t)) {
-    score += 120;
+    score += 250;
   } else if (/music\s+video/i.test(t)) {
-    score += 80;
+    score += 150;
   }
 
-  // 5. Modern 8K / 4K / Remastered re-uploads boost (Sony, T-Series high-definition masters)
+  // 5. AUTHORITATIVE LABELS & OFFICIAL CHANNELS
+  const isMajorLabel = /(?:t-series|tseries|sony\s*music|sonymusic|zeemusiccompany|zee\s*music|yrf|yash\s*raj|saregama|tips\s*official|speed\s*records|eros\s*now|warner|universal\s*music|interscope|atlantic\s*records|columbia\s*records|republic\s*records|vevo|monstercat|spinnin|def\s*jam|geet\s*mp3|white\s*hill|vishesh\s*films)/i.test(author);
+  if (isMajorLabel) score += 300;
+  if (verified) score += 200;
+
+  // 6. HD / 4K / REMASTER BOOST
   if (/(?:8k\s*60fps|8k\s*uhd|8k|4k\s*60fps|4k\s*uhd|4k|remastered(?:\s+in\s+4k)?|ultra\s*hd|1080p\s*60fps|hd\s+video)/i.test(t)) {
-    score += 90;
-  }
-
-  // 6. Strict Penalties for Non-MVs / Lyrical / Audio / BTS / Teasers / Covers
-  if (/(?:lyric|lyrics|lyrical|बोल\s*के\s*साथ|गीत)/i.test(t)) {
-    score -= 450;
-  }
-  if (/(?:full\s+audio|audio\s+song|official\s+audio|audio\s+track|jukebox|\baudio\b)/i.test(t)) {
-    score -= 400;
-  }
-  if (/(?:visualiser|visualizer)/i.test(t)) {
-    score -= 220;
-  }
-  if (/(?:teaser|trailer|promo|sneak\s*peek|behind\s+the\s+scenes|making\s+of|bts)/i.test(t)) {
-    score -= 350;
-  }
-  if (/(?:cover|reaction|review|status|shorts?|slowed|reverb|8d|mashup|tribute|karaoke|live|concert|choreography)/i.test(t)) {
-    score -= 320;
+    score += 120;
   }
 
   // 7. ALBUM / MOVIE DISAMBIGUATION (e.g. Hate Story 4 vs Original 2005)
   if (album) {
     const albumNorm = normSequel(album);
     const albumWords = albumNorm.split(' ').filter((w) => w.length > 2 && !/^(the|song|soundtrack|album|original|movie|film)$/.test(w));
-
     const isDistinctAlbum = albumWords.length > 0 && !titleNorm.includes(albumNorm);
 
     if (isDistinctAlbum) {
       const matchesAlbum = albumWords.every((w) => tNorm.includes(w));
       if (matchesAlbum) {
-        score += 250; // Big bonus for matching exact album/movie franchise
+        score += 250;
       } else {
-        score -= 350; // Penalty: candidate video belongs to a different movie
+        score -= 400; // Wrong movie
       }
     } else {
-      // Album is same or similar to song title (e.g. original 2005 movie "Aashiq Banaya Aapne")
-      // Check if candidate video belongs to a remake franchise
       if (/\bhate\s*story\b/.test(tNorm)) {
-        score -= 400; // Original song must NOT pick the remake video
+        score -= 500;
       }
     }
   }
 
-  // 8. PART 1 vs PART 2 / SEQUEL DISAMBIGUATION (e.g. Awarapan 1 vs Awarapan 2)
+  // 8. PART / SEQUEL DISAMBIGUATION (e.g. Awarapan 1 vs Awarapan 2)
   const trackPart = detectPart(album) || detectPart(cleanTitle);
   const videoPart = detectPart(t);
-
   if (trackPart !== null) {
     if (videoPart !== null) {
       if (trackPart === videoPart) {
-        score += 200; // Exact part match
+        score += 250;
       } else {
-        score -= 450; // Conflicting sequel / part
+        return -99999; // Conflicting sequel!
       }
     } else if (trackPart > 1) {
-      score -= 250;
+      score -= 300;
     }
   } else {
-    // Track has no sequel number (original / part 1). If video claims to be Part 2 or Sequel, penalize!
     if (videoPart && videoPart > 1) {
-      score -= 400;
+      return -99999; // Playing part 1, video is part 2!
     }
   }
 
-  // 9. Duration proximity
-  if (targetDuration > 0 && v.duration?.seconds > 0) {
-    const diff = Math.abs(v.duration.seconds - targetDuration);
-    if (diff < 45) score += 60;
+  // 9. DURATION ACCURACY
+  if (targetDuration > 0 && dur > 0) {
+    const diff = Math.abs(dur - targetDuration);
+    if (diff <= 35) score += 100;
+    else if (diff <= 75) score += 50;
     else if (diff > 180) score -= 300;
   }
 
@@ -2013,18 +2055,26 @@ function scoreMusicVideoCandidate(v, cleanTitle, cleanArtist, album = '', target
 /**
  * Resolves official Music Video for the artwork visualizer & MV player
  * Disambiguates between duplicate titles across albums, movies, sequels and parts.
+ * Never accepts negative-scoring candidates, reactions, or jukeboxes.
  */
 export async function resolveMusicVideo(title, artist, songVideoId, opts = {}) {
   const album = String(opts.album || '').trim();
   const duration = parseFloat(opts.duration || '0') > 0 ? parseFloat(opts.duration || '0') : 0;
 
-  const cleanTitle = (title || '')
+  let cleanTitle = (title || '')
     .replace(/\(.*?\)/g, '')
     .replace(/\[.*?\]/g, '')
     .replace(/official\s+(?:music\s+)?video/gi, '')
     .replace(/full\s+(?:audio|video)\s+song/gi, '')
     .replace(/lyrics?/gi, '')
     .trim();
+
+  if (cleanTitle.includes('|')) {
+    cleanTitle = cleanTitle.split('|')[0].trim();
+  }
+  if (/\s+[-–—]\s+(?:audio|video|from|ost|soundtrack|full song)/i.test(cleanTitle)) {
+    cleanTitle = cleanTitle.split(/\s+[-–—]\s+/)[0].trim();
+  }
 
   const cleanArtist = (artist || '')
     .replace(/\(.*?\)/g, '')
@@ -2041,23 +2091,29 @@ export async function resolveMusicVideo(title, artist, songVideoId, opts = {}) {
   try {
     const yt = await getYT();
 
-    // Context-aware search query: if album is distinct from title, include album in query
-    let query = `${cleanTitle} ${cleanArtist} official video`.trim();
+    // Queries to test sequentially until a high-confidence MV (score >= 350) is found
+    const queries = [];
     if (album && !cleanTitle.toLowerCase().includes(album.toLowerCase())) {
-      query = `${cleanTitle} ${album} official video`.trim();
+      queries.push(`${cleanTitle} ${album} official video`.trim());
     }
+    queries.push(`${cleanTitle} ${cleanArtist} official video`.trim());
+    queries.push(`"${cleanTitle}" official music video`.trim());
+    queries.push(`${cleanTitle} official video song`.trim());
 
-    const search = await yt.search(query, { type: 'video' });
-    const videos = search.videos || [];
-    
-    if (videos.length > 0) {
-      const scored = videos.map((v) => ({
-        video: v,
-        score: scoreMusicVideoCandidate(v, cleanTitle, cleanArtist, album, duration),
-      })).sort((a, b) => b.score - a.score);
+    for (const query of queries) {
+      const search = await yt.search(query, { type: 'video' }).catch(() => null);
+      const videos = search?.videos || [];
+      if (!videos.length) continue;
+
+      const scored = videos
+        .map((v) => ({
+          video: v,
+          score: scoreMusicVideoCandidate(v, cleanTitle, cleanArtist, album, duration),
+        }))
+        .filter((c) => c.score >= 350) // Strict minimum score threshold (filters out all reactions/jukeboxes)
+        .sort((a, b) => b.score - a.score);
 
       const top = scored[0];
-      // Pick best candidate if valid
       if (top && top.video?.id) {
         const v = top.video;
         const result = {
@@ -2074,7 +2130,9 @@ export async function resolveMusicVideo(title, artist, songVideoId, opts = {}) {
     console.warn('[yt] resolveMusicVideo failed:', err?.message || err);
   }
 
+  // If no high-confidence official music video was found across queries, do NOT return random junk!
   if (songVideoId) {
+    // Only use songVideoId fallback if it was already known to be a video
     const fallback = {
       videoId: songVideoId,
       title: `${title} - Video`,
@@ -2084,6 +2142,7 @@ export async function resolveMusicVideo(title, artist, songVideoId, opts = {}) {
     return fallback;
   }
 
+  mvResolveCache.set(queryKey, null);
   return null;
 }
 

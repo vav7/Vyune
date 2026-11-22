@@ -40,14 +40,21 @@ async function deezer(name) {
 }
 
 async function saavnArtist(name) {
-  const base = (process.env.SAAVN_WRAPPER_URL || 'https://jio.shnwaz.dev').replace(/\/+$/, '');
-  if (process.env.SAAVN_WRAPPER === 'off') return [];
-  const j = await json(`${base}/api/search/artists?query=${encodeURIComponent(name)}&limit=5`);
-  const rows = j?.data?.results || j?.results || [];
+  const params = new URLSearchParams({
+    __call: 'search.getArtistResults',
+    _format: 'json',
+    _marker: '0',
+    api_version: '4',
+    ctx: 'web6dot0',
+    p: '1',
+    n: '5',
+    q: name,
+  });
+  const j = await json(`https://www.jiosaavn.com/api.php?${params}`);
+  const rows = j?.results || [];
   const hit = rows.find((a) => norm(a.name) === norm(name));
-  const images = Array.isArray(hit?.image) ? hit.image : [];
-  const best = images.length ? images[images.length - 1]?.url : null;
-  return best ? [best.replace(/-(50x50|150x150)(\.\w+)?$/, '-500x500.jpg')] : [];
+  const img = hit?.image;
+  return img ? [img.replace(/-(50x50|150x150)(\.\w+)?$/, '-500x500.jpg')] : [];
 }
 
 /** @returns {Promise<string[]>} distinct HD portraits (may be empty) */
