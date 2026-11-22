@@ -9,7 +9,7 @@
 
 import { parsePayload } from '../parse/envelope.js';
 import { parseLrc } from '../parse/lrc.js';
-import { simWords, normWords } from '../text.js';
+import { simWords, normWords, cleanTitle, cleanArtist } from '../text.js';
 import { isThisSong } from '../verify.js';
 
 const HOSTS = ['https://api.betterlyrics.org', 'https://lyrics-api.boidu.dev'];
@@ -23,9 +23,16 @@ function query({ title, artist, album, duration }) {
 
 async function ask(route, hosts, ctx, io) {
   if (!ctx.title || !ctx.artist) return null;
-  for (const host of hosts) {
-    const body = await io.text(`${host}${route}?${query(ctx)}`, { timeout: 3500 });
-    if (body) return body;
+  const queries = [
+    { title: cleanTitle(ctx.title), artist: cleanArtist(ctx.artist), album: ctx.album, duration: ctx.duration },
+    { title: ctx.title, artist: ctx.artist, album: ctx.album, duration: ctx.duration },
+  ];
+  for (const q of queries) {
+    if (!q.title || !q.artist) continue;
+    for (const host of hosts) {
+      const body = await io.text(`${host}${route}?${query(q)}`, { timeout: 3500 }).catch(() => null);
+      if (body) return body;
+    }
   }
   return null;
 }

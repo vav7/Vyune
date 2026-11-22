@@ -7,7 +7,118 @@
  *   3. Indic marks stay attached to their letters, so no matra floats away from its akshara.
  */
 
-import { hasLineSync, hasWordSync, rowText } from './model.js';
+import { hasLineSync, hasWordSync, rowText, syl } from './model.js';
+
+/* ---------------------------- phonetic syllable flow alignment ---------------------------- */
+
+const LATIN_VOWEL = /[aeiouy]/gi;
+const INDIC_VOWEL_OR_MATRA = /[\u0904-\u0914\u093e-\u094c\u0960-\u0963]/g;
+const CJK_CHAR = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/g;
+
+function getWordWeight(word) {
+  const clean = word.trim();
+  if (!clean) return 0.5;
+
+  const cjkCount = (clean.match(CJK_CHAR) || []).length;
+  if (cjkCount > 0) return cjkCount * 1.0;
+
+  const indicVowels = (clean.match(INDIC_VOWEL_OR_MATRA) || []).length;
+  if (indicVowels > 0) {
+    return Math.max(0.8, indicVowels * 0.9 + (clean.length - indicVowels) * 0.2);
+  }
+
+  const vowelGroups = clean.match(/[aeiouy]+/gi) || [];
+  let weight = 0;
+  for (const vg of vowelGroups) {
+    weight += vg.length > 1 ? 1.3 : 1.0;
+  }
+  if (/[,…—~]$/.test(clean)) weight += 0.4;
+
+  return Math.max(0.7, weight + (clean.length - (clean.match(LATIN_VOWEL) || []).length) * 0.15);
+}
+
+export function alignLineWords(line, nextLineStart = null) {
+  // If line already has multiple timed words, keep native timings intact
+  if (line.isWordSynced && Array.isArray(line.text) && line.text.length > 1) {
+    return line;
+  }
+
+  const lineText = (line.text?.[0]?.text || '').trim();
+  if (!lineText || line.section) return line;
+
+  const tStart = line.timestamp || 0;
+  let tEnd = line.endtime || 0;
+
+  if (tEnd <= tStart) {
+    if (nextLineStart && nextLineStart > tStart) {
+      tEnd = Math.min(nextLineStart - 150, tStart + 6000);
+    } else {
+      tEnd = tStart + Math.max(1800, lineText.length * 90);
+    }
+  }
+
+  const duration = Math.max(500, tEnd - tStart);
+  const rawWords = lineText.match(/\S+\s*/g) || [lineText];
+  if (rawWords.length <= 1) {
+    return {
+      ...line,
+      timestamp: tStart,
+      endtime: tEnd,
+      isWordSynced: true,
+      text: [syl(lineText, tStart, tEnd, { part: false })],
+    };
+  }
+
+  const weights = rawWords.map(getWordWeight);
+  const totalWeight = weights.reduce((a, b) => a + b, 0) || 1;
+
+  const leadIn = Math.min(60, Math.round(duration * 0.03));
+  const release = Math.min(180, Math.round(duration * 0.06));
+  const singingSpan = duration - leadIn - release;
+
+  let at = tStart + leadIn;
+  const wordParts = [];
+
+  for (let i = 0; i < rawWords.length; i++) {
+    const wText = rawWords[i];
+    const wDuration = Math.round((singingSpan * weights[i]) / totalWeight);
+    const wStart = at;
+    const wEnd = i === rawWords.length - 1 ? tEnd - Math.round(release * 0.5) : wStart + wDuration;
+    at = wEnd;
+
+    wordParts.push(syl(wText, wStart, wEnd, { part: false }));
+  }
+
+  return {
+    ...line,
+    timestamp: tStart,
+    endtime: tEnd,
+    isWordSynced: true,
+    text: wordParts,
+  };
+}
+
+export function alignSheetWords(sheet) {
+  if (!sheet?.lines?.length) return sheet;
+  // If sheet already has native word sync throughout, don't touch
+  if (hasWordSync(sheet)) return sheet;
+
+  const lines = sheet.lines;
+  const alignedLines = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const nextLine = lines[i + 1];
+    const nextStart = nextLine && nextLine.timestamp > line.timestamp ? nextLine.timestamp : null;
+    alignedLines.push(alignLineWords(line, nextStart));
+  }
+
+  return {
+    ...sheet,
+    lines: alignedLines,
+    isWordSynced: true,
+  };
+}
 
 /* ---------------------------- long rows ---------------------------- */
 
@@ -167,13 +278,16 @@ export function respaced(syllables, plainText) {
 
 /** The sheet as the client receives it. */
 export function present(sheet) {
-  const lines = sheet.lines.flatMap(splitRow).map(bracketAdlibs).map(wholeGraphemes);
+  // If the sheet has timed lines but lacks native word sync, synthesize syllable flow alignment
+  // so the user gets fluid word-by-word synced lyrics rather than flat static lines.
+  const aligned = alignSheetWords(sheet);
+  const lines = aligned.lines.flatMap(splitRow).map(bracketAdlibs).map(wholeGraphemes);
   return {
     source: sheet.source,
     estimated: !!sheet.estimated,
     lines,
-    isWordSynced: hasWordSync(sheet),
-    isSynced: hasWordSync(sheet) || hasLineSync(sheet),
+    isWordSynced: hasWordSync({ lines }),
+    isSynced: hasWordSync({ lines }) || hasLineSync({ lines }),
     songwriters: sheet.songwriters || null,
     isrc: sheet.isrc || null,
     meta: sheet.meta || null,

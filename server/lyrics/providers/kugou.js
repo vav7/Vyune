@@ -48,17 +48,25 @@ async function byRecording(ctx, io) {
 }
 
 async function byName(ctx, io) {
-  const keyword = ctx.artist ? `${ctx.artist} - ${ctx.title}` : ctx.title;
+  const cleanT = cleanTitle(ctx.title);
   const ms = ctx.duration ? Math.round(ctx.duration * 1000) : '';
-  const data = await io.json(
-    `https://krcs.kugou.com/search?ver=1&man=yes&client=mobi&keyword=${encodeURIComponent(keyword)}&duration=${ms}&hash=`,
-    { timeout: 5000 },
-  );
-  const candidates = (data?.candidates || []).filter((c) => c?.id && c?.accesskey).slice(0, 6);
-  return (
-    candidates.find((c) => isThisSong({ title: c.song || '', artist: c.singer || '', durationSec: c.duration ? c.duration / 1000 : null }, ctx)) ||
-    null
-  );
+  const queries = [
+    ctx.artist ? `${ctx.artist} - ${ctx.title}` : null,
+    cleanT,
+  ].filter(Boolean);
+
+  for (const keyword of queries) {
+    const data = await io.json(
+      `https://krcs.kugou.com/search?ver=1&man=yes&client=mobi&keyword=${encodeURIComponent(keyword)}&duration=${ms}&hash=`,
+      { timeout: 5000 },
+    );
+    const candidates = (data?.candidates || []).filter((c) => c?.id && c?.accesskey).slice(0, 6);
+    const hit = candidates.find((c) =>
+      isThisSong({ title: c.song || '', artist: c.singer || '', durationSec: c.duration ? c.duration / 1000 : null }, ctx)
+    );
+    if (hit) return hit;
+  }
+  return null;
 }
 
 async function download(candidate, fmt, io) {
