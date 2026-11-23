@@ -16,6 +16,7 @@ import { api as apiClient } from '@/lib/api';
 
 import { createStore, unwrap } from 'solid-js/store';
 import { prewarmArtworkColor } from '@/lib/artworkColor';
+import { isVideoThumbnail } from '@/lib/artwork';
 import { persistSlice, readLS, writeLS } from './persist';
 import { api } from '../lib/api';
 import type { StreamResult, Track } from '../lib/types';
@@ -119,6 +120,8 @@ export interface PlayerState {
 }
 
 let shuffleOrder: number[] = [];
+let pendingAutoplay = false;
+let activeLoadSession = 0;
 const prefetched = new Map<string, StreamResult>();
 const prefetchedAt = new Map<string, number>();
 const streamRequests = new Map<string, Promise<StreamResult>>();
@@ -171,13 +174,19 @@ const [playerStore, setPlayerStore] = createStore<PlayerState>({
   playQueue(tracks, startIndex = 0, opts) {
     const q = tracks.filter(Boolean);
     shuffleOrder = makeShuffleOrder(q.length);
+    const targetIndex = Math.max(0, Math.min(startIndex, q.length - 1));
+    const nextTrack = q[targetIndex];
     setPlayerStore({
       queue: q,
+      index: targetIndex,
+      current: nextTrack || null,
+      loading: true,
+      playing: true,
       autoStart: null,
       ...(opts?.context ? { sourceContext: opts.context } : {}),
     });
     if (opts?.shuffle && !snap().shuffle) setPlayerStore({ shuffle: true });
-    void loadTrack(Math.min(startIndex, q.length - 1));
+    void loadTrack(targetIndex);
   },
   prefetch(track) {
     queuePrefetch(track);
@@ -234,9 +243,10 @@ const [playerStore, setPlayerStore] = createStore<PlayerState>({
     setPlayerStore({ queue: q, index: idx });
   },
   clearQueue() {
+    pendingAutoplay = false;
     audio.pause();
     audio.removeAttribute('src');
-    setPlayerStore({ queue: [], index: -1, current: null, playing: false });
+    setPlayerStore({ queue: [], index: -1, current: null, playing: false, loading: false });
     document.title = 'VYUNE • Feel Every Frequency';
   },
   jump(i) {
@@ -290,8 +300,18 @@ const [playerStore, setPlayerStore] = createStore<PlayerState>({
       void loadTrack(snap().index >= 0 ? snap().index : 0); // restored session
       return;
     }
-    if (audio.paused) audio.play().catch(() => {});
-    else audio.pause();
+    if (audio.paused) {
+      pendingAutoplay = true;
+      setPlayerStore({ playing: true });
+      audio.play().catch(() => {
+        pendingAutoplay = false;
+        setPlayerStore({ playing: false });
+      });
+    } else {
+      pendingAutoplay = false;
+      audio.pause();
+      setPlayerStore({ playing: false, loading: false });
+    }
   },
   seek(sec) {
     audio.currentTime = Math.max(0, sec);
@@ -428,7 +448,7 @@ function clearStallTimer() {
   stallTimer = null;
 }
 
-async function recoverWithYtDlp(track: Track, shouldResume: boolean) {
+async function recoverStream(track: Track, shouldResume: boolean) {
   if (recoveringStream || recoveredTrackId === track.id || snap().current !== track) return;
   recoveringStream = true;
   recoveredTrackId = track.id;
@@ -436,19 +456,21 @@ async function recoverWithYtDlp(track: Track, shouldResume: boolean) {
   const resumeAt = audio.currentTime || 0;
   setPlayerStore({ loading: true });
   try {
-    const fallback = await resolveStream(track, true, 'yt-dlp');
+    const fallback = await resolveStream(track, true);
     if (snap().current !== track) return;
-    audio.pause();
-    audio.src = fallback.source === 'saavn' && fallback.url ? fallback.url : (fallback.proxy || fallback.url);
-    audio.load();
-    const restorePosition = () => {
-      audio.removeEventListener('loadedmetadata', restorePosition);
-      if (resumeAt > 0.5 && Number.isFinite(audio.duration)) {
-        audio.currentTime = Math.min(resumeAt, Math.max(0, audio.duration - 0.25));
-      }
-    };
-    audio.addEventListener('loadedmetadata', restorePosition);
-    if (shouldResume) await audio.play();
+    const fallbackSrc = fallback.source === 'saavn' ? (fallback.url || fallback.proxy) : (fallback.proxy || fallback.url);
+    if (fallbackSrc) {
+      audio.src = fallbackSrc;
+      applyVolume();
+      const restorePosition = () => {
+        audio.removeEventListener('loadedmetadata', restorePosition);
+        if (resumeAt > 0.5 && Number.isFinite(audio.duration)) {
+          audio.currentTime = Math.min(resumeAt, Math.max(0, audio.duration - 0.25));
+        }
+      };
+      audio.addEventListener('loadedmetadata', restorePosition);
+      if (shouldResume) await audio.play();
+    }
   } catch {
     if (snap().current === track) {
       if (track.source !== 'saavn' && /^[\w-]{11}$/.test(track.id)) {
@@ -474,12 +496,11 @@ function scheduleStreamRecovery(delay: number) {
   clearStallTimer();
   stallTimer = setTimeout(() => {
     const track = snap().current;
-    if (track) void recoverWithYtDlp(track, true);
+    if (track) void recoverStream(track, true);
   }, delay);
 }
 
 function queuePrefetch(track: Track, priority = false) {
-  prewarmArtworkColor(track?.thumb);
   // Apple's motion clip for upcoming songs is looked up ahead, so it is ready when they start.
   if (track?.title && track.artists?.[0] && TIERS[currentTier()].motion) {
     void queryClient
@@ -528,25 +549,21 @@ async function loadTrack(index: number, autoplay = true) {
   const { queue } = snap();
   if (index < 0 || index >= queue.length) return;
   const track = queue[index];
+  const session = ++activeLoadSession;
 
-  // 1. Immediately kill old song playback so it never lingers
+  // 1. Immediately pause old playback and abort old media buffering
+  pendingAutoplay = autoplay;
   audio.pause();
   audio.removeAttribute('src');
   audio.load();
-
   clearStallTimer();
   recoveredTrackId = null;
   releaseIframeFallback();
 
-  setPlayerStore({ index, current: track, loading: true, playing: false });
+  setPlayerStore({ index, current: track, loading: true, playing: autoplay });
   prewarmArtworkColor(track.thumb);
   updateNowPlaying(track);
   schedulePrefetch();
-
-  // 2. Unlock browser audio element in user gesture context
-  if (autoplay) {
-    audio.play().catch(() => {});
-  }
 
   // If the track came from search/top-songs without an albumId, resolve it in the background
   if (!track.albumId && track.source === 'yt') {
@@ -556,7 +573,7 @@ async function loadTrack(index: number, autoplay = true) {
         if (!data?.albumId) return;
         track.albumId = data.albumId;
         if (data.album && !track.album) track.album = data.album;
-        if (snap().current?.id === track.id) {
+        if (session === activeLoadSession && snap().current?.id === track.id) {
           setPlayerStore({
             current: {
               ...snap().current!,
@@ -568,76 +585,121 @@ async function loadTrack(index: number, autoplay = true) {
       })
       .catch(() => {});
   }
+
+  // If the track is from a video playlist or carries a video still thumbnail, resolve authentic studio album poster
+  if (track && (isVideoThumbnail(track.thumb) || track.isUpload || !track.thumb)) {
+    void api.artwork(track).then((res) => {
+      if (res?.thumb && res.thumb !== track.thumb) {
+        track.thumb = res.thumb;
+        if (session === activeLoadSession && snap().current?.id === track.id) {
+          setPlayerStore({
+            current: {
+              ...snap().current!,
+              thumb: res.thumb,
+            },
+          });
+          prewarmArtworkColor(res.thumb);
+          updateNowPlaying(snap().current!);
+        }
+      }
+    }).catch(() => {});
+  }
+
   let streamResolved = false;
   try {
     const stream = await resolveStream(track);
-    if (snap().current !== track) return; // skipped while resolving
-    // Direct ultra-fast edge playback for JioSaavn; robust range-proxy for YouTube
-    audio.src = stream.source === 'saavn' && stream.url ? stream.url : (stream.proxy || stream.url);
+    if (session !== activeLoadSession || snap().current?.id !== track.id) return; // skipped while resolving
+
+    const chosenSrc = stream.source === 'saavn' ? (stream.url || stream.proxy) : (stream.proxy || stream.url);
+    if (!chosenSrc) throw new Error('no_stream_url');
+
+    audio.src = chosenSrc;
+    applyVolume();
     audio.load();
     streamResolved = true;
+
     if (autoplay) {
-      const p = audio.play();
-      if (p) {
-        await p.catch((err) => {
-          console.warn('[player] autoplay warning:', err?.message || err);
-        });
-      }
+      setPlayerStore({ loading: true, playing: true });
+      audio.play().catch((playErr) => {
+        if (session !== activeLoadSession) return;
+        if (playErr?.name === 'AbortError') return;
+        if (playErr?.name === 'NotAllowedError') {
+          pendingAutoplay = false;
+          setPlayerStore({ loading: false, playing: false });
+          snap().showToast('Playback was blocked by browser. Press Play to start.', 4000);
+          return;
+        }
+        if (stream.proxy && audio.src !== stream.proxy) {
+          audio.src = stream.proxy;
+          applyVolume();
+          audio.load();
+          audio.play().catch(() => {
+            if (session !== activeLoadSession) return;
+            pendingAutoplay = false;
+            setPlayerStore({ loading: false, playing: !audio.paused });
+          });
+        } else {
+          pendingAutoplay = false;
+          setPlayerStore({ loading: false, playing: !audio.paused });
+        }
+      });
+    } else {
+      pendingAutoplay = false;
+      setPlayerStore({ loading: false });
     }
-    setPlayerStore({ loading: false, playing: true });
-    fadeIn();
     schedulePrefetch();
   } catch (error) {
-    if (snap().current !== track) return;
-    // A resolved InnerTube URL can still be rejected by the browser or its
-    // CDN. Retry through the bundled yt-dlp path before giving up on this
-    // song; a user-gesture/autoplay refusal remains a normal Play retry.
-    if (!(error instanceof Error && error.name === 'NotAllowedError')) {
-      try {
-        recoveredTrackId = track.id;
-        const fallback = await resolveStream(track, true, 'yt-dlp');
-        if (snap().current !== track) return;
-        audio.src = fallback.source === 'saavn' && fallback.url ? fallback.url : (fallback.proxy || fallback.url);
-        audio.load();
-        await audio.play();
-        setPlayerStore({ loading: false, playing: true });
-        fadeIn();
+    if (session !== activeLoadSession || snap().current?.id !== track.id) return;
+
+    // Retry refreshing the stream once
+    try {
+      recoveredTrackId = track.id;
+      const fallback = await resolveStream(track, true);
+      if (session !== activeLoadSession || snap().current?.id !== track.id) return;
+      const fallbackSrc = fallback.source === 'saavn' ? (fallback.url || fallback.proxy) : (fallback.proxy || fallback.url);
+      if (fallbackSrc) {
+        audio.src = fallbackSrc;
+        applyVolume();
+        if (autoplay) {
+          await audio.play();
+        }
+        setPlayerStore({ loading: false, playing: autoplay });
         schedulePrefetch();
         return;
-      } catch {
-        // Last resort: YouTube's own player, hidden, for its audio only.
-        if (track.source !== 'saavn' && /^[\w-]{11}$/.test(track.id)) {
-          try {
-            await engageIframeFallback(audio, track.id, snap().muted ? 0 : snap().volume);
-            if (snap().current !== track) {
-              releaseIframeFallback();
-              return;
-            }
-            await audio.play();
-            setPlayerStore({ loading: false, playing: true });
-            return;
-          } catch {
+      }
+    } catch {
+      // Last resort for YouTube: iframe audio fallback
+      if (track.source !== 'saavn' && /^[\w-]{11}$/.test(track.id)) {
+        try {
+          await engageIframeFallback(audio, track.id, snap().muted ? 0 : snap().volume);
+          if (session !== activeLoadSession || snap().current?.id !== track.id) {
             releaseIframeFallback();
+            return;
           }
+          if (autoplay) await audio.play();
+          setPlayerStore({ loading: false, playing: autoplay });
+          return;
+        } catch {
+          releaseIframeFallback();
         }
-        // Keep the selected track and show the usual retry message below.
       }
     }
-    // A single failed stream or a browser autoplay refusal must never move
-    // an album queue forward. Leave this song selected and let Play retry it.
+
     audio.pause();
+    pendingAutoplay = false;
     if (!streamResolved) {
       audio.removeAttribute('src');
-      audio.load();
     }
-    setPlayerStore({ playing: false });
+    setPlayerStore({ playing: false, loading: false });
     const detail =
       error instanceof Error && error.name === 'NotAllowedError'
         ? 'Playback was blocked by the browser. Press Play to start this song.'
         : `Couldn’t play “${track.title}”. Press Play to retry.`;
     snap().showToast(detail, 5000);
   } finally {
-    if (snap().current === track) setPlayerStore({ loading: false });
+    if (session === activeLoadSession && snap().current?.id === track.id && !pendingAutoplay) {
+      setPlayerStore({ loading: false });
+    }
   }
 }
 
@@ -691,8 +753,17 @@ function schedulePrefetch() {
 /* --------- audio element events --------- */
 
 audio.addEventListener('play', () => setPlayerStore({ playing: true }));
-audio.addEventListener('pause', () => setPlayerStore({ playing: false }));
-audio.addEventListener('playing', clearStallTimer);
+audio.addEventListener('playing', () => {
+  pendingAutoplay = false;
+  clearStallTimer();
+  setPlayerStore({ playing: true, loading: false });
+});
+audio.addEventListener('pause', () => {
+  if (!pendingAutoplay && !snap().loading) setPlayerStore({ playing: false });
+});
+audio.addEventListener('canplay', () => {
+  if ((snap().playing || pendingAutoplay) && audio.paused) audio.play().catch(() => {});
+});
 audio.addEventListener('timeupdate', clearStallTimer);
 audio.addEventListener('waiting', () => scheduleStreamRecovery(4500));
 audio.addEventListener('stalled', () => scheduleStreamRecovery(6500));
@@ -726,7 +797,7 @@ audio.addEventListener('loadedmetadata', () => {
 audio.addEventListener('error', () => {
   const track = snap().current;
   if (!track || snap().loading || !audio.error) return;
-  void recoverWithYtDlp(track, snap().playing || !audio.paused);
+  void recoverStream(track, snap().playing || !audio.paused);
 });
 
 if ('mediaSession' in navigator) {
@@ -774,49 +845,12 @@ persistSlice(
   (value) => writeLS('mc-player', value),
 );
 
-/* ---------- smooth fade transitions + sleep timer daemon ---------- */
+/* ---------- volume control + sleep timer daemon ---------- */
 
-let fadeInterval: ReturnType<typeof setInterval> | null = null;
-function fadeIn() {
+function applyVolume() {
   const target = snap().muted ? 0 : snap().volume;
-  audio.volume = 0;
-  if (fadeInterval) clearInterval(fadeInterval);
-  const t0 = Date.now();
-  fadeInterval = setInterval(() => {
-    const p = Math.min(1, (Date.now() - t0) / 600);
-    audio.volume = target * p;
-    if (p >= 1 && fadeInterval) {
-      clearInterval(fadeInterval);
-      fadeInterval = null;
-    }
-  }, 40);
+  audio.volume = target;
 }
-function fadeOutThen(cb: () => void) {
-  const from = audio.volume;
-  const t0 = Date.now();
-  if (fadeInterval) clearInterval(fadeInterval);
-  fadeInterval = setInterval(() => {
-    const p = Math.min(1, (Date.now() - t0) / 900);
-    audio.volume = from * (1 - p);
-    if (p >= 1) {
-      if (fadeInterval) {
-        clearInterval(fadeInterval);
-        fadeInterval = null;
-      }
-      cb();
-    }
-  }, 40);
-}
-
-// when the track is about to end, fade out and hand over smoothly
-setInterval(() => {
-  const st = snap();
-  if (!audio.duration || audio.paused || !st.current) return;
-  const remaining = audio.duration - audio.currentTime;
-  if (remaining > 0 && remaining < 1.1 && st.repeat !== 2 && !fadeInterval) {
-    fadeOutThen(() => {}); // ended event performs the switch; fadeIn restores volume
-  }
-}, 500);
 
 // sleep timer
 setInterval(() => {
@@ -848,6 +882,9 @@ setInterval(() => {
 const sized = (url: string, px: number) => {
   if (!url) return '';
   const u = String(url);
+  if (/mzstatic\.com/.test(u)) {
+    return u.replace(/\d+x\d+bb\./, `${px}x${px}bb.`);
+  }
   if (/googleusercontent\.com|ggpht\.com/.test(u)) {
     const base = u.split(/[=?]/)[0];
     return `${base}=w${px}-h${px}-l90-rj`;
@@ -860,12 +897,20 @@ const sized = (url: string, px: number) => {
     return u.replace(/\.jpg$/, `-${saavnSize}x${saavnSize}.jpg`);
   }
   if (/ytimg\.com/i.test(u) && px >= 300) {
-    return u.replace(/(?:hqdefault|mqdefault|default|sddefault)\.(jpg|webp)/i, 'maxresdefault.$1');
+    // Prefer hq720 if requested for large poster, but keep original available as immediate fallback
+    return u.replace(/(?:mqdefault|default|sddefault)\.(jpg|webp)/i, 'hqdefault.$1');
   }
   return u;
 };
 
-const hiRes = (url: string) => sized(url, 1200);
+const hiRes = (url: string) => {
+  if (!url) return '';
+  const u = String(url);
+  if (/ytimg\.com/i.test(u)) {
+    return u.replace(/(?:hqdefault|mqdefault|default|sddefault)\.(jpg|webp)/i, 'hq720.$1');
+  }
+  return sized(u, 1200);
+};
 
 /** Use catalogue/album artwork preferred; falls back to available thumbnail. */
 export function thumbCandidates(t: Pick<Track, 'thumb' | 'source' | 'id' | 'title'>): string[] {
@@ -873,9 +918,16 @@ export function thumbCandidates(t: Pick<Track, 'thumb' | 'source' | 'id' | 'titl
   return [sized(t.thumb, 544)];
 }
 
-/** Fullscreen poster: highest-resolution catalogue artwork preferred; falls back to available thumbnail. */
+/** Fullscreen poster: highest-resolution catalogue artwork preferred; falls back to available thumbnail instantly. */
 export function posterCandidates(t: Pick<Track, 'thumb' | 'source' | 'id' | 'title'>): string[] {
   if (!t.thumb) return [];
+  const u = String(t.thumb);
+  if (/ytimg\.com/i.test(u)) {
+    // Return base thumbnail first so player opens instantly on frame 0, with HD hq720 as parallel enhancement
+    const base = u.replace(/(?:mqdefault|default|sddefault)\.(jpg|webp)/i, 'hqdefault.$1');
+    const hd = u.replace(/(?:hqdefault|mqdefault|default|sddefault)\.(jpg|webp)/i, 'hq720.$1');
+    return [base, hd];
+  }
   const high = hiRes(t.thumb);
   return high !== t.thumb ? [high, t.thumb] : [t.thumb];
 }

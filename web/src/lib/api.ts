@@ -155,6 +155,12 @@ export const api = {
       return { videoId: track.id, title: track.title, thumbnail: track.thumb || '' };
     }
   },
+  /** Video stream metadata */
+  videoStream: (videoId: string, signal?: AbortSignal) =>
+    getJSON<{ videoId: string; url: string; proxy: string; mime: string; width: number; height: number; quality: string }>(
+      `/api/video/stream?id=${encodeURIComponent(videoId)}`,
+      signal
+    ),
 };
 
 /** High-definition native video stream URL for HTML5 <video> */

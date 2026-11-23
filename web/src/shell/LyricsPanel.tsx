@@ -43,7 +43,8 @@ function LoadingDots(props: { small?: boolean }) {
  * so a missing bundled family does not split lyrics into inconsistent faces.
  */
 const LYRIC_FONT =
-  "'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'SF Pro Display', 'SF Pro Text', 'SF Pro', 'Helvetica Neue', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Gurmukhi', " +
+  "'MC SF Pro Display', 'SF Pro Rounded', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Inter Variable', 'Inter', 'Helvetica Neue', " +
+  "'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Gurmukhi', " +
   "'Noto Sans Gujarati', 'Noto Sans Oriya', 'Noto Sans Tamil', 'Noto Sans Telugu', " +
   "'Noto Sans Kannada', 'Noto Sans Malayalam', 'Nirmala UI', 'Mangal', 'Kohinoor Devanagari', " +
   "'Devanagari Sangam MN', 'Noto Sans Arabic', 'Noto Sans Thai', " +
@@ -184,73 +185,83 @@ function ProviderPicker(props: {
           ))}
           <MenuSeparator />
           <MenuHeader>Timing offset seek bar</MenuHeader>
-          <div class="flex flex-col gap-2.5 px-3 py-2 text-xs text-secondary min-w-[240px]">
+          <div class="flex flex-col gap-3 px-3 py-2.5 text-xs text-secondary min-w-[260px]">
             <div class="flex items-center justify-between">
-              <span class="font-mono text-primary font-bold">
+              <span class="font-mono text-primary font-bold tracking-tight text-[13px]">
                 {lyricsStore.syncOffsetMs > 0 ? `+${lyricsStore.syncOffsetMs}ms` : `${lyricsStore.syncOffsetMs}ms`}
-                {lyricsStore.syncOffsetMs !== 0 && ` (${(lyricsStore.syncOffsetMs / 1000).toFixed(2)}s)`}
+                {lyricsStore.syncOffsetMs !== 0 && (
+                  <span class="text-white/50 text-[11px] font-normal ml-1.5">
+                    ({lyricsStore.syncOffsetMs > 0 ? `+` : ''}{(lyricsStore.syncOffsetMs / 1000).toFixed(2)}s)
+                  </span>
+                )}
               </span>
               <button
                 type="button"
-                class="rounded bg-white/10 px-2 py-0.5 text-xs text-primary hover:bg-white/20 cursor-pointer transition"
+                class="rounded-full bg-white/10 hover:bg-white/20 px-2.5 py-0.5 text-[11px] font-medium text-primary hover:text-white transition active:scale-95 cursor-pointer border border-white/10"
                 onClick={() => lyricsStore.setSyncOffset(0)}
               >
                 Reset
               </button>
             </div>
-            <div class="flex items-center gap-2">
-              <span class="font-mono text-[10px] text-white/40">-5.0s</span>
+            <div class="flex items-center gap-2.5">
+              <span class="font-mono text-[10px] text-white/40">-5s</span>
               <input
                 type="range"
                 min="-5000"
                 max="5000"
-                step="50"
+                step="25"
                 value={lyricsStore.syncOffsetMs}
                 onInput={(e) => lyricsStore.setSyncOffset(parseInt(e.currentTarget.value, 10))}
-                class="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-amber-400 focus:outline-none"
+                class="w-full h-2 bg-white/15 rounded-full appearance-none cursor-pointer accent-white hover:accent-amber-300 focus:outline-none transition-all shadow-inner"
               />
-              <span class="font-mono text-[10px] text-white/40">+5.0s</span>
+              <span class="font-mono text-[10px] text-white/40">+5s</span>
             </div>
-            <div class="grid grid-cols-6 gap-1 pt-0.5 text-[10px] font-mono">
+            <div class="grid grid-cols-6 gap-1 pt-1 text-[10px] font-mono">
               <button
                 type="button"
-                class="rounded bg-white/10 py-1 text-center text-primary hover:bg-white/20 cursor-pointer transition"
+                class="rounded-md bg-white/8 hover:bg-white/16 active:bg-white/25 py-1 text-center text-primary border border-white/10 hover:border-white/20 transition active:scale-95"
                 onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) - 500)}
+                title="Shift lyrics earlier by 500ms"
               >
                 -0.5s
               </button>
               <button
                 type="button"
-                class="rounded bg-white/10 py-1 text-center text-primary hover:bg-white/20 cursor-pointer transition"
+                class="rounded-md bg-white/8 hover:bg-white/16 active:bg-white/25 py-1 text-center text-primary border border-white/10 hover:border-white/20 transition active:scale-95"
                 onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) - 100)}
+                title="Shift lyrics earlier by 100ms"
               >
-                -100ms
+                -100
               </button>
               <button
                 type="button"
-                class="rounded bg-white/10 py-1 text-center text-primary hover:bg-white/20 cursor-pointer transition"
+                class="rounded-md bg-white/8 hover:bg-white/16 active:bg-white/25 py-1 text-center text-primary border border-white/10 hover:border-white/20 transition active:scale-95"
                 onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) - 25)}
+                title="Fine-tune earlier by 25ms"
               >
-                -25ms
+                -25
               </button>
               <button
                 type="button"
-                class="rounded bg-white/10 py-1 text-center text-primary hover:bg-white/20 cursor-pointer transition"
+                class="rounded-md bg-white/8 hover:bg-white/16 active:bg-white/25 py-1 text-center text-primary border border-white/10 hover:border-white/20 transition active:scale-95"
                 onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) + 25)}
+                title="Fine-tune later by 25ms"
               >
-                +25ms
+                +25
               </button>
               <button
                 type="button"
-                class="rounded bg-white/10 py-1 text-center text-primary hover:bg-white/20 cursor-pointer transition"
+                class="rounded-md bg-white/8 hover:bg-white/16 active:bg-white/25 py-1 text-center text-primary border border-white/10 hover:border-white/20 transition active:scale-95"
                 onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) + 100)}
+                title="Shift lyrics later by 100ms"
               >
-                +100ms
+                +100
               </button>
               <button
                 type="button"
-                class="rounded bg-white/10 py-1 text-center text-primary hover:bg-white/20 cursor-pointer transition"
+                class="rounded-md bg-white/8 hover:bg-white/16 active:bg-white/25 py-1 text-center text-primary border border-white/10 hover:border-white/20 transition active:scale-95"
                 onClick={() => lyricsStore.setSyncOffset((lyricsStore.syncOffsetMs || 0) + 500)}
+                title="Shift lyrics later by 500ms"
               >
                 +0.5s
               </button>
@@ -258,7 +269,7 @@ function ProviderPicker(props: {
           </div>
         </Menu>
       )}
-      {!props.full && (
+      <Show when={!props.full}>
         <div class="flex items-center gap-1.5">
           <button
             class="grid size-8 place-items-center rounded-[8px] text-secondary hover:text-primary hover:bg-white/[0.1] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition-all duration-200 active:scale-90 aria-pressed:bg-white/[0.16] aria-pressed:text-primary aria-pressed:shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]"
@@ -279,7 +290,7 @@ function ProviderPicker(props: {
             <Languages size={16} />
           </button>
         </div>
-      )}
+      </Show>
     </div>
   );
 }
@@ -394,6 +405,20 @@ export function useLyricsResult() {
     },
   };
 }
+
+const LOADING_MESSAGES = [
+  'Fetching lyrics from the archive…',
+  'Locating authentic sheet…',
+  'Tuning frequencies…',
+  'Searching global sources…',
+];
+
+const VOCAL_MESSAGES = [
+  'Vocals coming!',
+  'Vocals arriving…',
+  'Let the magic begin!',
+  'Warming it up…',
+];
 
 /** The one-line lyric that sits above the seek bar in the full-screen player. Synced sheets only. */
 export function LyricPreview() {
@@ -513,24 +538,26 @@ export function LyricPreview() {
 
   const text = createMemo(() => parts().map((part) => part.text).join('').replace(/\s+/g, ' ').trim());
 
+  const loadingMsg = createMemo(() => {
+    const id = trackId() || '';
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+    return LOADING_MESSAGES[Math.abs(hash) % LOADING_MESSAGES.length];
+  });
+
+  const vocalMsg = createMemo(() => {
+    const id = trackId() || '';
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) hash = (hash * 37 + id.charCodeAt(i)) | 0;
+    return VOCAL_MESSAGES[Math.abs(hash) % VOCAL_MESSAGES.length];
+  });
+
   let outer: HTMLDivElement | undefined;
   let box: HTMLDivElement | undefined;
 
   // One line, always: the type steps down to fit the width (never below 12px), and what still
   // does not fit fades out at the edge instead of wrapping.
   const BASE = 15;
-  const COOL_ANNOTATIONS = [
-    'Fetching lyrics from the archive…',
-    'Song about to start…',
-    'Vocals coming…',
-    'Warming it up…',
-  ];
-  const annotation = createMemo(() => {
-    const id = trackId() || '';
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-    return COOL_ANNOTATIONS[hash % COOL_ANNOTATIONS.length]!;
-  });
 
   const fit = () => {
     if (!outer || !box) return;
@@ -611,9 +638,15 @@ export function LyricPreview() {
             <span class="fs-oneline-words fs-oneline-words--solid text-[15px] font-bold">Instrumental</span>
           </div>
         </Show>
-        <Show when={state() === 'vocals' || state() === 'loading'}>
+        <Show when={state() === 'vocals'}>
           <div class="inline-flex items-center gap-2 text-white/90 font-bold tracking-tight text-[15px]">
-            <span class="fs-oneline-words fs-oneline-words--solid text-[15px] font-bold">{annotation()}</span>
+            <span class="fs-oneline-words fs-oneline-words--solid text-[15px]">{vocalMsg()}</span>
+          </div>
+        </Show>
+        <Show when={state() === 'loading'}>
+          <div class="inline-flex items-center gap-2 text-white/70 font-semibold tracking-tight text-[14px]">
+            <LoadingDots small />
+            <span class="fs-oneline-words fs-oneline-words--solid text-[14px]">{loadingMsg()}</span>
           </div>
         </Show>
       </div>

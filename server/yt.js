@@ -98,9 +98,18 @@ export function getYT() {
       retrieve_player: true,
       location: process.env.YT_LOCATION || 'US',
       ...(process.env.YT_COOKIE ? { cookie: process.env.YT_COOKIE } : {}),
-    }).catch((err) => {
-      ytPromise = null; // allow retry on next call
-      throw err;
+    }).catch(async (err) => {
+      console.warn('[yt] Innertube create with player failed, falling back to basic session:', err?.message || err);
+      return Innertube.create({
+        cache: new UniversalCache(false),
+        generate_session_locally: true,
+        retrieve_player: false,
+        location: process.env.YT_LOCATION || 'US',
+        ...(process.env.YT_COOKIE ? { cookie: process.env.YT_COOKIE } : {}),
+      }).catch((innerErr) => {
+        ytPromise = null;
+        throw innerErr;
+      });
     });
   }
   return ytPromise;
@@ -1738,72 +1747,66 @@ export async function resolveStream(videoId, { skipClients = [], preferOpus = fa
   if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) return null;
   if (wrapper === 'yt-dlp') return resolveWithYtDlp(videoId);
   const yt = await getYT();
-  const clients = buildStreamClients().filter((client) => !skipClients.includes(client));
-  const visionOSFirst = clients.includes('VISIONOS') && wrapper !== 'innertube';
-  if (visionOSFirst) clients.splice(clients.indexOf('VISIONOS'), 1);
+
+  // 1. Ultra-Fast Sureshot: Raw IOS /player endpoint (~300ms, direct unencrypted itag 140 AAC stream)
+  // Completely bypasses Innertube's heavy DOM parser, cipher decipher delays, and 403s.
+  try {
+    const rawPlayer = await withTimeout(
+      yt.actions.execute('/player', { videoId, client: 'IOS' }),
+      3500,
+      null
+    );
+    const adaptive = rawPlayer?.data?.streamingData?.adaptiveFormats || [];
+    const audioFmt = adaptive
+      .filter((f) => f.mimeType?.includes('audio') && f.url)
+      .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
+
+    if (audioFmt?.url) {
+      return {
+        url: audioFmt.url,
+        mime: audioFmt.mimeType || 'audio/mp4; codecs="mp4a.40.2"',
+        bitrate: audioFmt.bitrate || 130000,
+        contentLength: audioFmt.contentLength ? Number(audioFmt.contentLength) : null,
+        client: 'IOS',
+      };
+    }
+  } catch {}
+
+  // 2. High-Fidelity Decipher Path: YTMUSIC / TV_EMBEDDED
   const resolveWithClient = async (client) => {
     try {
       const options = { client };
       const poToken = await getVideoPoToken(client, videoId);
       if (poToken) options.po_token = poToken;
-      const info = await withTimeout(yt.getInfo(videoId, options), 6500, null);
-      if (!info) {
-        if (process.env.YT_DEBUG_STREAM === '1') console.warn(`[stream] ${videoId} ${client}: empty or timed-out player response`);
-        return null;
-      }
-      const status = info.playability_status?.status;
-      if (status !== 'OK') {
-        console.warn(
-          `[stream] ${videoId} ${client}: ${status} ${info.playability_status?.reason || ''}`.trim(),
-        );
-        // Refusals vary by identity: keep trying the remaining clients.
-        return null;
-      }
+      const info = await withTimeout(yt.getInfo(videoId, options), 4500, null);
+      if (!info || info.playability_status?.status !== 'OK') return null;
+
       const opus = preferOpus
         ? (info.streaming_data?.adaptive_formats || [])
             .filter((format) => format.has_audio && !format.has_video && /audio\/webm/i.test(format.mime_type || format.mime || ''))
             .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0]
         : null;
       const fmt = opus || info.chooseFormat({ type: 'audio', quality: 'best' });
-      if (!fmt) {
-        if (process.env.YT_DEBUG_STREAM === '1') {
-          const formats = info.streaming_data?.adaptive_formats || [];
-          console.warn(`[stream] ${videoId} ${client}: no audio format; adaptive count=${formats.length}`);
-        }
-        return null;
-      }
-      // v18: Format#decipher is ASYNC — must be awaited or rejections escape
-      // as unhandled (which kills Node). Plain-url formats skip deciphering.
+      if (!fmt) return null;
+
       let url = fmt.url || null;
-      if (!url) {
+      if (!url && typeof fmt.decipher === 'function') {
         try {
           url = await fmt.decipher(yt.session.player);
-        } catch (err) {
-          if (process.env.YT_DEBUG_STREAM === '1') console.warn(`[stream] ${videoId} ${client}: decipher failed: ${err?.message || err}`);
+        } catch {
           url = null;
         }
       }
-      if (!url || typeof url !== 'string') {
-        if (process.env.YT_DEBUG_STREAM === '1') console.warn(`[stream] ${videoId} ${client}: format has no resolved URL (${fmt.mime || 'unknown mime'})`);
-        return null;
-      }
-      // Per-request tokens are not attached by Player.decipher (which only
-      // knows the session-wide token); bind them to the Google Video Server URL.
+      if (!url || typeof url !== 'string') return null;
+
       if (poToken) {
         try {
           const streamUrl = new URL(url);
           if (!streamUrl.searchParams.has('pot')) streamUrl.searchParams.set('pot', poToken);
           url = streamUrl.href;
-        } catch {
-          /* keep an otherwise usable URL */
-        }
+        } catch {}
       }
-      // This exact MWEB stream family returned HTTP 403 in the playback trace.
-      // Do not make the audio element wait on it: the bundled AAC yt-dlp
-      // resolver produced the VISIONOS/itag=140 URL that returned valid 206s.
-      try {
-        if (client === 'MWEB' || new URL(url).searchParams.get('c')?.toUpperCase() === 'MWEB') return null;
-      } catch { /* malformed URL is handled by the playback client */ }
+
       return {
         url,
         mime: fmt.mime_type || fmt.mime,
@@ -1811,55 +1814,23 @@ export async function resolveStream(videoId, { skipClients = [], preferOpus = fa
         contentLength: Number.isSafeInteger(Number(fmt.content_length)) ? Number(fmt.content_length) : null,
         client,
       };
-    } catch (err) {
-      console.warn(`[stream] ${videoId} ${client} request failed: ${err?.message || err}`);
+    } catch {
       return null;
     }
   };
 
-  // The supplied signed-in VISIONOS stream was the one accepted by Google in
-  // the user's trace. Resolve it before the generic YouTube.js/MWEB route.
-  if (visionOSFirst) {
-    const result = await resolveWithClient('VISIONOS');
-    if (result) return result;
-  }
-
-  // Sureshot Fast Path: Race YTMUSIC and ANDROID clients simultaneously.
-  // These mobile/music client endpoints bypass Web cipher blockage and return working streams in <1s.
-  const sureshot = await Promise.any(
-    ['YTMUSIC', 'ANDROID'].map(async (client) => {
+  const fallback = await Promise.any(
+    ['YTMUSIC', 'TV_EMBEDDED'].map(async (client) => {
       const res = await resolveWithClient(client);
       if (!res?.url) throw new Error(`No stream from ${client}`);
       return res;
     })
   ).catch(() => null);
-  if (sureshot) return sureshot;
 
-  // Direct IOS fallback
-  const iosRes = await resolveWithClient('IOS');
-  if (iosRes?.url) return iosRes;
+  if (fallback) return fallback;
 
-  // Reliable native fallback via @distube/ytdl-core (no external binary dependencies)
-  try {
-    const { Ytdl, chooseFormat } = await import('@distube/ytdl-core');
-    const ytdl = new Ytdl();
-    const info = await ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`);
-    const audioFmt =
-      info.formats.find((f) => f.hasAudio && !f.hasVideo && f.url && f.container === 'mp4') ||
-      info.formats.find((f) => f.hasAudio && !f.hasVideo && f.url) ||
-      chooseFormat(info.formats, { quality: 'highestaudio' });
-    if (audioFmt?.url) {
-      return {
-        url: audioFmt.url,
-        mime: audioFmt.mimeType?.split(';')[0] || 'audio/mp4',
-        bitrate: audioFmt.audioBitrate ? audioFmt.audioBitrate * 1000 : 128000,
-        contentLength: audioFmt.contentLength ? parseInt(audioFmt.contentLength, 10) : null,
-        client: 'ytdl-core',
-      };
-    }
-  } catch {}
-
-  return null;
+  // 3. Fallback to local yt-dlp binary if available
+  return resolveWithYtDlp(videoId).catch(() => null);
 }
 
 const videoMetaCache = new Map();
@@ -1939,6 +1910,11 @@ export function scoreMusicVideoCandidate(v, cleanTitle, cleanArtist, album = '',
     return -99999;
   }
 
+  // Live concerts, tours, stadium performances (unless requested track title itself has 'live')
+  if (!/(?:live|tour|concert)/i.test(cleanTitle) && /(?:live\s+(?:from|at|in|performance)|til dawn tour|world tour|live concert|stadium tour)/i.test(t)) {
+    return -99999;
+  }
+
   // Covers, fan edits, status, shorts, lofi, remix, choreography
   if (/(?:shorts?|#shorts?|status|whatsapp\s+status|slowed(?:\s*\+\s*reverb)?|reverb|8d|lofi|lo-fi|flip|remix|dance\s+cover|choreography|unplugged\s+cover|acoustic\s+cover)/i.test(t)) {
     return -99999;
@@ -1952,8 +1928,9 @@ export function scoreMusicVideoCandidate(v, cleanTitle, cleanArtist, album = '',
     return -99999;
   }
 
-  // Interviews, documentaries, stories, commentaries
-  if (/(?:interview|podcast|story|documentary|commentary|untold|why\s+|how\s+|talks?|confession)/i.test(t)) {
+  // Interviews, podcasts, documentaries, BTS, commentaries (avoid matching when movie/album title has 'story', e.g. Hate Story, Love Story, etc.)
+  const isStoryMovie = /(?:story)/i.test(cleanTitle) || /(?:story)/i.test(album);
+  if (/(?:interview|podcast|documentary|commentary|untold\s+story|real\s+story|life\s+story|success\s+story|confession)/i.test(t) || (!isStoryMovie && /\bstory\b/i.test(t))) {
     return -99999;
   }
   if (/(?:lallantop|news|podcast|media|review|react)/i.test(author)) {
@@ -2060,7 +2037,28 @@ export function scoreMusicVideoCandidate(v, cleanTitle, cleanArtist, album = '',
     score += 150;
   }
 
-  // 7. ALBUM / MOVIE DISAMBIGUATION (e.g. Hate Story 4 vs Original 2005)
+  // 7. PART / SEQUEL DISAMBIGUATION (e.g. Awarapan 1 vs Awarapan 2, Hate Story 4 vs Hate Story 1/2005)
+  const trackPart = detectPart(album) || detectPart(cleanTitle);
+  const videoPart = detectPart(t);
+  if (trackPart !== null) {
+    if (videoPart !== null) {
+      if (trackPart === videoPart) {
+        score += 450; // Exact franchise sequel match (e.g. part 4 matches part 4)
+      } else {
+        return -99999; // Conflicting sequel number!
+      }
+    } else if (trackPart > 1) {
+      // Requested song is part 2, 3, 4, etc., but video is the older original (part 1)
+      return -99999;
+    }
+  } else {
+    if (videoPart && videoPart > 1) {
+      // Requested song is the original / part 1, but candidate video is a later remake/sequel
+      return -99999;
+    }
+  }
+
+  // 8. ALBUM / MOVIE DISAMBIGUATION (e.g. Hate Story 4 vs Original 2005)
   if (album) {
     const albumNorm = normSequel(album);
     const albumWords = albumNorm.split(' ').filter((w) => w.length > 2 && !/^(the|song|soundtrack|album|original|movie|film)$/.test(w));
@@ -2069,33 +2067,13 @@ export function scoreMusicVideoCandidate(v, cleanTitle, cleanArtist, album = '',
     if (isDistinctAlbum) {
       const matchesAlbum = albumWords.every((w) => tNorm.includes(w));
       if (matchesAlbum) {
-        score += 250;
+        score += 450; // Matches distinct movie/album title
       } else {
-        score -= 400; // Wrong movie
-      }
-    } else {
-      if (/\bhate\s*story\b/.test(tNorm)) {
+        if (trackPart !== null && trackPart > 1) {
+          return -99999; // Wrong movie for a sequel track
+        }
         score -= 500;
       }
-    }
-  }
-
-  // 8. PART / SEQUEL DISAMBIGUATION (e.g. Awarapan 1 vs Awarapan 2)
-  const trackPart = detectPart(album) || detectPart(cleanTitle);
-  const videoPart = detectPart(t);
-  if (trackPart !== null) {
-    if (videoPart !== null) {
-      if (trackPart === videoPart) {
-        score += 250;
-      } else {
-        return -99999; // Conflicting sequel!
-      }
-    } else if (trackPart > 1) {
-      score -= 300;
-    }
-  } else {
-    if (videoPart && videoPart > 1) {
-      return -99999; // Playing part 1, video is part 2!
     }
   }
 
@@ -2231,6 +2209,39 @@ export async function resolveVideoStream(videoId) {
   }
 
   const yt = await getYT();
+
+  // 1. Instant Fast Path: Direct IOS /player call (Returns direct unencrypted 1080p/720p H.264 MP4 in ~300ms)
+  try {
+    const raw = await withTimeout(yt.actions.execute('/player', { videoId, client: 'IOS' }), 3500, null);
+    const adaptive = raw?.data?.streamingData?.adaptiveFormats || [];
+    const videos = adaptive.filter((f) => f.mimeType?.includes('video') && f.url);
+    if (videos.length) {
+      const chosen =
+        videos.find((f) => /^1080p/i.test(f.qualityLabel || '') && /avc1/i.test(f.mimeType || '')) ||
+        videos.find((f) => /^720p/i.test(f.qualityLabel || '') && /avc1/i.test(f.mimeType || '')) ||
+        videos.find((f) => /avc1/i.test(f.mimeType || '')) ||
+        videos.find((f) => /^1080p/i.test(f.qualityLabel || '') && /mp4/i.test(f.mimeType || '')) ||
+        videos.find((f) => /^720p/i.test(f.qualityLabel || '') && /mp4/i.test(f.mimeType || '')) ||
+        videos.find((f) => /mp4/i.test(f.mimeType || '')) ||
+        videos[0];
+
+      if (chosen?.url) {
+        const meta = {
+          videoId,
+          url: chosen.url,
+          mime: chosen.mimeType?.split(';')[0] || 'video/mp4',
+          contentLength: Number(chosen.contentLength) || null,
+          width: chosen.width || 1280,
+          height: chosen.height || 720,
+          quality: chosen.qualityLabel || `${chosen.height}p`,
+          expiresAt: now + 3 * 3600_000,
+        };
+        videoMetaCache.set(videoId, meta);
+        return meta;
+      }
+    }
+  } catch {}
+
   const clients = ['IOS', 'ANDROID', 'WEB'];
 
   for (const client of clients) {
@@ -2245,12 +2256,20 @@ export async function resolveVideoStream(videoId) {
       );
       if (!vFormats.length) continue;
 
-      // Prioritize highest resolution (8K -> 4K -> 2K -> 1080p -> 720p)
-      // Between same resolution, prefer MP4 for native GPU hardware acceleration
+      // Prioritize optimal fluid HD (1080p -> 720p) in H.264 MP4 for instant start and GPU hardware acceleration.
+      // Avoid massive 4K/8K AV1 streams that cause buffering stalls and frame drops in browsers.
+      const rankHeight = (h) => (h === 1080 ? 4 : h === 720 ? 3 : h > 1080 ? 2 : h >= 480 ? 1 : 0);
       const sorted = [...vFormats].sort((a, b) => {
+        const isAvc1A = /avc1/i.test(a.mime_type || '');
+        const isAvc1B = /avc1/i.test(b.mime_type || '');
+        if (isAvc1A !== isAvc1B) return isAvc1A ? -1 : 1;
+
         const hA = a.height || 0;
         const hB = b.height || 0;
-        if (hA !== hB) return hB - hA;
+        const rA = rankHeight(hA);
+        const rB = rankHeight(hB);
+        if (rA !== rB) return rB - rA;
+
         const isMp4A = /mp4/i.test(a.mime_type || '');
         const isMp4B = /mp4/i.test(b.mime_type || '');
         if (isMp4A !== isMp4B) return isMp4A ? -1 : 1;

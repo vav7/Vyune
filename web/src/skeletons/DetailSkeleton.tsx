@@ -5,10 +5,13 @@ const skeletonRow =
   'relative grid items-center border-y-2 border-transparent bg-white/[0.03] rounded-[10px] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] border border-white/6';
 
 /** Album and playlist pages: artwork header, then the track list. */
-export function DetailSkeleton({ rows = 8, rowArtwork = false, header = true }: { rows?: number; rowArtwork?: boolean; header?: boolean }) {
+export function DetailSkeleton(props: { rows?: number; rowArtwork?: boolean; header?: boolean }) {
+  const rows = () => props.rows ?? 8;
+  const rowArtwork = () => props.rowArtwork ?? false;
+  const showHeader = () => props.header ?? true;
   return (
     <div aria-busy="true" aria-label="Loading" class="transition-opacity duration-200">
-      {header && <div
+      {showHeader() && <div
         class="mx-(--body-gutter) mb-10 grid grid-cols-[auto_1fr] items-end gap-x-[34px] pt-[52px] max-sm:grid-cols-[1fr] max-sm:justify-items-center max-sm:gap-y-4 max-sm:pt-4"
         aria-hidden="true"
       >
@@ -26,16 +29,16 @@ export function DetailSkeleton({ rows = 8, rowArtwork = false, header = true }: 
         </div>
       </div>}
       <div class="mx-(--body-gutter) flex flex-col" aria-hidden="true">
-        <For each={Array.from({ length: rows }, (_, i) => i)}>
+        <For each={Array.from({ length: rows() }, (_, i) => i)}>
           {(i) => (
             <div
               class={`${skeletonRow} ${
-                rowArtwork
+                rowArtwork()
                   ? 'h-[54px] rounded-[10px] grid-cols-[56px_minmax(0,1fr)_auto] px-1'
                   : 'h-[46px] rounded-row grid-cols-[40px_minmax(0,1fr)_auto] px-1'
               }`}
             >
-              {rowArtwork ? (
+              {rowArtwork() ? (
                 <div class="ms-[7px]">
                   <SkeletonBlock width={40} height={40} radius="var(--radius-artwork-small)" />
                 </div>
@@ -46,7 +49,7 @@ export function DetailSkeleton({ rows = 8, rowArtwork = false, header = true }: 
               )}
               <div class="flex flex-col gap-1 min-w-0 ps-3 pe-4">
                 <SkeletonLine lineHeight={16} fontSize={13} width={`${32 + ((i * 37) % 35)}%`} />
-                {rowArtwork && <SkeletonLine lineHeight={14} fontSize={11} width={`${20 + ((i * 23) % 20)}%`} />}
+                {rowArtwork() && <SkeletonLine lineHeight={14} fontSize={11} width={`${20 + ((i * 23) % 20)}%`} />}
               </div>
               <SkeletonLine lineHeight={16} fontSize={13} width={30} style={{ 'margin-right': '14px' }} />
             </div>

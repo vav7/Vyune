@@ -5,9 +5,9 @@ import { uiStore } from '@/store/ui';
 import { ArtVolume } from './ArtControls';
 
 const LABEL: Record<string, string> = {
-  art: 'Art mode (static artwork)',
-  visualiser: 'Visualizer (live art & 30s cuts)',
-  mv: 'Full Music Video (YouTube HD)',
+  art: 'Static Artwork (Clean & Crisp)',
+  motion: 'Apple Visualizer (Motion Art)',
+  mv: 'Music Video (YouTube 1080p)',
 };
 
 /** The player's three dots: what the glass behind the art is made of, the Up Next list, and volume. */

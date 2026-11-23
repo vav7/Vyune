@@ -46,9 +46,10 @@ const CHROME = `
     --am-lyrics-background-vocal-exit-duration: 140ms;
   }
 
-  /* ---- Premium type: Inter Variable font for lyrics, crisp HD glyphs ---- */
+  /* ---- Premium type: SF Pro / Inter Variable font for lyrics, crisp HD glyphs ---- */
   :host, .lyrics-container, .lyrics-line, .lyrics-syllable, .lyrics-word, span.char, span.word {
-    font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "SF Pro Display", "SF Pro Text", "SF Pro", "Helvetica Neue", system-ui, sans-serif !important;
+    font-family: 'MC SF Pro Display', 'SF Pro Rounded', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Inter Variable', 'Inter', system-ui, sans-serif !important;
+    font-weight: 700 !important;
     -webkit-font-smoothing: antialiased !important;
     -moz-osx-font-smoothing: grayscale !important;
     font-synthesis: none !important;
@@ -56,9 +57,16 @@ const CHROME = `
   :host {
     --am-lyrics-highlight-color: #ffffff;
     --lyplus-text-primary: #ffffff;
-    /* The unsung words are white too, only quieter: not a muddy grey. */
-    --lyplus-text-secondary: rgb(255 255 255 / 0.5);
+    /* The unsung words are pure translucent white: not muddy grey */
+    --lyplus-text-secondary: rgba(255, 255, 255, 0.42);
     --am-lyrics-highlight-surface: transparent !important;
+  }
+  .lyrics-line.active,
+  .lyrics-line.active .lyrics-word,
+  .lyrics-line.active span.word,
+  .lyrics-line.active span.char {
+    color: #ffffff !important;
+    text-shadow: none !important;
   }
   /* Remove cheap rectangular highlight background box behind active lines */
   .lyrics-line::before,
@@ -116,12 +124,6 @@ const CHROME = `
     box-sizing: border-box !important;
     transform: none !important;
     animation: none !important;
-  }
-  /* Hardware-accelerated kinetic lyrics: strip costly multi-pass Gaussian blur filters */
-  .lyrics-line,
-  .lyrics-line * {
-    filter: none !important;
-    -webkit-filter: none !important;
   }
   :host, :host *, .lyrics-container, .lyrics-line, .lyrics-line-container, .main-vocal-container {
     box-sizing: border-box !important;
@@ -203,18 +205,6 @@ const CHROME = `
     word-break: break-word !important;
   }
   .lyrics-line::before { corner-shape: squircle; }
-  .lyrics-line.active, .lyrics-line.pre-active {
-    color: #ffffff !important;
-    opacity: 1 !important;
-  }
-  .lyrics-line:not(.active):not(.pre-active):not(.lyrics-gap) {
-    opacity: 0.42 !important;
-    transition: opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1), transform 0.4s cubic-bezier(0.22, 1, 0.36, 1) !important;
-  }
-  .lyrics-line.next-active-line,
-  .lyrics-line.post-active-line {
-    opacity: 0.65 !important;
-  }
   /* background-clip:text only paints inside the span's box. A tight box shaves the top off tall
      glyphs and Indic vowel signs, so every span gets vertical room, cancelled by the negative
      margin so the layout does not move. (Vertical only: the wipe is horizontal.) */
@@ -265,6 +255,7 @@ export function AmLyricsView(props: {
   let still = 0;
   let lastMs = Number.NaN;
   let discontinuity = 0;
+  let currentTrackId: string | null = null;
   const clock = new LyricClock(0);
 
   const ttml = createMemo(() => linesToTtml(props.lines));
@@ -301,19 +292,17 @@ export function AmLyricsView(props: {
   };
 
   const mount = () => {
+    currentTrackId = playerStore.current?.id || null;
     el?.remove();
     const next = document.createElement('am-lyrics') as AmElement;
-    (next as any).noBlur = true;
     next.noAutoAlternates = true; // nothing is generated or fetched behind our sheet
     next.highlightColor = '#ffffff';
     next.fontFamily = props.fontFamily;
     next.songDurationMs = Math.round((playerStore.current?.duration || 0) * 1000) || undefined;
     const shaping = props.lines.some((line) => line.text.some((syllable) => SHAPING.test(syllable.text)));
     if (shaping) next.setAttribute('data-shaping', '');
-    // A little larger than before; Indic scripts also get a taller line so the upper matras clear.
-    // Devanagari and its relatives have a small x-height beside Latin at the same size, so they run larger.
-    const size = Math.round((props.full ? 40 : 20) * (shaping ? 1.15 : 1));
-    next.style.cssText = `display:block;width:100%;height:100%;--lyplus-font-size-base:${size}px;--am-lyrics-line-height:${shaping ? 1.48 : 1.38};--am-lyrics-line-spacing:${shaping ? 30 : 26}px;`;
+    const size = Math.round((props.full ? 38 : 20) * (shaping ? 1.15 : 1));
+    next.style.cssText = `display:block;width:100%;height:100%;--lyplus-font-size-base:${size}px;--am-lyrics-line-height:${shaping ? 1.48 : 1.38};--am-lyrics-line-spacing:${shaping ? 28 : (props.full ? 28 : 20)}px;`;
     next.ttml = ttml();
     next.addEventListener('line-click', (event) => {
       const at = (event as CustomEvent<{ timestamp: number }>).detail?.timestamp;
@@ -351,8 +340,29 @@ export function AmLyricsView(props: {
     });
   });
 
-  // A different sheet is a different element: nothing of the old song is left in it.
-  createEffect(on(ttml, () => el && mount(), { defer: true }));
+  // In-place TTML upgrade for the same track preserves scroll offset and avoids line-0 flash
+  createEffect(
+    on(ttml, (nextTtml) => {
+      if (!el) return;
+      const trackId = playerStore.current?.id || null;
+      if (trackId && trackId === currentTrackId) {
+        el.ttml = nextTtml;
+        lastMs = Number.NaN;
+        wake();
+      } else {
+        mount();
+      }
+    }, { defer: true })
+  );
+
+  // Full remount when the playing song changes
+  createEffect(
+    on(() => playerStore.current?.id, (newId) => {
+      if (el && newId !== currentTrackId) {
+        mount();
+      }
+    }, { defer: true })
+  );
   createEffect(on([() => props.translation, () => props.romanization], apply, { defer: true }));
   // When user adjusts lyrics timing offset (+50ms / -50ms / reset), immediately force clock jump & redraw
   createEffect(on(() => lyricsStore.syncOffsetMs, () => {

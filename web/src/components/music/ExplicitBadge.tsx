@@ -3,12 +3,13 @@
  * letter cut out of it, so the E sits exactly in the middle at any size and
  * shows whatever is behind it (a tinted page, the full-screen mesh).
  */
-export function ExplicitBadge({ size = 12 }: { size?: number }) {
+export function ExplicitBadge(props: { size?: number }) {
+  const size = () => props.size ?? 12;
   return (
     <svg
       class="ms-1 inline-block shrink-0 align-[-1px] text-secondary"
-      width={size}
-      height={size}
+      width={size()}
+      height={size()}
       viewBox="0 0 12 12"
       role="img"
       aria-label="Explicit"

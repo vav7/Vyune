@@ -18,12 +18,18 @@ const block = 'relative shrink-0 overflow-hidden rounded-[10px] bg-white/[0.05] 
 const cssDimension = (value?: Dimension) => typeof value === 'number' ? `${value}px` : value;
 
 /** A placeholder box with a shimmer. Purely decorative, so hidden from AT. */
-export function SkeletonBlock({ width, height, radius, aspectRatio, class: className, style }: BlockProps) {
+export function SkeletonBlock(props: BlockProps) {
   return (
     <div
       aria-hidden="true"
-      class={className ? `${block} ${className}` : block}
-      style={{ width: cssDimension(width), height: cssDimension(height), 'border-radius': cssDimension(radius), 'aspect-ratio': aspectRatio, ...style }}
+      class={props.class ? `${block} ${props.class}` : block}
+      style={{
+        width: cssDimension(props.width),
+        height: cssDimension(props.height),
+        'border-radius': cssDimension(props.radius),
+        'aspect-ratio': props.aspectRatio,
+        ...props.style,
+      }}
     />
   );
 }
@@ -38,10 +44,10 @@ interface LineProps {
 }
 
 /** A single line of text in waiting. */
-export function SkeletonLine({ lineHeight, fontSize, width, style }: LineProps) {
+export function SkeletonLine(props: LineProps) {
   return (
-    <div aria-hidden="true" class="flex items-center" style={{ height: `${lineHeight}px`, ...style }}>
-      <SkeletonBlock width={width} height={`${Math.round(fontSize * 0.75)}px`} radius="3px" />
+    <div aria-hidden="true" class="flex items-center" style={{ height: `${props.lineHeight}px`, ...props.style }}>
+      <SkeletonBlock width={props.width} height={`${Math.round(props.fontSize * 0.75)}px`} radius="3px" />
     </div>
   );
 }

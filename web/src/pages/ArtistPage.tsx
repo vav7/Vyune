@@ -19,6 +19,9 @@ import { playerStore } from '@/store/player';
 import type { DiscoItem } from '@/lib/types';
 import { AppleArtistBanner } from '@/components/music/AppleArtistBanner';
 import { setPageArtStore } from '@/lib/pageArt';
+import { getNavHint } from '@/lib/navHint';
+import { ArtistSkeleton } from '@/skeletons/PageSkeletons';
+import { ShelfSkeleton } from '@/skeletons/ShelfSkeleton';
 
 const FILTERS = ['All', 'Albums', 'Singles'] as const;
 
@@ -57,9 +60,12 @@ export default function ArtistPage() {
     enabled: !!id(),
   }));
 
+  const hint = () => getNavHint('artist', id());
+  const thumb = () => query.data?.thumb ?? hint()?.thumb ?? null;
+
   const [artistPalette, setArtistPalette] = createSignal<{ artistId: string; artwork: string | null } | null>(null);
   const pagePalette = createMemo(() => artistPalette()?.artistId === id() ? artistPalette() : null);
-  const paletteArtwork = createMemo(() => pagePalette()?.artwork ?? query.data?.thumb);
+  const paletteArtwork = createMemo(() => pagePalette()?.artwork ?? thumb());
   // Use the exact same sampling/tint path as album pages so the artist
   // background follows the actual artwork, not Apple's separate color hint.
   usePageTint(useArtworkColor(paletteArtwork), paletteArtwork);
@@ -117,7 +123,29 @@ export default function ArtistPage() {
   });
 
   return (
-    <Show when={query.data?.id === id() ? query.data : undefined} keyed fallback={<Show when={query.isError}><LoadError error={query.error} onRetry={() => void query.refetch()} /></Show>}>
+    <Show
+      when={query.data?.id === id() ? query.data : undefined}
+      keyed
+      fallback={
+        <Show when={!query.isError} fallback={<LoadError error={query.error} onRetry={() => void query.refetch()} />}>
+          <Show
+            when={hint()}
+            fallback={<ArtistSkeleton />}
+          >
+            {(h) => (
+              <div class="relative z-[1] animate-fade-in">
+                <div class="relative -mt-8 max-sm:-mt-[var(--mobile-top-bar-height)]">
+                  <AppleArtistBanner name={h().title} thumb={h().thumb} onMotionVideo={setMotionVideo} onPalette={onArtistPalette} />
+                </div>
+                <div class="-mt-4 max-sm:mt-0">
+                  <ShelfSkeleton kind="tracks" />
+                </div>
+              </div>
+            )}
+          </Show>
+        </Show>
+      }
+    >
       {(artist) => {
         const audience = [artist.listeners ? `${artist.listeners} monthly listeners` : null, artist.subscribers ? `${artist.subscribers} subscribers` : null]
           .filter(Boolean)

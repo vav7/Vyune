@@ -7,9 +7,10 @@ import { For, type JSX } from 'solid-js';
 export type NavIconProps = Omit<JSX.SvgSVGAttributes<SVGSVGElement>, 'children'> & { size?: number };
 
 function make(paths: { d: string; fillOpacity?: number; transform?: string }[]) {
-  return function NavIcon({ size = 28, ...props }: NavIconProps) {
+  return function NavIcon(props: NavIconProps) {
+    const size = () => props.size ?? 28;
     return (
-      <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+      <svg width={size()} height={size()} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" class={props.class} style={props.style}>
         <For each={paths}>
           {({ d, fillOpacity, transform }) => <path d={d} fill-opacity={fillOpacity} transform={transform} />}
         </For>

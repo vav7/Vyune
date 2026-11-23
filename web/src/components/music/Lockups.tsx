@@ -163,7 +163,8 @@ export function CircleLockup(props: { item: MusicItem; width?: number }) {
   return (
     <PrefetchLink
       to={hrefFor(item().kind, item().id) ?? '#'}
-      class="circle-lockup group/circle flex w-full min-w-0 flex-col items-center gap-2.5 rounded-[18px] p-2.5 outline-offset-0 [content-visibility:auto] [contain-intrinsic-size:auto_180px]"
+      hint={{ title: item().title, thumb: item().thumbnail, subtitle: item().subtitle }}
+      class="circle-lockup group/circle flex w-full min-w-0 flex-col items-center gap-2.5 rounded-[18px] p-2.5 outline-offset-0"
     >
       <span class="circle-lockup-art relative block aspect-square w-full max-w-[160px] rounded-full overflow-hidden">
         <Artwork src={item().thumbnail} displayWidth={props.width ?? 160} radius="50%" class="size-full" />
@@ -187,11 +188,10 @@ export function TrackLockup(props: { item: MusicItem; onPlay?: () => void }) {
     // the row plays it, as Apple's list rows do; buttons and links keep their
     // own clicks.
     <div
-      class={`track-row group/track grid h-[72px] cursor-pointer grid-cols-[56px_minmax(0,1fr)] items-center gap-x-3 rounded-[14px] border border-white/[0.08] hover:border-white/[0.22] bg-white/[0.045] hover:bg-white/[0.09] py-1.5 pr-3.5 pl-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_4px_16px_rgba(0,0,0,0.25)] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.38),0_12px_32px_rgba(0,0,0,0.45)] transition-all duration-200 glance ${
-        isCurrent() ? 'bg-white/[0.14] border-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_8px_24px_rgba(0,0,0,0.5)]' : ''
+      class={`track-row group/track grid h-[72px] cursor-pointer grid-cols-[56px_minmax(0,1fr)] items-center gap-x-3 rounded-[14px] border border-white/[0.08] hover:border-white/20 bg-white/[0.04] hover:bg-white/[0.08] py-1.5 pr-3.5 pl-2 shadow-[0_4px_12px_rgba(0,0,0,0.2)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.35)] transition-colors duration-150 ease-out will-change-[background-color,border-color] ${
+        isCurrent() ? 'bg-white/[0.12] border-white/25 shadow-[0_8px_24px_rgba(0,0,0,0.45)]' : ''
       }`}
       data-current={isCurrent() || undefined}
-      onPointerEnter={() => prewarmArtworkColor(item().thumbnail)}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest('button, a')) return;
         play();

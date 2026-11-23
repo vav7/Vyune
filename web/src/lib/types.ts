@@ -201,7 +201,7 @@ export interface AppleMotionArt {
   mvs?: { url: string; aspect: number; title?: string; label?: string; provider?: string }[];
 }
 
-export type SearchFilter = 'all' | 'songs' | 'videos' | 'albums' | 'artists' | 'playlists';
+export type SearchFilter = 'all' | 'songs' | 'videos' | 'albums' | 'artists' | 'playlists' | 'saavn';
 
 /** A search row: the promoted song, a song/video, or an artist/album/playlist. */
 export type SearchRow =

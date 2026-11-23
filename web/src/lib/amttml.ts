@@ -28,8 +28,17 @@ const esc = (value: string) =>
 
 const ms = (value: number) => `${Math.max(0, Math.round(Number.isFinite(value) ? value : 0))}ms`;
 
-const spanOf = (syllable: Syllable) =>
-  `<span begin="${ms(syllable.timestamp)}" end="${ms(Math.max(syllable.endtime, syllable.timestamp))}">${esc(syllable.text)}</span>`;
+const spanOf = (syllable: Syllable, index?: number, arr?: readonly Syllable[]) => {
+  let text = syllable.text;
+  // If this syllable marks the end of a word (or whole word) and lacks trailing whitespace,
+  // ensure a trailing space so adjacent word spans don't mash together.
+  if (syllable.part === false && !/\s$/.test(text)) {
+    if (!arr || index === undefined || index < arr.length - 1) {
+      text += ' ';
+    }
+  }
+  return `<span begin="${ms(syllable.timestamp)}" end="${ms(Math.max(syllable.endtime, syllable.timestamp))}">${esc(text)}</span>`;
+};
 
 const wordTimed = (line: LyricsLine) =>
   line.isWordSynced !== false &&
@@ -42,6 +51,7 @@ export function linesToTtml(lines: readonly LyricsLine[], opts: { translation?: 
     (line.backgroundText && line.backgroundText.some((s) => s.text && s.text.trim().length > 0));
 
   const rows = lines.filter((line) => !line.section && hasContent(line));
+  const anyWordTimed = rows.some(wordTimed);
 
   let body = '';
   let openPart: string | null | undefined;
@@ -65,12 +75,17 @@ export function linesToTtml(lines: readonly LyricsLine[], opts: { translation?: 
 
     let inner: string;
     if (wordTimed(line)) {
-      inner = line.text.map(spanOf).join('');
+      inner = line.text.map((s, i, arr) => spanOf(s, i, arr)).join('');
     } else {
-      inner = esc(line.text.map((syllable) => syllable.text).join('').trim());
+      // Honest line-synced representation: bare text in <p> with zero artificial word interpolation.
+      inner = esc(line.text.map((s) => s.text).join(''));
     }
     if (line.backgroundText?.length) {
-      inner += `<span ttm:role="x-bg">${line.backgroundText.map(spanOf).join('')}</span>`;
+      const bgWordTimed = line.backgroundText.some((s) => !s.lineSynced && s.endtime > s.timestamp);
+      const bgInner = bgWordTimed
+        ? line.backgroundText.map((s, i, arr) => spanOf(s, i, arr)).join('')
+        : esc(line.backgroundText.map((s) => s.text).join(''));
+      inner += `<span ttm:role="x-bg">${bgInner}</span>`;
     }
     body += `<p ${attrs}>${inner}</p>`;
 
@@ -86,7 +101,7 @@ export function linesToTtml(lines: readonly LyricsLine[], opts: { translation?: 
 
   return (
     '<?xml version="1.0" encoding="UTF-8"?>' +
-    '<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata" xmlns:itunes="http://music.apple.com/lyric-ttml-internal" itunes:timing="Word">' +
+    `<tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata" xmlns:itunes="http://music.apple.com/lyric-ttml-internal" itunes:timing="${anyWordTimed ? 'Word' : 'Line'}">` +
     '<head><metadata><ttm:agent type="person" xml:id="v1"/><ttm:agent type="other" xml:id="v2"/>' +
     (extra ? `<iTunesMetadata xmlns="http://music.apple.com/lyric-ttml-internal">${extra}</iTunesMetadata>` : '') +
     '</metadata></head>' +

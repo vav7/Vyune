@@ -52,6 +52,10 @@ export class TTLCache {
   delete(key) {
     this.map.delete(key);
   }
+
+  clear() {
+    this.map.clear();
+  }
 }
 
 /**

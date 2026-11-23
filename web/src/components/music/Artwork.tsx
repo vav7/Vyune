@@ -56,13 +56,13 @@ export function Artwork(props: ArtworkProps) {
     const add = (url?: string | null) => {
       if (url && !out.includes(url)) out.push(url);
     };
+    // High-res catalogue studio artwork lookup takes priority over video stills
+    if (needsLookup() && catalogArtwork.data?.thumb) {
+      add(catalogArtwork.data.thumb);
+    }
     if (props.candidates) {
       props.candidates.forEach(add);
       return out;
-    }
-    // High-res catalogue lookup for posters / large sleeves (>64px)
-    if (needsLookup() && catalogArtwork.data?.thumb) {
-      add(catalogArtwork.data.thumb);
     }
     // Track's own artwork always takes priority over ambient list fallback
     add(props.src);

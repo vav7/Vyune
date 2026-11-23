@@ -44,10 +44,6 @@ export const glassVariantStyles: Record<FrostGlassVariant, string> = {
 
     // 5) Hairline chamfer outer edge
     "border border-white/[0.14]",
-
-    // 6) Gentle ambient drift
-    "animate-[liquid-drift_20s_ease-in-out_infinite] motion-reduce:animate-none",
-    "[will-change:background-position]",
   ].join(" "),
   "liquid-refract": "backdrop-blur-[32px] backdrop-saturate-[2] bg-white/[0.06] border border-white/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.5),0_24px_60px_-16px_rgba(0,0,0,0.7)]",
 };

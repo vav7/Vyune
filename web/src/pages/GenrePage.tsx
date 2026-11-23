@@ -47,7 +47,7 @@ export default function GenrePage() {
         <ul class={seeAllGrid}>
           <For each={visibleItems()}>
             {(item) => (
-              <li class="animate-fade-in [content-visibility:auto] [contain-intrinsic-size:auto_220px]">
+              <li class="animate-fade-in">
                 <SquareLockup item={cardItem(item)} />
               </li>
             )}

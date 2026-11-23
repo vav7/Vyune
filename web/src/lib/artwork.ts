@@ -11,6 +11,9 @@ const SQUARE_SIZES = [60, 120, 226, 544, 1200];
 const RESIZABLE = /googleusercontent\.com|ggpht\.com/;
 const SAAVN = /saavncdn\.com/;
 const YTIMG = /ytimg\.com/i;
+const MZSTATIC = /mzstatic\.com/i;
+
+export const isVideoThumbnail = (url?: string | null) => !!url && /(?:^|\/\/)(?:i\d*\.)?ytimg\.com\//i.test(url);
 
 /** The largest square the saavn CDN token ladder serves. */
 const SAAVN_SIZES = [50, 150, 500];
@@ -26,6 +29,11 @@ export function sizedArtwork(url: string | null | undefined, cssPx: number, aspe
     const needed = cssPx * Math.min(typeof window === 'undefined' ? 2 : window.devicePixelRatio || 1, 3);
     const size = SAAVN_SIZES.find((s) => s >= needed) ?? 500;
     return saavnAtPixels(url, size);
+  }
+  if (MZSTATIC.test(url)) {
+    const needed = Math.max(600, cssPx * Math.min(typeof window === 'undefined' ? 2 : window.devicePixelRatio || 1, 3));
+    const size = needed > 600 ? 1200 : 600;
+    return url.replace(/\d+x\d+bb\./, `${size}x${size}bb.`);
   }
   if (YTIMG.test(url) && cssPx >= 280) {
     return url.replace(/(?:hqdefault|mqdefault|default|sddefault)\.(jpg|webp)/i, 'maxresdefault.$1');

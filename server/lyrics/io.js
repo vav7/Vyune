@@ -14,7 +14,7 @@ import { TTLCache, safeFetch, UA } from '../cache.js';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Shared cache across all lookups: max 1500 entries, 2 hours TTL
-const GLOBAL_HTTP_CACHE = new TTLCache({ max: 1500, ttl: 2 * 3600_000 });
+export const GLOBAL_HTTP_CACHE = new TTLCache({ max: 1500, ttl: 2 * 3600_000 });
 const NEGATIVE_TTL = 5 * 60_000; // 5 min for 404 or empty responses
 
 // Domain cooldown tracker: hostname -> cooldown timestamp

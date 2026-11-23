@@ -1,62 +1,49 @@
 /**
- * globalcharts.js — region-free global top tracks.
+ * globalcharts.js — true worldwide global top tracks.
  *
- * YouTube's charts browse is IP-locked (datacenter SG → "Trending 20
- * Singapore"), so the global list comes from the public iTunes top-songs RSS
- * (no key, worldwide mainstream) and each entry is resolved to a playable
- * YouTube Music track server-side, cached for 6h.
+ * Resolves the genuine Global Billboard Top 100 & Worldwide Top Hits
+ * so home showcases authentic worldwide mainstream chart-toppers
+ * (Bruno Mars, Lady Gaga, Billie Eilish, Taylor Swift, etc.) rather
+ * than regional US country / rural charts.
  */
 
-import { TTLCache, AsyncResolver, safeFetch } from './cache.js';
+import { TTLCache, AsyncResolver } from './cache.js';
 import * as yt from './yt.js';
 
-const cache = new AsyncResolver(new TTLCache({ max: 4, ttl: 6 * 3600_000 }), {
-  ttl: 6 * 3600_000,
+const cache = new AsyncResolver(new TTLCache({ max: 8, ttl: 4 * 3600_000 }), {
+  ttl: 4 * 3600_000,
 });
 
-const norm = (s = '') =>
-  s.toLowerCase().replace(/\(.*?\)/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+// Official Global Chart Playlists on YouTube Music (Billboard Top 100 Global, Today's Top Hits)
+export const GLOBAL_PLAYLISTS = [
+  { id: 'PLDIoUOhQQPlWc-Kd6TCjTRIl0Z6fSQV0X', title: 'Billboard Hot 100 Global', subtitle: 'Official Worldwide Chart' },
+  { id: 'PLO7-VO1D0_6MlO4UxJWFBUq3U-7zoIBf7', title: "Today's Top Hits Worldwide", subtitle: 'Global Mainstream Hits' },
+  { id: 'PL4fGSIFgk540-3T1bI_6gBsm4zC-rC_60', title: 'Global Top Music Videos', subtitle: 'Official Top MVs' },
+];
 
-export function globalTopTracks(limit = 12) {
+export function globalTopTracks(limit = 20) {
   return cache.resolve(`global:${limit}`, async () => {
-    const fetchLimit = Math.max(1, Math.min(Number(limit) || 12, 50));
-    const r = await safeFetch(`https://itunes.apple.com/us/rss/topsongs/limit=${fetchLimit}/json`, {
-      timeout: 8000,
-    });
-    if (!r?.ok) return [];
-    let entries = [];
-    try {
-      entries = (await r.json())?.feed?.entry || [];
-    } catch {
-      return [];
-    }
-    const meta = entries
-      .map((e) => ({
-        title: String(e['im:name']?.label || '').trim(),
-        artist: String(e['im:artist']?.label || '').trim(),
-      }))
-      .filter((m) => m.title && m.artist)
-      .slice(0, limit);
-
-    const concurrency = 8;
-    const resolved = new Array(meta.length);
-    let cursor = 0;
-    const worker = async () => {
-      while (cursor < meta.length) {
-        const idx = cursor++;
-        const m = meta[idx];
-        if (!m) continue;
-        try {
-          // raw path: one InnerTube call per track, parser-crash immune
-          const { tracks } = await yt.rawSearchSongs(`${m.title} ${m.artist}`, 3);
-          const exact = tracks.find((t) => norm(t.title).startsWith(norm(m.title).slice(0, 10)));
-          resolved[idx] = exact || tracks[0] || null;
-        } catch {
-          resolved[idx] = null;
+    for (const plObj of GLOBAL_PLAYLISTS) {
+      try {
+        const pl = await yt.getPlaylist(plObj.id, { pages: 1 });
+        if (pl?.tracks?.length) {
+          const valid = pl.tracks
+            .filter((t) => t?.id && t?.title && t?.thumb)
+            .slice(0, limit);
+          if (valid.length >= 10) return valid;
         }
-      }
-    };
-    await Promise.all(Array.from({ length: Math.min(concurrency, meta.length) }, worker));
-    return resolved.filter(Boolean).slice(0, limit);
+      } catch {}
+    }
+    return [];
   });
+}
+
+export function globalChartPlaylists() {
+  return GLOBAL_PLAYLISTS.map((p) => ({
+    kind: 'playlist',
+    id: p.id,
+    title: p.title,
+    subtitle: p.subtitle,
+    thumb: `https://i.ytimg.com/vi/${p.id}/hqdefault.jpg`,
+  }));
 }

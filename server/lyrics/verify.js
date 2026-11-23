@@ -8,7 +8,7 @@
  * requirement, not a score.
  */
 
-import { score as matchScore, sharesArtist, albumKey } from '../match.js';
+import { score as matchScore, sharesArtist, albumKey, areSequelClash } from '../match.js';
 import { cleanTitle, normKey, VERSION_WORDS } from './text.js';
 
 function extractPartNum(str) {
@@ -83,6 +83,9 @@ export function isThisSong(candidate, { title, artist, duration, album }) {
   }
 
   // 4. Sequel / Part Disambiguation (e.g. Awarapan 1 vs Awarapan 2, Hate Story 4 vs 2005 original)
+  if (areSequelClash(album, cand.album) || areSequelClash(title, cand.title)) {
+    return false;
+  }
   const targetPart = extractPartNum(title) || extractPartNum(album);
   const candPart = extractPartNum(cand.title) || extractPartNum(cand.album);
   if (targetPart != null && candPart != null && targetPart !== candPart) {

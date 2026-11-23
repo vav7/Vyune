@@ -96,104 +96,112 @@ export function registerProxies(app) {
 
   /* ------------------------------- media ------------------------------- */
   app.get('/api/media', async (c) => {
-    const u = allowed(String(c.req.query('url') || ''), 'media');
-    if (!u) return c.json({ error: 'host not allowed' }, 403);
-    try {
-      const isYouTube = /\.googlevideo\.com$/i.test(u.hostname);
-      const isSaavn = /\.saavncdn\.com$/i.test(u.hostname);
+    return streamMedia(c, c.req.query('url'), c.req.query('size'));
+  });
+}
 
-      const declaredSize = Number(c.req.query('size'));
-      const totalSize = Number.isSafeInteger(declaredSize) && declaredSize > 0 ? declaredSize : null;
-      const headers = { 'User-Agent': UA };
-      const finalUrl = new URL(u.href);
-      const range = c.req.header('range');
-      let youtubeRange = null;
+/**
+ * Universal Byte-Range Media Streaming Engine.
+ * Streams audio and high-definition video directly to HTML5 media elements.
+ * Features:
+ * - Proper byte-range slicing (HTTP 206)
+ * - 'Content-Disposition: inline' to prevent download manager (IDM) interception
+ * - Upstream Google Video 403 header recovery
+ * - Hardware video acceleration support
+ */
+export async function streamMedia(c, rawUrl, declaredSize = null) {
+  const u = allowed(String(rawUrl || ''), 'media');
+  if (!u) return c.json({ error: 'host not allowed' }, 403);
+  try {
+    const isYouTube = /\.googlevideo\.com$/i.test(u.hostname);
+    const isSaavn = /\.saavncdn\.com$/i.test(u.hostname);
 
-      if (isYouTube) {
-        const requested = parseByteRange(range);
-        if (range && !requested) return c.body(null, 416);
-        const start = requested?.start ?? 0;
-        if (totalSize !== null && start >= totalSize) {
-          c.header('Content-Range', `bytes */${totalSize}`);
-          return c.body(null, 416);
-        }
-        youtubeRange = { start, totalSize, requested };
-        const streamClient = (finalUrl.searchParams.get('c') || '').toUpperCase();
-        const clientVersion = finalUrl.searchParams.get('cver');
-        const clientIds = {
-          WEB: '1', MWEB: '2', ANDROID: '3', IOS: '5',
-          ANDROID_MUSIC: '21', ANDROID_VR: '28', WEB_REMIX: '67', VISIONOS: '82',
-        };
-        const session = await getYT().catch(() => null);
-        headers['User-Agent'] = session?.session?.user_agent || UA;
-        if (clientVersion) headers['X-YouTube-Client-Version'] = clientVersion;
-        if (clientIds[streamClient]) headers['X-YouTube-Client-Name'] = clientIds[streamClient];
-        if (session?.session?.context?.client?.visitorData) {
-          headers['X-Goog-Visitor-Id'] = session.session.context.client.visitorData;
-        }
-        // Google Video request rules: only web clients need origin headers;
-        // mobile/app clients (ANDROID, IOS, VISIONOS) are rejected with 403 if origin headers are sent.
-        const isWebClient = streamClient === 'WEB' || streamClient === 'MWEB' || streamClient === 'WEB_REMIX';
-        if (isWebClient) {
-          headers.Origin = 'https://www.youtube.com';
-          headers.Referer = 'https://www.youtube.com/';
-          headers['X-Origin'] = 'https://www.youtube.com';
-        }
-        // Pass through the audio element's original range. The previous
-        // one-megabyte cap returned a synthetic partial response and could
-        // leave some browsers unable to continue after the first chunk.
-        if (range) headers.Range = range;
-      } else if (isSaavn && range) {
-        headers.Range = range;
+    const sizeParam = Number(declaredSize ?? c.req.query('size'));
+    const totalSize = Number.isSafeInteger(sizeParam) && sizeParam > 0 ? sizeParam : null;
+    const headers = { 'User-Agent': UA };
+    const finalUrl = new URL(u.href);
+    const range = c.req.header('range');
+    let youtubeRange = null;
+
+    if (isYouTube) {
+      const requested = parseByteRange(range);
+      if (range && !requested) return c.body(null, 416);
+      const start = requested?.start ?? 0;
+      if (totalSize !== null && start >= totalSize) {
+        c.header('Content-Range', `bytes */${totalSize}`);
+        return c.body(null, 416);
       }
-
-      let up = await fetch(finalUrl.href, { headers });
-
-      // If upstream rejects with 403/401 (e.g. Google Video header mismatch), retry immediately with clean minimal headers
-      if (isYouTube && !up.ok && (up.status === 403 || up.status === 401)) {
-        const cleanHeaders = { 'User-Agent': UA };
-        if (range) cleanHeaders.Range = range;
-        const retryUp = await fetch(finalUrl.href, { headers: cleanHeaders });
-        if (retryUp.ok || retryUp.status === 206) {
-          up = retryUp;
-        }
-      }
-
-      // An upstream that refuses the range is answered once more without one:
-      // some CDNs refuse a bounded range they would happily serve whole.
-      if (!up.ok && up.status !== 206 && range && !isYouTube) {
-        up = await fetch(u.href, { headers: { 'User-Agent': UA } });
-      }
-      if (!up.ok && up.status !== 206) return c.body(null, up.status || 502);
-      if (isYouTube && range && up.status === 200 && youtubeRange?.start > 0) {
-        // The origin ignored a seek range. Do not label a full response as a
-        // partial response with made-up byte offsets.
-        return c.body(null, 502);
-      }
-
-      const out = {
-        'Content-Type': up.headers.get('content-type') || 'audio/mpeg',
-        'Accept-Ranges': 'bytes',
-        'Access-Control-Allow-Origin': '*',
-        // Stream URLs expire.
-        'Cache-Control': 'no-store',
+      youtubeRange = { start, totalSize, requested };
+      const streamClient = (finalUrl.searchParams.get('c') || '').toUpperCase();
+      const clientVersion = finalUrl.searchParams.get('cver');
+      const clientIds = {
+        WEB: '1', MWEB: '2', ANDROID: '3', IOS: '5',
+        ANDROID_MUSIC: '21', ANDROID_VR: '28', WEB_REMIX: '67', VISIONOS: '82',
       };
-      const len = up.headers.get('content-length');
-      if (len) out['Content-Length'] = len;
-      const cr = up.headers.get('content-range');
-      if (cr) out['Content-Range'] = cr;
-      else if (youtubeRange && up.status === 206 && youtubeRange.totalSize !== null) {
-        const bodyLength = Number(len);
-        const end =
-          Number.isSafeInteger(bodyLength) && bodyLength > 0
-            ? youtubeRange.start + bodyLength - 1
-            : (youtubeRange.requested?.end ?? youtubeRange.totalSize - 1);
-        out['Content-Range'] = `bytes ${youtubeRange.start}-${Math.min(end, youtubeRange.totalSize - 1)}/${youtubeRange.totalSize}`;
+      const session = await getYT().catch(() => null);
+      headers['User-Agent'] = session?.session?.user_agent || UA;
+      if (clientVersion) headers['X-YouTube-Client-Version'] = clientVersion;
+      if (clientIds[streamClient]) headers['X-YouTube-Client-Name'] = clientIds[streamClient];
+      if (session?.session?.context?.client?.visitorData) {
+        headers['X-Goog-Visitor-Id'] = session.session.context.client.visitorData;
       }
+      // Google Video request rules: only web clients need origin headers;
+      // mobile/app clients (ANDROID, IOS, VISIONOS) are rejected with 403 if origin headers are sent.
+      const isWebClient = streamClient === 'WEB' || streamClient === 'MWEB' || streamClient === 'WEB_REMIX';
+      if (isWebClient) {
+        headers.Origin = 'https://www.youtube.com';
+        headers.Referer = 'https://www.youtube.com/';
+        headers['X-Origin'] = 'https://www.youtube.com';
+      }
+      if (range) headers.Range = range;
+    } else if (isSaavn && range) {
+      headers.Range = range;
+    }
 
-      return new Response(up.body, { status: up.status, headers: out });
-    } catch (err) {
+    let up = await fetch(finalUrl.href, { headers });
+
+    // If upstream rejects with 403/401 (e.g. Google Video header mismatch), retry immediately with clean minimal headers
+    if (isYouTube && !up.ok && (up.status === 403 || up.status === 401)) {
+      const cleanHeaders = { 'User-Agent': UA };
+      if (range) cleanHeaders.Range = range;
+      const retryUp = await fetch(finalUrl.href, { headers: cleanHeaders });
+      if (retryUp.ok || retryUp.status === 206) {
+        up = retryUp;
+      }
+    }
+
+    // An upstream that refuses the range is answered once more without one
+    if (!up.ok && up.status !== 206 && range && !isYouTube) {
+      up = await fetch(u.href, { headers: { 'User-Agent': UA } });
+    }
+    if (!up.ok && up.status !== 206) return c.body(null, up.status || 502);
+    if (isYouTube && range && up.status === 200 && youtubeRange?.start > 0) {
       return c.body(null, 502);
     }
-  });
+
+    const defaultType = finalUrl.searchParams.get('mime') || (isYouTube && finalUrl.href.includes('mime=video') ? 'video/mp4' : 'audio/mpeg');
+    const out = {
+      'Content-Type': up.headers.get('content-type') || defaultType,
+      'Accept-Ranges': 'bytes',
+      'Access-Control-Allow-Origin': '*',
+      'Content-Disposition': 'inline',
+      'Cache-Control': 'no-store',
+    };
+    const len = up.headers.get('content-length');
+    if (len) out['Content-Length'] = len;
+    const cr = up.headers.get('content-range');
+    if (cr) out['Content-Range'] = cr;
+    else if (youtubeRange && up.status === 206 && youtubeRange.totalSize !== null) {
+      const bodyLength = Number(len);
+      const end =
+        Number.isSafeInteger(bodyLength) && bodyLength > 0
+          ? youtubeRange.start + bodyLength - 1
+          : (youtubeRange.requested?.end ?? youtubeRange.totalSize - 1);
+      out['Content-Range'] = `bytes ${youtubeRange.start}-${Math.min(end, youtubeRange.totalSize - 1)}/${youtubeRange.totalSize}`;
+    }
+
+    return new Response(up.body, { status: up.status, headers: out });
+  } catch (err) {
+    return c.body(null, 502);
+  }
 }

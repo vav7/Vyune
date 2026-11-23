@@ -25,7 +25,7 @@ export function SearchBar(props: {
   return (
     <form
       role="search"
-      class="sr-field glance flex h-12 w-full max-w-[640px] items-center gap-2.5 rounded-full bg-black/40 backdrop-blur-[24px] backdrop-saturate-[1.9] border border-white/18 px-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_16px_36px_-8px_rgba(0,0,0,0.65)] transition-all duration-300 focus-within:bg-black/55 focus-within:border-white/35 focus-within:shadow-[inset_0_1px_0_rgba(255,255,255,0.6),0_20px_48px_-8px_rgba(0,0,0,0.8),0_0_0_2px_rgba(255,255,255,0.18)]"
+      class="sr-field search-glass flex h-12 w-full max-w-[640px] items-center gap-3 rounded-full px-4 transition-all duration-200 focus-within:border-white/30 focus-within:ring-2 focus-within:ring-white/10"
       onSubmit={(event) => {
         event.preventDefault();
         props.onSubmit(input.value);

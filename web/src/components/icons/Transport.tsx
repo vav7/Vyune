@@ -9,9 +9,10 @@ import { For, type JSX } from 'solid-js';
 type IconProps = Omit<JSX.SvgSVGAttributes<SVGSVGElement>, 'children'> & { size?: number };
 
 function icon(viewBox: string, d: string[]) {
-  return function PlayerIcon({ size = 24, ...props }: IconProps) {
+  return function PlayerIcon(props: IconProps) {
+    const size = () => props.size ?? 24;
     return (
-      <svg width={size} height={size} viewBox={viewBox} fill="currentColor" aria-hidden="true" {...props}>
+      <svg width={size()} height={size()} viewBox={viewBox} fill="currentColor" aria-hidden="true" class={props.class} style={props.style}>
         <For each={d}>{(path) => <path d={path} />}</For>
       </svg>
     );
@@ -46,13 +47,15 @@ const WAVES = ["m34.864 29.959c0.70647 0.49868 1.7246 0.35323 2.3271-0.47787 1.6
  * Apple's speaker: the body, then three waves, each hidden below its level
  * (the first at silence, the next two under a third and two thirds).
  */
-export function VolumeIcon({ level, size = 24, ...props }: IconProps & { level: number }) {
-  const shown = level === 0 ? 0 : level < 1 / 3 ? 1 : level < 2 / 3 ? 2 : 3;
+export function VolumeIcon(props: IconProps & { level: number }) {
+  const size = () => props.size ?? 24;
+  const shown = () => (props.level === 0 ? 0 : props.level < 1 / 3 ? 1 : props.level < 2 / 3 ? 2 : 3);
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" fill="currentColor" aria-hidden="true" {...props}>
+    <svg width={size()} height={size()} viewBox="0 0 64 64" fill="currentColor" aria-hidden="true" class={props.class} style={props.style}>
       <path transform="translate(2,11.149)" d={SPEAKER} />
       <For each={WAVES}>
-        {(d, i) => <path transform="translate(2,11.149)" d={d} opacity={i() < shown ? 1 : 0.25} />}
-      </For>    </svg>
+        {(d, i) => <path transform="translate(2,11.149)" d={d} opacity={i() < shown() ? 1 : 0.25} />}
+      </For>
+    </svg>
   );
 }

@@ -6,21 +6,19 @@ import { createStore, unwrap } from 'solid-js/store';
  * - 'visualiser': Dynamic visualizer cycling live album art -> 30s clips of all MV versions -> loop
  * - 'mv': Full official YouTube Music Video synchronized with audio playhead
  */
-export type ArtMode = 'art' | 'visualiser' | 'mv';
-export const ART_MODES: ArtMode[] = ['art', 'visualiser', 'mv'];
+export type ArtMode = 'art' | 'motion' | 'mv';
+export const ART_MODES: ArtMode[] = ['art', 'motion', 'mv'];
 export const ART_MODE_LABEL: Record<ArtMode, string> = {
-  art: 'Art mode',
-  visualiser: 'Visualizer',
-  mv: 'Music video',
+  art: 'Static Artwork',
+  motion: 'Apple Visualizer',
+  mv: 'Music Video',
 };
 
-const KEY = 'mc_artmode_v3';
+const KEY = 'mc_artmode_v5';
 const read = (): ArtMode => {
   try {
-    // Clear legacy storage key so browsers aren't stuck on the previous 'visualiser' default
-    localStorage.removeItem('mc_artmode');
     const saved = localStorage.getItem(KEY);
-    if (saved === 'art' || saved === 'visualiser' || saved === 'mv') return saved;
+    if (saved === 'art' || saved === 'motion' || saved === 'mv') return saved;
     return 'art';
   } catch {
     return 'art';

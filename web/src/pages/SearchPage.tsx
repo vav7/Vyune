@@ -30,6 +30,7 @@ type BrowseItem = Card & { kind: 'artist' | 'album' | 'playlist' };
 
 const FILTERS: { id: SearchFilter; label: string }[] = [
   { id: 'all', label: 'All' },
+  { id: 'saavn', label: 'JioSaavn' },
   { id: 'songs', label: 'Songs' },
   { id: 'videos', label: 'Videos' },
   { id: 'albums', label: 'Albums' },
@@ -46,7 +47,7 @@ const rowKey = (row: SearchRow) => (row.kind === 'browse' ? `b:${row.item.id}` :
 /* ---------------------------------------------------------------- */
 
 const rowBase =
-  'group relative flex w-full items-center gap-3.5 rounded-[10px] px-2 py-2 text-left transition-colors hover:bg-white/[0.07] focus-visible:bg-white/[0.07] [content-visibility:auto] [contain-intrinsic-size:auto_56px]';
+  'group relative flex w-full items-center gap-3.5 rounded-[10px] px-2 py-2 text-left transition-colors hover:bg-white/[0.07] focus-visible:bg-white/[0.07]';
 
 function PlayingBars() {
   return (
@@ -76,8 +77,6 @@ function SongRow(props: { track: Track; onPlay: () => void }) {
   return (
     <div
       class={`${rowBase} ${current() ? 'bg-[color-mix(in_srgb,var(--keyColor)_20%,#ffffff0d)] shadow-[inset_0_0_0_0.5px_var(--cardStroke)]' : ''}`}
-      onPointerEnter={() => playerStore.prefetch(props.track)}
-      onFocusIn={() => playerStore.prefetch(props.track)}
     >
       <button class="flex min-w-0 flex-1 items-center gap-3.5 text-left outline-none" onClick={props.onPlay} aria-label={`Play ${props.track.title}`}>
         <div class="relative flex-none">
@@ -125,7 +124,12 @@ function BrowseRow(props: { item: BrowseItem; onOpen?: () => void }) {
     return lower.startsWith(label().toLowerCase()) ? sub : [label(), sub].filter(Boolean).join(' · ');
   };
   return (
-    <PrefetchLink to={href()} class={rowBase} onClick={() => props.onOpen?.()}>
+    <PrefetchLink
+      to={href()}
+      hint={{ title: props.item.title, thumb: props.item.thumb, subtitle: subtitle() }}
+      class={rowBase}
+      onClick={() => props.onOpen?.()}
+    >
       <div class="w-12 flex-none">
         <Artwork src={props.item.thumb} displayWidth={48} radius={props.item.kind === 'artist' ? '50%' : '6px'} />
       </div>
@@ -216,7 +220,13 @@ function HistoryRow(props: { entry: HistoryEntry; onQuery: (q: string) => void; 
         when={href()}
         fallback={<button class="flex min-w-0 flex-1 items-center gap-3.5 text-left outline-none" onClick={open}>{inner}</button>}
       >
-        <PrefetchLink to={href()!} class="flex min-w-0 flex-1 items-center gap-3.5 outline-none">{inner}</PrefetchLink>
+        <PrefetchLink
+          to={href()!}
+          hint={{ title: e().title, thumb: e().thumb, subtitle: e().subtitle }}
+          class="flex min-w-0 flex-1 items-center gap-3.5 outline-none"
+        >
+          {inner}
+        </PrefetchLink>
       </Show>
       <button
         class="grid size-9 flex-none place-items-center rounded-full text-secondary hover:text-primary"

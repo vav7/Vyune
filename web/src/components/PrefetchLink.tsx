@@ -14,7 +14,9 @@ function remember(to: string, hint?: NavHint) {
   const al = matchPath('/album/:id', path);
   if (al) return setNavHint('album', String(al.params.id), hint);
   const pl = matchPath('/playlist/:id', path);
-  if (pl) setNavHint('playlist', String(pl.params.id), hint);
+  if (pl) return setNavHint('playlist', String(pl.params.id), hint);
+  const ar = matchPath('/artist/:id', path);
+  if (ar) return setNavHint('artist', String(ar.params.id), hint);
 }
 
 /**

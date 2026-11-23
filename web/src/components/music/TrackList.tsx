@@ -43,11 +43,10 @@ const link = 'text-inherit hover:underline group-data-current/row:text-primary';
  * fill is clipped inside), brighter on hover, tinted red for the playing row.
  */
 const row = [
-  'group/row track-row glance relative grid items-center [content-visibility:auto] [contain-intrinsic-size:auto_54px]',
-  'border border-white/[0.06] hover:border-white/[0.18]',
-  'hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_6px_20px_rgba(0,0,0,0.35)]',
-  'transition-all duration-200 ease-out select-none',
-  'data-current:bg-[color-mix(in_srgb,var(--keyColor)_24%,rgba(255,255,255,0.08))] data-current:border-white/25 data-current:shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_6px_24px_-4px_rgba(var(--keyColor-rgb),0.45)]',
+  'group/row track-row relative grid items-center',
+  'border border-white/[0.06] hover:border-white/[0.18] hover:bg-white/[0.06]',
+  'transition-colors duration-150 ease-out select-none will-change-[background-color,border-color]',
+  'data-current:bg-[color-mix(in_srgb,var(--keyColor)_24%,rgba(255,255,255,0.08))] data-current:border-white/25',
 ].join(' ');
 
 const rowVariant: Record<Variant, string> = {
@@ -55,20 +54,20 @@ const rowVariant: Record<Variant, string> = {
   playlist: `h-[54px] ${playlistColumns} rounded-[10px] max-md:grid-cols-[minmax(0,1fr)_auto]`,
 };
 
-function Artists({ track }: { track: Track }) {
-  const artists = () => track.artists || [];
+function Artists(props: { track: Track }) {
+  const artists = () => props.track.artists || [];
   return (
     <>
       <For each={artists()}>
         {(artist, i) => {
-          const href = () => artistLink(track.artistIds?.[i()], artist);
+          const href = () => artistLink(props.track.artistIds?.[i()], artist);
           const total = artists().length;
           const isLast = () => i() === total - 1;
           const isSecondToLast = () => i() === total - 2;
           return (
             <span>
               <Show when={href()} fallback={<span>{artist}</span>}>
-                <PrefetchLink to={href()!} class={link} onClick={(e) => e.stopPropagation()}>
+                <PrefetchLink to={href()!} hint={{ title: artist }} class={link} onClick={(e) => e.stopPropagation()}>
                   {artist}
                 </PrefetchLink>
               </Show>
@@ -114,12 +113,13 @@ function RowBase(props: RowProps) {
 
   return (
     <div
-      class={`${row} ${rowVariant[props.variant]}`}
+      class={`${row} ${rowVariant[props.variant]} cursor-pointer`}
       data-variant={props.variant}
       data-current={current() || undefined}
-      onPointerEnter={() => playerStore.prefetch(track())}
-      onFocus={() => playerStore.prefetch(track())}
-      onDblClick={onPlay}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest('button, a, [role="menu"]')) return;
+        onPlay();
+      }}
     >
       <div class={`${cell} gap-3 min-w-0`}>
         <div class={`relative grid w-10 shrink-0 place-items-center${props.variant === 'playlist' ? ' ms-[7px]' : ''}`}>

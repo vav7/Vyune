@@ -8,6 +8,7 @@ import { sheetScore, tierOf } from '../server/lyrics/model.js';
 import { joinMarks, respaced, present } from '../server/lyrics/shape.js';
 import { bestHit } from '../server/lyrics/verify.js';
 import { parseTTML } from '../server/lyrics/parse/ttml.js';
+import { GLOBAL_HTTP_CACHE } from '../server/lyrics/io.js';
 
 /* ---- parsers ---- */
 const lrc = parseLrc('[ar:x]\n[00:10.00]hello\n[00:12.50][01:00.00]world\n');
@@ -75,11 +76,13 @@ assert.equal(r.primary.source, 'Unison');
 console.log('word answer in', Date.now() - t0, 'ms; alternates:', r.alternates);
 
 mode = 'line';
+GLOBAL_HTTP_CACHE.clear();
 r = await fetchLyrics({ ...p, title: 'Other Song', artist: 'Test Artist' }, { refresh: true });
 // Other Song: LRCLIB candidates are filtered by the matcher (different title) -> falls to words-only
 assert.ok(r === null || r.status === 'ok');
 
 mode = 'line';
+GLOBAL_HTTP_CACHE.clear();
 r = await fetchLyrics({ ...p }, { refresh: true });
 assert.equal(r.status, 'ok'); assert.equal(r.primary.isSynced, true);
 assert.equal(r.primary.source, 'LRCLIB'); assert.equal(r.upgrading, true, 'a line answer keeps hunting for word timing');

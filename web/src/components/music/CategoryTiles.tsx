@@ -60,15 +60,15 @@ const ART_PALETTES = [
 ];
 
 /** Fast, lightweight, GPU-composited sleeve with smooth gradients (no heavy repeating radials). */
-function CategoryArtwork({ label }: { label: string }) {
-  const seed = hashStr(label);
-  const [accent, deep] = ART_PALETTES[Math.abs(seed) % ART_PALETTES.length]!;
+function CategoryArtwork(props: { label: string }) {
+  const seed = () => hashStr(props.label);
+  const palette = () => ART_PALETTES[Math.abs(seed()) % ART_PALETTES.length]!;
   return (
     <span
       class="absolute inset-0"
       aria-hidden="true"
       style={{
-        background: `linear-gradient(135deg, ${accent}cc 0%, ${deep} 65%, #0d0f18 100%)`,
+        background: `linear-gradient(135deg, ${palette()[0]}cc 0%, ${palette()[1]} 65%, #0d0f18 100%)`,
       }}
     />
   );
@@ -250,7 +250,7 @@ export function CustomCurator() {
   const items = () => query.data || [];
 
   return (
-    <section class="glass-card glance mx-(--body-gutter) mt-6 mb-8 overflow-hidden rounded-[20px] p-5 border border-white/14 shadow-[0_24px_60px_-18px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.35)]" aria-label="Custom Curator">
+    <section class="glass-card mx-(--body-gutter) mt-6 mb-8 overflow-hidden rounded-[20px] p-5 border border-white/12 shadow-[0_24px_60px_-18px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.25)]" aria-label="Custom Curator">
       <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/10">
         <div>
           <div class="flex items-center gap-2">
@@ -376,10 +376,10 @@ export function PopGenres(props: { categories?: GenreCategory[] }) {
       <ul class="mx-(--body-gutter) grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5">
         <For each={POP_GENRES}>
           {(genre) => (
-            <li class="[content-visibility:auto] [contain-intrinsic-size:auto_140px]">
+            <li>
               <PrefetchLink
                 to={getHref(genre)}
-                class="group glance relative flex aspect-[1.38] flex-col justify-end overflow-hidden rounded-[16px] border border-white/14 bg-white/[0.05] p-3.5 text-white shadow-[0_6px_24px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.35)] transition-all duration-300 ease-out hover:-translate-y-1 hover:border-white/30 hover:bg-white/[0.09] hover:shadow-[0_14px_36px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.5)] focus-visible:outline-2 focus-visible:outline-white"
+                class="group relative flex aspect-[1.38] flex-col justify-end overflow-hidden rounded-[16px] border border-white/12 bg-white/[0.05] p-3.5 text-white shadow-[0_6px_24px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.25)] transition-all duration-300 ease-out hover:-translate-y-1 hover:border-white/25 hover:bg-white/[0.09] hover:shadow-[0_14px_36px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.4)] focus-visible:outline-2 focus-visible:outline-white"
               >
                 {/* Instant GPU gradient backdrop — 60 FPS, 0 network lag */}
                 <span
@@ -410,16 +410,17 @@ export function PopGenres(props: { categories?: GenreCategory[] }) {
   );
 }
 
-function CategoryTile({ category }: { category: GenreCategory }) {
+function CategoryTile(props: { category: GenreCategory }) {
+  const cat = () => props.category;
   return (
-    <li class="[content-visibility:auto] [contain-intrinsic-size:auto_96px]">
+    <li>
       <PrefetchLink
-        to={`/genre/${encodeURIComponent(category.params)}/${encodeURIComponent(category.label)}`}
-        class="genre-tile glance group relative flex aspect-[1.75] items-end overflow-hidden rounded-[16px] border border-white/14 bg-white/[0.05] p-4 text-white shadow-[0_6px_20px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.35)] transition-all duration-300 ease-out hover:-translate-y-1 hover:border-white/30 hover:bg-white/[0.09] hover:shadow-[0_14px_36px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.5)] focus-visible:outline-2 focus-visible:outline-white"
+        to={`/genre/${encodeURIComponent(cat().params)}/${encodeURIComponent(cat().label)}`}
+        class="genre-tile group relative flex aspect-[1.75] items-end overflow-hidden rounded-[16px] border border-white/12 bg-white/[0.05] p-4 text-white shadow-[0_6px_20px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.25)] transition-all duration-300 ease-out hover:-translate-y-1 hover:border-white/25 hover:bg-white/[0.09] hover:shadow-[0_14px_36px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.4)] focus-visible:outline-2 focus-visible:outline-white"
       >
-        <CategoryArtwork label={category.label} />
+        <CategoryArtwork label={cat().label} />
         <span class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent transition-opacity duration-200 group-hover:from-black/65" />
-        <span class="relative z-[1] max-w-[85%] type-title-2-emphasized tracking-[-.02em] drop-shadow-[0_2px_8px_#0009]">{category.label}</span>
+        <span class="relative z-[1] max-w-[85%] type-title-2-emphasized tracking-[-.02em] drop-shadow-[0_2px_8px_#0009]">{cat().label}</span>
         <span class="absolute right-3.5 bottom-3.5 z-[1] grid size-8 translate-y-1 place-items-center rounded-full border border-white/30 bg-white/20 backdrop-blur-md shadow-[0_4px_12px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.5)] text-white opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100" aria-hidden="true">
           <ArrowRight size={15} />
         </span>

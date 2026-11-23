@@ -3,7 +3,6 @@ import { PlayIcon, ShuffleIcon } from '@/components/icons/Transport';
 import { Artwork } from '@/components/music/Artwork';
 import { AppleMotionArtwork } from '@/components/music/AppleMotionArtwork';
 import { ImageFrost } from '@/components/music/ImageFrost';
-import { MotionFrost } from '@/components/music/MotionFrost';
 import { playList, shuffleList } from '@/components/music/play';
 import { PrefetchLink } from '@/components/PrefetchLink';
 import { pageArtStore } from '@/lib/pageArt';
@@ -27,7 +26,6 @@ export function HomeHero(props: { tracks: Track[] }) {
     return props.tracks.filter((t) => t.thumb && !seen.has(t.id) && seen.add(t.id)).slice(0, SLIDES);
   });
   const [index, setIndex] = createSignal(0);
-  const [video, setVideo] = createSignal<HTMLVideoElement | null>(null);
   const [armed, setArmed] = createSignal(false);
   const [hover, setHover] = createSignal(false);
   const current = () => slides()[Math.min(index(), Math.max(0, slides().length - 1))];
@@ -62,11 +60,9 @@ export function HomeHero(props: { tracks: Track[] }) {
         onPointerEnter={() => setHover(true)}
         onPointerLeave={() => setHover(false)}
       >
-        {/* The music video / motion sleeve, frosted: the hero's own light. */}
+        {/* The hero's own luminous ambient light */}
         <div class="pointer-events-none absolute inset-0 -z-1 overflow-hidden">
-          <Show when={video()} fallback={<ImageFrost src={current()!.thumb} dim={0.46} />}>
-            <MotionFrost video={video()} dim={0.4} />
-          </Show>
+          <ImageFrost src={current()!.thumb} dim={0.42} />
           <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(4,4,8,0.55)_0%,rgba(4,4,8,0.15)_52%,transparent_100%)]" />
           <div class="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/30" />
         </div>
@@ -131,18 +127,14 @@ export function HomeHero(props: { tracks: Track[] }) {
           <Show keyed when={current()}>
             {(track) => (
               <div class="hero-poster-wrap order-2 relative justify-self-end w-full max-w-[480px] max-lg:order-1 max-lg:justify-self-start max-lg:max-w-[360px] animate-[hero-rise_900ms_cubic-bezier(0.22,1,0.36,1)_both]">
-                {/* the poster's own glow */}
-                <div class="pointer-events-none absolute -inset-6 -z-1 opacity-60 [filter:blur(48px)_saturate(1.8)] [transform:translateZ(0)]" aria-hidden="true">
-                  <Artwork src={track.thumb} track={track} displayWidth={120} radius="14px" class="size-full rounded-[14px]" />
-                </div>
-                <div class="hero-poster relative aspect-square w-full overflow-hidden rounded-[16px] shadow-[0_36px_90px_-18px_rgba(0,0,0,0.92),0_12px_28px_-6px_rgba(0,0,0,0.65)] border border-white/20">
-                  <Artwork src={track.thumb} track={track} displayWidth={560} radius="16px" eager class="size-full rounded-[16px]" />
-                  <div class="absolute inset-0 overflow-hidden rounded-[16px]">
+                <div class="hero-poster relative aspect-square w-full overflow-hidden rounded-[20px] shadow-[0_36px_90px_-18px_rgba(0,0,0,0.92),0_12px_28px_-6px_rgba(0,0,0,0.65)] border border-white/20">
+                  <Artwork src={track.thumb} track={track} displayWidth={560} radius="20px" eager class="size-full rounded-[20px]" />
+                  <div class="absolute inset-0 overflow-hidden rounded-[20px]">
                     <Show when={armed()}>
-                      <AppleMotionArtwork track={track} mode="visualiser" onVideo={setVideo} appleOnly />
+                      <AppleMotionArtwork track={track} appleOnly />
                     </Show>
                   </div>
-                  <div class="pointer-events-none absolute inset-0 rounded-[16px] shadow-[inset_0_1px_0_rgba(255,255,255,0.5),inset_0_0_0_1px_rgba(255,255,255,0.15)]" />
+                  <div class="pointer-events-none absolute inset-0 rounded-[20px] shadow-[inset_0_1px_0_rgba(255,255,255,0.5),inset_0_0_0_1px_rgba(255,255,255,0.15)]" />
                 </div>
               </div>
             )}

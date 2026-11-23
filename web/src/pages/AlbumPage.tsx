@@ -3,8 +3,6 @@
 import { createMemo, Show } from 'solid-js';
 import { useParams } from '@solidjs/router';
 import { useQuery } from '@tanstack/solid-query';
-import { AlbumVideoBackdrop } from '@/components/music/AlbumVideoBackdrop';
-import { albumVideoStore } from '@/store/albumVideo';
 import { DetailHeader } from '@/components/music/DetailHeader';
 import { TrackList } from '@/components/music/TrackList';
 import { LoadError } from '@/components/music/States';
@@ -41,8 +39,6 @@ export default function AlbumPage() {
   const hasContent = () => !!query.data || !!hint();
 
   usePageTint(useArtworkColor(() => query.data?.thumb ?? hint()?.thumb), () => query.data?.thumb ?? hint()?.thumb);
-  const on = () => albumVideoStore.on;
-  const toggle = albumVideoStore.toggle;
 
   const tracks = createMemo(() => query.data?.tracks || []);
   const artists = createMemo(() => query.data?.artists || []);
@@ -50,7 +46,6 @@ export default function AlbumPage() {
   return (
     <Show when={query.isError} fallback={
       <Show when={hasContent()}>
-        <AlbumVideoBackdrop tracks={tracks()} />
         <div class="relative z-[1]">
           <DetailHeader
             title={title()}
@@ -60,8 +55,6 @@ export default function AlbumPage() {
             thumbnail={thumb()}
             artists={artists()}
             canPlay={tracks().length > 0}
-            onPosterClick={toggle}
-            posterLabel={on() ? 'Turn off music video background' : 'Turn on music video background'}
             onPlay={() => playList(tracks(), 0, { type: 'album', title: title() })}
             onShuffle={() => shuffleList(tracks(), { type: 'album', title: title() })}
           />

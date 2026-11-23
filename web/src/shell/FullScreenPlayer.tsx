@@ -20,9 +20,10 @@ import { ExplicitBadge } from '@/components/music/ExplicitBadge';
 import { FavoriteButton } from '@/components/music/FavoriteButton';
 import { albumHref, artistLink } from '@/components/music/links';
 import { AppleMotionArtwork } from '@/components/music/AppleMotionArtwork';
+import { MvPlayer } from '@/components/music/MvPlayer';
+import { artModeStore } from '@/store/artMode';
 import { ArtVolume } from './ArtControls';
 import { PlayerMenu } from './PlayerMenu';
-import { artModeStore } from '@/store/artMode';
 import { PrefetchLink } from '@/components/PrefetchLink';
 import { api } from '@/lib/api';
 import { cleanArtistDisplay } from '@/lib/artistCredits';
@@ -141,7 +142,7 @@ function Credits() {
         return (
           <span>
             <Show when={href()} fallback={<span>{artist}</span>}>
-              <PrefetchLink class="hover:underline" to={href()!}>
+              <PrefetchLink class="hover:underline" to={href()!} hint={{ title: artist }}>
                 {artist}
               </PrefetchLink>
             </Show>
@@ -187,7 +188,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
   const [settled, setSettled] = createSignal(false);
   // The playing song's motion artwork, once it is on screen: the backdrop frosts a copy of it.
   const [motionVideo, setMotionVideo] = createSignal<HTMLVideoElement | null>(null);
-  const [aspectRatio, setAspectRatio] = createSignal<number>(16 / 9);
+  const [mvStreamSrc, setMvStreamSrc] = createSignal<string | null>(null);
   const tint = useSongTint();
 
   let close!: HTMLButtonElement;
@@ -423,30 +424,12 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
         const showQueue = () => panel() === 'queue';
         const column = () => showLyrics() || showQueue();
 
-        const [mvReady, setMvReady] = createSignal(false);
-
-        // Reset video ready state when track changes or user switches away from video modes
-        createEffect(on([() => current().id, () => artModeStore.mode], () => {
-          setMvReady(false);
-        }));
-
-        // Apple-style transition: stay in 1:1 Art mode until the video stream is buffered and ready to play
-        const isWidescreenMode = () =>
-          (artModeStore.mode === 'mv' && mvReady()) ||
-          (artModeStore.mode === 'visualiser' && artModeStore.visualizerPhase === 'mv_clip' && mvReady());
-        const effectiveAspect = () => {
-          if (!isWidescreenMode()) return 1;
-          const r = aspectRatio();
-          return r && r > 1.2 ? r : 16 / 9;
-        };
-
+        // Responsive artwork stage width: grand cinematic 16:9 in MV mode, spacious locked square in art mode
         const stageWidth = createMemo(() => {
-          if (!isWidescreenMode()) return 'var(--art)';
-          const aspect = Number(effectiveAspect().toFixed(4));
-          if (column()) {
-            return `min(48vw, calc((100dvh - 210px) * ${aspect}), 700px)`;
+          if (artModeStore.mode === 'mv') {
+            return 'min(64vw, calc((100dvh - 170px) * 16 / 9), 1120px)';
           }
-          return `min(56vw, calc((100dvh - 190px) * ${aspect}), 920px)`;
+          return 'min(52vw, calc(100dvh - 140px), 840px)';
         });
 
         const playingContext = () => playerStore.sourceContext;
@@ -484,9 +467,8 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
             <ArtworkBackdrop
               artworkUrl={poster()[0] ?? thumbCandidates(artworkTrack())[0] ?? current().thumb ?? null}
               fallbackUrl={current().thumb}
-              motionVideo={(settled() || artModeStore.mode === 'mv' || artModeStore.mode === 'visualiser') ? motionVideo() : null}
-              mode={artModeStore.mode}
-              videoReady={mvReady()}
+              videoSrc={artModeStore.mode === 'mv' ? mvStreamSrc() : null}
+              motionVideo={settled() ? motionVideo() : null}
             />
 
             {/* The pull handle spans the top edge so it is easy to catch with a thumb. */}
@@ -522,151 +504,67 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
               </button>
             </Show>
 
-            {/* Master stage layout: smoothly scales into cinematic 16:9 width for MV */}
+            {/* Master stage layout: Locked left column with zero jitter on lyrics/art toggle */}
             <div
-              class={`fs-lyrics grid h-full items-center justify-center py-16 max-md:px-6 max-md:pb-18 gap-x-[clamp(36px,5vw,84px)] pl-[clamp(28px,4.5vw,88px)] pr-[clamp(20px,3.5vw,68px)] transition-[grid-template-columns] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              class={`fs-lyrics grid h-full items-center justify-center py-16 max-md:px-6 max-md:pb-18 gap-x-[clamp(36px,5vw,84px)] pl-[clamp(28px,4.5vw,88px)] pr-[clamp(20px,3.5vw,68px)] ${
                 showLyrics()
                   ? 'max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[minmax(0,1fr)_auto] max-md:items-stretch max-md:gap-y-4'
                   : 'max-md:grid-cols-[minmax(0,1fr)] max-md:grid-rows-[auto_minmax(0,1fr)] max-md:items-stretch max-md:gap-y-4'
               }`}
               style={{
-                'grid-template-columns': `${stageWidth()} minmax(0, ${column() ? '42vw' : '1fr'})`,
+                'grid-template-columns': `${stageWidth()} minmax(0, 1fr)`,
               }}
               data-lyrics={column() || undefined}
             >
               <section
-                class={`poster-col flex min-w-0 flex-col transition-[width] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]${showQueue() ? ' max-md:order-2 max-md:w-full' : ''}`}
+                class={`poster-col flex min-w-0 flex-col${showQueue() ? ' max-md:order-2 max-md:w-full' : ''}`}
                 style={{
                   width: stageWidth(),
                   'max-width': '100%',
                 }}
                 aria-label="Player"
               >
-                {/* 3-Mode Selector Pill: Art | Visualizer | MV */}
-                <div class="relative z-30 mb-3.5 flex items-center justify-between pointer-events-auto">
-                  <div class="inline-flex items-center gap-1 rounded-full p-1 bg-white/[0.08] border border-white/15 backdrop-blur-2xl shadow-[0_4px_20px_rgba(0,0,0,0.35)] select-none pointer-events-auto">
-                    <button
-                      type="button"
-                      class={`cursor-pointer px-3.5 py-1 text-[11px] font-bold tracking-wider uppercase rounded-full transition-all duration-300 [font-family:var(--font-display)] ${
-                        artModeStore.mode === 'art'
-                          ? 'bg-white text-black shadow-[0_2px_10px_rgba(255,255,255,0.4)]'
-                          : 'text-white/60 hover:text-white hover:bg-white/10'
-                      }`}
-                      onClick={(e) => { e.stopPropagation(); artModeStore.setMode('art'); }}
-                    >
-                      Art
-                    </button>
-                    <button
-                      type="button"
-                      class={`cursor-pointer px-3.5 py-1 text-[11px] font-bold tracking-wider uppercase rounded-full transition-all duration-300 [font-family:var(--font-display)] ${
-                        artModeStore.mode === 'visualiser'
-                          ? 'bg-white text-black shadow-[0_2px_10px_rgba(255,255,255,0.4)]'
-                          : 'text-white/60 hover:text-white hover:bg-white/10'
-                      }`}
-                      onClick={(e) => { e.stopPropagation(); artModeStore.setMode('visualiser'); }}
-                    >
-                      Visualizer
-                    </button>
-                    <button
-                      type="button"
-                      class={`cursor-pointer px-3.5 py-1 text-[11px] font-bold tracking-wider uppercase rounded-full transition-all duration-300 [font-family:var(--font-display)] ${
-                        artModeStore.mode === 'mv'
-                          ? 'bg-white text-black shadow-[0_2px_10px_rgba(255,255,255,0.4)]'
-                          : 'text-white/60 hover:text-white hover:bg-white/10'
-                      }`}
-                      onClick={(e) => { e.stopPropagation(); artModeStore.setMode('mv'); }}
-                    >
-                      MV
-                    </button>
-                  </div>
-
-                  {/* Visualizer phase badge / MV status (60fps label removed) */}
-                  <Show when={artModeStore.mode === 'visualiser'}>
-                    <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[10px] font-bold tracking-wider uppercase text-white/70 backdrop-blur-md">
-                      <span class="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      <span>{artModeStore.visualizerPhase === 'live_art' ? 'Live Canvas' : 'MV 30s Cut'}</span>
-                    </div>
-                  </Show>
-                  <Show when={artModeStore.mode === 'mv'}>
-                    <div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.08] border border-white/15 text-[10px] font-bold tracking-wider uppercase text-white/90 backdrop-blur-md transition-all duration-300">
-                      <Show
-                        when={mvReady()}
-                        fallback={
-                          <>
-                            <span class="size-1.5 rounded-full bg-amber-400 animate-ping" />
-                            <span class="text-white/80">Buffering MV...</span>
-                          </>
-                        }
-                      >
-                        <span class="size-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
-                        <span>Official MV</span>
-                      </Show>
-                    </div>
-                  </Show>
-                </div>
-
-                {/* 16:9 Cinema mode in MV once buffered, 1:1 Square in Art mode with zero black bars */}
+                {/* Apple-grade squarish card with subtle curve (rounded-[14px]), extended in 16:9 MV mode */}
                 <div
-                  class={`fs-poster group/poster relative cursor-pointer rounded-[20px] overflow-hidden ${
-                    artModeStore.mode === 'art'
-                      ? 'bg-black/40 backdrop-blur-md shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10'
-                      : 'bg-white/[0.03] shadow-[0_25px_65px_-12px_rgba(0,0,0,0.7),_inset_0_1px_1px_rgba(255,255,255,0.4),_inset_0_0_24px_rgba(255,255,255,0.05)] border border-white/25 ring-1 ring-white/15'
-                  } transition-[scale,aspect-ratio,width] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none group-data-[idle=true]:scale-[0.96]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.92]'}`}
+                  class={`fs-poster group/poster relative rounded-[14px] overflow-hidden bg-black/40 shadow-[0_24px_60px_rgba(0,0,0,0.6)] border border-white/15 transition-[aspect-ratio,transform,width] duration-500 ease-out group-data-[idle=true]:scale-[0.98]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.94]'}`}
                   style={{
                     width: stageWidth(),
-                    'aspect-ratio': `${effectiveAspect()}`,
+                    'aspect-ratio': artModeStore.mode === 'mv' ? '16 / 9' : '1',
                     'max-width': '100%',
                   }}
-                  onClick={() => artModeStore.cycle()}
                 >
                   <div class="absolute inset-0 size-full">
+                    {/* Base Layer: High-Res Album Artwork — ALWAYS VISIBLE! Zero black screen while MV resolves */}
                     <Show when={poster()[0]}>
-                      <Show
-                        when={isWidescreenMode()}
-                        fallback={
-                          <Artwork
-                            candidates={poster()}
-                            track={artworkTrack()}
-                            displayWidth={800}
-                            radius="20px"
-                            eager
-                            class="size-full rounded-[20px] object-cover"
-                          />
-                        }
-                      >
-                        {/* Widescreen presentation: ambient blurred expansion in background + UNTOUCHED 1:1 artwork centered (Zero Crop!) */}
-                        <div class="absolute inset-0 size-full overflow-hidden rounded-[20px]">
-                          <Artwork
-                            candidates={poster()}
-                            track={artworkTrack()}
-                            displayWidth={400}
-                            radius="0"
-                            class="absolute inset-0 size-full scale-125 object-cover blur-2xl opacity-60"
-                          />
-                          <div class="relative size-full flex items-center justify-center p-2">
-                            <Artwork
-                              candidates={poster()}
-                              track={artworkTrack()}
-                              displayWidth={800}
-                              radius="16px"
-                              eager
-                              class="max-h-full aspect-square rounded-[16px] object-contain shadow-[0_12px_36px_rgba(0,0,0,0.6)]"
-                            />
-                          </div>
-                        </div>
-                      </Show>
+                      <Artwork
+                        candidates={poster()}
+                        track={artworkTrack()}
+                        displayWidth={900}
+                        radius="14px"
+                        eager
+                        class="size-full rounded-[14px] object-cover"
+                      />
                     </Show>
-                    <div class="absolute inset-0 size-full overflow-hidden rounded-[20px]">
-                      <Show when={settled() || artModeStore.mode === 'mv'}>
-                        <AppleMotionArtwork
+
+                    {/* Layer 2: Apple Motion Visualizer */}
+                    <Show when={artModeStore.mode === 'motion' && settled()}>
+                      <div class="absolute inset-0 size-full overflow-hidden rounded-[14px]">
+                        <AppleMotionArtwork track={current()} onVideo={setMotionVideo} />
+                      </div>
+                    </Show>
+
+                    {/* Layer 3: YouTube 16:9 Music Video with Smooth Fade-in */}
+                    <Show when={artModeStore.mode === 'mv'}>
+                      <div class="absolute inset-0 size-full overflow-hidden rounded-[14px] z-10">
+                        <MvPlayer
                           track={current()}
-                          mode={artModeStore.mode}
+                          active={true}
                           onVideo={setMotionVideo}
-                          onAspect={setAspectRatio}
-                          onReady={setMvReady}
+                          onStreamSrc={setMvStreamSrc}
+                          class="size-full rounded-[14px]"
                         />
-                      </Show>
-                    </div>
+                      </div>
+                    </Show>
                   </div>
                 </div>
 
@@ -693,9 +591,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                 <section
                   class="flex min-h-0 min-w-0 animate-fade-in flex-col justify-between self-center py-2 transition-[height] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
                   style={{
-                    height: isWidescreenMode()
-                      ? `min(calc(${stageWidth()} / ${effectiveAspect()}), var(--art))`
-                      : 'var(--art)',
+                    height: 'var(--art)',
                     'max-height': '100%',
                   }}
                   aria-label="Now playing controls"
@@ -776,6 +672,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                 <LyricsActiveIcon size={18} />
               </Show>
             </button>
+
             {/* Three dots, bottom right: the background (static / motion / video) and the Up Next list live inside. */}
             <div class={`absolute right-5 bottom-5 z-1 ${fades}`}>
               <PlayerMenu

@@ -21,16 +21,18 @@ import fs from 'node:fs';
 import { etag } from 'hono/etag';
 import { TTLCache, AsyncResolver, withTimeout, persistCaches } from './cache.js';
 import * as yt from './yt.js';
+import { isNotArtist } from './yt.js';
 import * as saavn from './saavn.js';
 import { artistImages } from './artistimages.js';
 import { normalizeFilter, searchContinuation, searchPage, searchSuggestions, searchTypeahead } from './search.js';
 import { identify } from './identify.js';
-import { registerProxies } from './proxy.js';
-import { globalTopTracks } from './globalcharts.js';
+import { registerProxies, streamMedia } from './proxy.js';
+import { globalTopTracks, globalChartPlaylists } from './globalcharts.js';
 import { spotifyTrack } from './spotify.js';
 import { artistArt, trackMotionArt, trackMusicVideos, warmAppleCatalog } from './appleart.js';
 import { ranked as rankRecordings } from './match.js';
 import { saavnPlaylist } from './feeds.js';
+import { cleanTitle } from './lyrics/text.js';
 import { proxyVideoStream } from './videoStream.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -113,10 +115,17 @@ const streamCache = new AsyncResolver(new TTLCache({ max: 600, ttl: 45 * 60_000 
 
 const rowsOnly = (page) => (page ? { rows: page.rows, continuation: page.continuation } : null);
 
-/** GET /api/search/page?q=&filter=all|songs|videos|albums|artists|playlists */
+/** GET /api/search/page?q=&filter=all|songs|videos|albums|artists|playlists|saavn */
 app.get('/api/search/page', async (c) => {
   const q = String(c.req.query('q') || '').trim();
-  const filter = normalizeFilter(c.req.query('filter'));
+  const rawFilter = String(c.req.query('filter') || 'all').toLowerCase();
+  if (rawFilter === 'saavn') {
+    if (!q) return c.json({ query: q, filter: 'saavn', rows: [], continuation: null });
+    const saavnTracks = await saavn.saavnSearch(q, 30);
+    const rows = saavnTracks.map((track) => ({ kind: 'track', track }));
+    return c.json({ query: q, filter: 'saavn', rows, continuation: null });
+  }
+  const filter = normalizeFilter(rawFilter);
   if (!q) return c.json({ query: q, filter, rows: [], continuation: null });
   // A search that failed says nothing about the query, so it is never cached.
   const page = await searchCache.resolve(`page:${filter}:${q.toLowerCase()}`, async () =>
@@ -209,9 +218,9 @@ function officialSongMatches(tracks, title, artist, album, duration) {
 
 app.get('/api/stream', async (c) => {
   const id = String(c.req.query('id') || '').trim();
-  const title = String(c.req.query('title') || '').trim();
-  const artist = String(c.req.query('artist') || '').trim();
-  const album = String(c.req.query('album') || '').trim();
+  const rawTitle = String(c.req.query('title') || '').trim();
+  const rawArtist = String(c.req.query('artist') || '').trim();
+  let album = String(c.req.query('album') || '').trim();
   const duration = parseFloat(c.req.query('duration') || '0') > 0 ? parseFloat(c.req.query('duration') || '0') : 0;
   if (!id) return c.json({ error: 'id required' }, 400);
   const refresh = c.req.query('refresh') === '1';
@@ -219,6 +228,22 @@ app.get('/api/stream', async (c) => {
   const wrapper = String(c.req.query('wrapper') || 'auto');
   // The row is somebody's upload rather than the catalogue's own audio.
   const isUpload = c.req.query('upload') === '1';
+
+  let title = rawTitle;
+  let artist = rawArtist;
+  if (rawTitle.includes('|')) {
+    const parts = rawTitle.split('|').map((p) => p.trim()).filter(Boolean);
+    title = cleanTitle(parts[0], rawArtist);
+    if (!album && parts[1] && !isNotArtist(parts[1])) {
+      album = parts[1];
+    }
+  } else if (!artist && rawTitle.includes(' - ')) {
+    const parts = rawTitle.split(/\s*[-–—]\s*/);
+    artist = parts[0].trim();
+    title = cleanTitle(parts.slice(1).join(' - '), artist);
+  } else {
+    title = cleanTitle(rawTitle, rawArtist);
+  }
 
   const key = `st:${id}${isUpload ? ':u' : ''}${preferOpus ? ':opus' : ''}:${wrapper}`;
   if (refresh) {
@@ -248,40 +273,80 @@ app.get('/api/stream', async (c) => {
       if (svTrack) {
         const media = await saavn.saavnStreamUrl(svTrack).catch(() => null);
         if (media?.url) {
-          return { url: media.url, source: 'saavn', bitrate: media.bitrate || 320000, mime: 'audio/mp4' };
+          const params = new URLSearchParams({ url: media.url });
+          return {
+            url: media.url,
+            proxy: `/api/media?${params}`,
+            source: 'saavn',
+            bitrate: media.bitrate || 320000,
+            mime: 'audio/mp4',
+          };
         }
       }
     }
 
-    // 2) JioSaavn Match — FIRST PRIORITY
-    // Pristine 320kbps CD-quality Akamai CDN audio, zero decipher delays or proxies.
-    if (wrapper !== 'yt-dlp' && title) {
-      try {
-        const match = await withTimeout(
-          saavn.findSaavnMatch(title, artist, { album, duration }),
-          2500,
-          null
-        );
-        if (match) {
-          const media = await saavn.saavnStreamUrl(match).catch(() => null);
-          if (media?.url) {
-            return {
-              url: media.url,
-              source: 'saavn',
-              bitrate: media.bitrate || 320000,
-              mime: 'audio/mp4',
-            };
+    // 2) Official catalogue YouTube track (!isUpload):
+    // Parallel resolution! Start direct YouTube stream immediately (~300ms) while checking JioSaavn in parallel.
+    if (id && /^[\w-]{11}$/.test(id) && !isUpload) {
+      const ytPromise = tryVideo(id);
+
+      if (wrapper !== 'yt-dlp' && title) {
+        try {
+          const match = await withTimeout(
+            saavn.findSaavnMatch(title, artist, { album, duration }),
+            750,
+            null
+          ).catch(() => null);
+          if (match) {
+            const media = await saavn.saavnStreamUrl(match).catch(() => null);
+            if (media?.url) {
+              const params = new URLSearchParams({ url: media.url });
+              return {
+                url: media.url,
+                proxy: `/api/media?${params}`,
+                source: 'saavn',
+                bitrate: media.bitrate || 320000,
+                mime: 'audio/mp4',
+              };
+            }
           }
-        }
-      } catch (err) {
-        // Continue to YouTube fallback
+        } catch {}
       }
+
+      // If JioSaavn is not available, YouTube stream was already resolving in parallel with zero extra delay
+      const viaYoutube = await ytPromise;
+      if (viaYoutube) return viaYoutube;
     }
 
-    // 3) Sureshot YouTube Studio Audio Release (Enforce official studio album audio)
-    // Strictly prioritizes clean studio audio (ATV / Official Album Release) over video uploads with dialogue/skits/live concerts
-    if (title) {
-      const studioTracks = await yt.searchSongs(`${title} ${artist}`.trim(), 6).catch(() => []);
+    // 3) Video playlist / upload track (isUpload === true):
+    // Prioritize clean studio version audio so video dialogue/skit noise does not desynchronize lyrics
+    if (isUpload && title) {
+      // 3a. Search studio match on JioSaavn (tight 1200ms budget)
+      if (wrapper !== 'yt-dlp') {
+        try {
+          const match = await withTimeout(
+            saavn.findSaavnMatch(title, artist, { album, duration }),
+            1200,
+            null
+          ).catch(() => null);
+          if (match) {
+            const media = await saavn.saavnStreamUrl(match).catch(() => null);
+            if (media?.url) {
+              const params = new URLSearchParams({ url: media.url });
+              return {
+                url: media.url,
+                proxy: `/api/media?${params}`,
+                source: 'saavn',
+                bitrate: media.bitrate || 320000,
+                mime: 'audio/mp4',
+              };
+            }
+          }
+        } catch {}
+      }
+
+      // 3b. Search official studio album release on YouTube
+      const studioTracks = await yt.searchSongs(`${title} ${artist}`.trim(), 4).catch(() => []);
       const studioMatch = studioTracks.find(
         (t) =>
           !t.isUpload &&
@@ -293,7 +358,7 @@ app.get('/api/stream', async (c) => {
       }
     }
 
-    // Direct YouTube stream if valid ID provided
+    // Direct YouTube stream for any remaining valid ID
     if (id && /^[\w-]{11}$/.test(id)) {
       const viaYoutube = await tryVideo(id);
       if (viaYoutube) return viaYoutube;
@@ -301,7 +366,7 @@ app.get('/api/stream', async (c) => {
 
     // Final search fallback on YouTube
     if (title) {
-      const hits = await yt.searchSongs(`${title} ${artist}`.trim(), 4).catch(() => []);
+      const hits = await yt.searchSongs(`${title} ${artist}`.trim(), 3).catch(() => []);
       for (const hit of hits.slice(0, 2)) {
         const stream = await tryVideo(hit.id);
         if (stream) return stream;
@@ -327,11 +392,11 @@ app.get('/api/stream', async (c) => {
 app.get('/api/saavn/search', async (c) => {
   const q = String(c.req.query('q') || '').trim();
   if (!q) return c.json({ results: [] });
-  const results = await searchCache.resolve(`sv:${q}`, async () => {
-    const raw = await saavn.saavnSearch(q, 20);
-    return raw.map((t) => ({ ...t, encrypted: undefined }));
+  const results = await searchCache.resolve(`sv:${q.toLowerCase()}`, async () => {
+    const raw = await saavn.saavnSearch(q, 25);
+    return raw?.length ? raw.map((t) => ({ ...t, encrypted: undefined })) : null;
   });
-  return c.json({ results });
+  return c.json({ results: results || [] });
 });
 
 /** GET /api/saavn/stream?id= */
@@ -349,7 +414,16 @@ app.get('/api/saavn/stream', async (c) => {
   const out = await streamCache.resolve(key, async () => {
     if (wrapper !== 'yt-dlp') {
       const media = await saavn.saavnStreamUrl({ id });
-      if (media) return { url: media.url, source: 'saavn', bitrate: media.bitrate, mime: 'audio/mp4' };
+      if (media?.url) {
+        const params = new URLSearchParams({ url: media.url });
+        return {
+          url: media.url,
+          proxy: `/api/media?${params}`,
+          source: 'saavn',
+          bitrate: media.bitrate || 320000,
+          mime: 'audio/mp4',
+        };
+      }
     }
 
     // Saavn catalogs the request but its CDN can lack or refuse the stream.
@@ -379,6 +453,63 @@ app.get('/api/saavn/stream', async (c) => {
   return c.json(out);
 });
 
+/* ---------------- music video & video streaming ---------------- */
+
+/**
+ * GET /api/mv/resolve?id=&title=&artist=&album=&duration=
+ * Resolves the official HD music video on YouTube for the current song.
+ */
+app.get('/api/mv/resolve', async (c) => {
+  const id = String(c.req.query('id') || '').trim();
+  const title = String(c.req.query('title') || '').trim();
+  const artist = String(c.req.query('artist') || '').trim();
+  const album = String(c.req.query('album') || '').trim();
+  const duration = parseFloat(c.req.query('duration') || '0') > 0 ? parseFloat(c.req.query('duration') || '0') : 0;
+  if (!title && !id) return c.json({ error: 'title or id required' }, 400);
+
+  const mv = await yt.resolveMusicVideo(title, artist, id, { album, duration });
+  if (mv?.videoId) return c.json(mv);
+  return c.json({
+    videoId: id,
+    title: title || 'Video',
+    thumbnail: id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : '',
+  });
+});
+
+/**
+ * GET /api/video/stream?id=<videoId>
+ * High-definition (1080p/720p H.264 MP4) video stream metadata with direct Google Video and proxy URLs.
+ */
+app.get('/api/video/stream', async (c) => {
+  const id = String(c.req.query('id') || '').trim();
+  if (!id) return c.json({ error: 'id required' }, 400);
+  const meta = await yt.resolveVideoStream(id);
+  if (!meta?.url) return c.json({ error: 'stream_unavailable' }, 404);
+  const params = new URLSearchParams({ url: meta.url });
+  if (meta.contentLength) params.set('size', String(meta.contentLength));
+  return c.json({
+    videoId: meta.videoId,
+    url: meta.url,
+    proxy: `/api/video/${encodeURIComponent(meta.videoId)}`,
+    mime: meta.mime,
+    width: meta.width,
+    height: meta.height,
+    quality: meta.quality,
+  });
+});
+
+/**
+ * High-definition Video Stream Proxy (1080p/720p H.264 MP4)
+ * Streams native hardware-accelerated video to HTML5 <video> with full RFC 7233 byte ranges (HTTP 206).
+ * Powered by @distube/ytdl-core chunking with Content-Disposition: inline to eliminate YouTube's rate limits and bypass IDM.
+ * GET/HEAD /api/video/:id
+ */
+app.on(['GET', 'HEAD'], '/api/video/:id', async (c) => {
+  const id = String(c.req.param('id') || '').trim();
+  if (!id) return c.json({ error: 'id required' }, 400);
+  return await proxyVideoStream(id, c.req.header('range'), c.req.method, c.req.raw?.signal);
+});
+
 /* ---------------- browse: genres, charts, playlists, radio ---------------- */
 
 app.get('/api/genres', async (c) => {
@@ -394,8 +525,13 @@ app.get('/api/genres/playlists', async (c) => {
 });
 
 app.get('/api/charts', async (c) => {
-  const c2 = await chartsCache.resolve('charts', () => yt.chartsContent());
-  return c.json({ tracks: c2?.tracks || [], items: c2?.playlists || [] });
+  const [global, c2] = await Promise.all([
+    globalTopTracks(50),
+    chartsCache.resolve('charts', () => yt.chartsContent()).catch(() => null),
+  ]);
+  const tracks = (global && global.length > 0) ? global : (c2?.tracks || []);
+  const items = (c2?.playlists && c2.playlists.length > 0) ? c2.playlists : globalChartPlaylists();
+  return c.json({ tracks, items });
 });
 
 
@@ -411,14 +547,16 @@ const homeCache = new AsyncResolver(new TTLCache({ max: 4, ttl: 10 * 60_000 }), 
 const part = (promise, fallback, timeoutMs = 5_000) => withTimeout(Promise.resolve(promise).catch(() => fallback), timeoutMs, fallback);
 
 async function buildHome() {
-  const [charts, global, genres, curated] = await Promise.all([
-    part(chartsCache.resolve('charts', () => yt.chartsContent()), null, 6_000),
-    part(globalTopTracks(20), [], 10_000),
-    part(genreCache.resolve('genres', () => yt.genreCategories()), null, 6_000),
-    part(curatedHome(), null, 6_000),
+  const [global, genres, curated, charts] = await Promise.all([
+    part(globalTopTracks(20), [], 4_000),
+    part(genreCache.resolve('genres', () => yt.genreCategories()), null, 4_000),
+    part(curatedHome(), null, 4_000),
+    part(chartsCache.resolve('charts', () => yt.chartsContent()), null, 4_000),
   ]);
+  const chartTracks = (global && global.length > 0) ? global : (charts?.tracks || []);
+  const chartItems = (charts?.playlists && charts.playlists.length > 0) ? charts.playlists : globalChartPlaylists();
   const out = {
-    charts: { tracks: charts?.tracks || [], items: charts?.playlists || [] },
+    charts: { tracks: chartTracks, items: chartItems },
     global: { tracks: global || [] },
     genres: { categories: genres || [] },
     curated: { rows: curated?.rows || [] },
@@ -514,18 +652,66 @@ app.get('/api/album', async (c) => {
   return c.json(page);
 });
 
-// Resolve alternate sleeve art from the exact JioSaavn catalogue recording.
-// The result is cached by song identity so changing tracks stays off this path.
+// Resolve authentic official square studio album art (JioSaavn -> iTunes 1200x1200bb -> YouTube Music 1080x1080).
+// Ensures tracks from video playlists show official sleeve artwork instead of 16:9 video stills.
 app.get('/api/artwork', async (c) => {
-  const title = String(c.req.query('title') || '').trim();
-  const artist = String(c.req.query('artist') || '').trim();
-  const album = String(c.req.query('album') || '').trim();
+  const rawTitle = String(c.req.query('title') || '').trim();
+  const rawArtist = String(c.req.query('artist') || '').trim();
+  let album = String(c.req.query('album') || '').trim();
   const duration = parseFloat(c.req.query('duration') || '0') > 0 ? parseFloat(c.req.query('duration') || '0') : 0;
-  if (!title) return c.json({ error: 'title required' }, 400);
+  if (!rawTitle) return c.json({ error: 'title required' }, 400);
+
+  let title = rawTitle;
+  let artist = rawArtist;
+  if (rawTitle.includes('|')) {
+    const parts = rawTitle.split('|').map((p) => p.trim()).filter(Boolean);
+    title = cleanTitle(parts[0], rawArtist);
+    if (!album && parts[1] && !isNotArtist(parts[1])) {
+      album = parts[1];
+    }
+  } else if (!artist && rawTitle.includes(' - ')) {
+    const parts = rawTitle.split(/\s*[-–—]\s*/);
+    artist = parts[0].trim();
+    title = cleanTitle(parts.slice(1).join(' - '), artist);
+  } else {
+    title = cleanTitle(rawTitle, rawArtist);
+  }
+
   const key = [title, artist, album, duration ? Math.round(duration) : ''].join('|').toLowerCase();
   const thumb = await artworkCache.resolve(`art:${key}`, async () => {
-    const match = await saavn.findSaavnMatch(title, artist, { album, duration });
-    return match?.thumb || null;
+    // 1) JioSaavn exact catalogue match (instant high-res artwork)
+    try {
+      const match = await saavn.findSaavnMatch(title, artist, { album, duration });
+      if (match?.thumb) return match.thumb;
+    } catch {}
+
+    // 2) iTunes / Apple Music (1200x1200bb crystal-clear studio cover art)
+    try {
+      const itunesQuery = [title, album || artist].filter(Boolean).join(' ');
+      const res = await withTimeout(
+        fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(itunesQuery)}&entity=song&limit=4`),
+        2500,
+        null
+      );
+      if (res?.ok) {
+        const data = await res.json().catch(() => null);
+        const item = data?.results?.[0];
+        if (item?.artworkUrl100) {
+          return item.artworkUrl100.replace('100x100bb', '1200x1200bb');
+        }
+      }
+    } catch {}
+
+    // 3) YouTube Music official studio release cover art (1080x1080)
+    try {
+      const yHits = await withTimeout(yt.searchSongs(`${title} ${artist}`.trim(), 4), 2500, []);
+      const studioHit = yHits.find(
+        (t) => !t.isUpload && t.thumb && !/(?:^|\/\/)(?:i\d*\.)?ytimg\.com\//i.test(t.thumb)
+      );
+      if (studioHit?.thumb) return studioHit.thumb;
+    } catch {}
+
+    return null;
   });
   return c.json({ thumb: thumb || null });
 });
@@ -587,36 +773,6 @@ app.get('/api/apple-motion', async (c) => {
   return c.json({ ...(art || { url: null, aspect: null }), mv: mvs[0] || null, mvs });
 });
 
-/**
- * Official Music Video Resolver for the visualizer & full MV player.
- * GET /api/mv/resolve?title=&artist=&album=&duration=&id=
- */
-app.get('/api/mv/resolve', async (c) => {
-  const title = String(c.req.query('title') || '').trim();
-  const artist = String(c.req.query('artist') || '').trim();
-  const album = String(c.req.query('album') || '').trim();
-  const duration = parseFloat(c.req.query('duration') || '0') > 0 ? parseFloat(c.req.query('duration') || '0') : 0;
-  const id = String(c.req.query('id') || '').trim();
-  if (!title && !id) return c.json({ error: 'title or id required' }, 400);
-
-  const mv = await yt.resolveMusicVideo(title, artist, id, { album, duration });
-  if (!mv) return c.json({ error: 'mv_not_found' }, 404);
-  return c.json(mv);
-});
-
-/**
- * High-definition Video Stream Proxy (1080p/720p H.264 MP4)
- * Streams native hardware-accelerated video to HTML5 <video> with full RFC 7233 byte ranges (HTTP 206).
- * Powered by @distube/ytdl-core chunking to eliminate YouTube's 12MB / 30s cutoff limits.
- * Uses request abort signals to immediately tear down abandoned upstream Range connections and prevent socket pool starvation.
- * GET /api/video/:id
- */
-app.on(['GET', 'HEAD'], '/api/video/:id', async (c) => {
-  const videoId = String(c.req.param('id') || '').trim();
-  if (!videoId) return c.json({ error: 'id required' }, 400);
-
-  return await proxyVideoStream(videoId, c.req.header('range'), c.req.method, c.req.raw.signal);
-});
 
 
 /** Song identity: canonical metadata + ISRC (iTunes × Deezer × lrc.red). */

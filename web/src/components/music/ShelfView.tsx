@@ -107,7 +107,7 @@ export function TrackShelf(props: { title: string; to?: string | null; tracks: T
       <ShelfScroller kind="tracks">
         <For each={tracks()}>
           {(track, i) => (
-            <li class="[content-visibility:auto] [contain-intrinsic-size:auto_72px]">
+            <li>
               <TrackLockup item={trackItem(track)} onPlay={() => playList(tracks(), i())} />
             </li>
           )}
@@ -152,7 +152,7 @@ export function ShelfView(props: { shelf: Shelf }) {
       <ShelfScroller kind={shelf().layout}>
         <For each={shelf().items}>
           {(item) => (
-            <li class="[content-visibility:auto] [contain-intrinsic-size:auto_200px]">
+            <li>
               {renderItem(
                 shelf(),
                 item,

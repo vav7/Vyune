@@ -16,7 +16,6 @@ import { playerStore } from '@/store/player';
 import { uiStore } from '@/store/ui';
 import { PanelLeft } from 'lucide-solid';
 import { ImageFrost } from '@/components/music/ImageFrost';
-import { MotionFrost } from '@/components/music/MotionFrost';
 import { pageArtStore } from '@/lib/pageArt';
 import { useWarmLyrics } from '@/lib/lyricsWarm';
 import { AppBackground } from '@/components/ui/glass/AppBackground';
@@ -66,9 +65,8 @@ function PageFrost() {
   );
 }
 
-// Warm neutral greys: the glass is clear white, so it must not pick up a blue cast of its own.
-// The open page's artwork colours replace these as soon as they are known.
-const AMBIENT = ['#4a4650', '#3a3a42', '#55505a', '#44444c'];
+// Pure transparent baseline: colors only bloom when song artwork is extracted
+const AMBIENT = ['transparent', 'transparent', 'transparent', 'transparent'];
 
 export function Layout(props: RouteSectionProps) {
   const sidebarHidden = () => uiStore.sidebarHidden;
@@ -119,13 +117,6 @@ export function Layout(props: RouteSectionProps) {
   return (
     <div class="mc-frame">
       <AppBackground />
-      <Show when={pageArtStore.motionVideo}>
-        {(video) => (
-          <div class="pointer-events-none absolute inset-0 z-0 overflow-hidden animate-[fade-in_1s_ease_both]">
-            <MotionFrost video={video()} />
-          </div>
-        )}
-      </Show>
       <div
         class="mc-ambient"
         aria-hidden="true"

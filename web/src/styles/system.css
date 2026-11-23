@@ -60,32 +60,25 @@
 /* 3. Surfaces                                                         */
 /* ================================================================== */
 /*
- * Authentic Apple Liquid Glass Recipe:
- *   • a dark vibrant translucent body,
- *   • a deep saturating optical blur,
- *   • crisp multi-stop specular directional sheen,
- *   • inset hairline rim light and refraction highlights.
+ * Pure Apple Liquid Glass Recipe:
+ *   • pristine dark translucent body,
+ *   • deep optical blur and rich saturation,
+ *   • subtle top rim refraction light.
  */
 .sidebar-glass,
 .search-glass,
 .panel-glass,
 .mc-col-panel > aside {
   isolation: isolate;
-  background:
-    radial-gradient(140% 90% at 12% 0%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.03) 38%, transparent 72%),
-    radial-gradient(100% 70% at 90% 100%, rgba(255, 255, 255, 0.06) 0%, transparent 55%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(0, 0, 0, 0.18) 100%),
-    rgba(8, 8, 14, 0.52);
-  backdrop-filter: blur(24px) saturate(1.85) brightness(1.03);
-  -webkit-backdrop-filter: blur(24px) saturate(1.85) brightness(1.03);
+  background: rgba(16, 16, 22, 0.48);
+  backdrop-filter: blur(40px) saturate(1.8) brightness(1.02);
+  -webkit-backdrop-filter: blur(40px) saturate(1.8) brightness(1.02);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.42),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.18),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.12),
-    0 28px 70px -18px rgba(0, 0, 0, 0.55);
-  transition: background 0.4s ease, box-shadow 0.4s ease;
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 24px 60px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
   border-radius: 16px !important;
+  transition: border-color 0.25s ease, background-color 0.25s ease;
 }
 
 .brand-glass,
@@ -276,9 +269,7 @@ html[data-dock-hover='sidebar'] .sidebar-glass {
 .vy-btn-key { --btn-bg: var(--keyColor); --btn-fg: #fff; min-width: 140px; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28), 0 10px 24px -12px rgba(var(--keyColor-rgb), 0.85); }
 .vy-btn-round { width: 44px; min-width: 44px; padding: 0; border-radius: 50%; corner-shape: round; }
 
-/* ---- the full-screen player's controls follow the same family ---- */
-.fs-chip, .fs-puck { box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.18), inset 0 1px 0 rgb(255 255 255 / 0.2), 0 10px 26px -12px rgb(0 0 0 / 0.7); }
-.fs-puck { background: rgb(255 255 255 / 0.16); backdrop-filter: blur(32px) saturate(1.9); -webkit-backdrop-filter: blur(32px) saturate(1.9); }
+/* ---- the full-screen player's key button state ---- */
 .fs-key[aria-pressed='true'] { background: rgba(var(--keyColor-rgb), 0.22); color: var(--keyColor-rollover); box-shadow: none; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -329,17 +320,14 @@ html[data-dock-hover='sidebar'] .sidebar-glass {
   backface-visibility: hidden;
 }
 
-/* Off-screen layout skipping & containment for ultra-high FPS scrolling */
+/* Stable, jitter-free scrolling without element popping */
 .track-row,
 [data-track-row] {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 56px;
-  contain: layout style;
+  contain: layout;
 }
 
 .lockup-card {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 240px;
+  contain: layout;
 }
 
 .lockup-art,
@@ -349,17 +337,8 @@ html[data-dock-hover='sidebar'] .sidebar-glass {
 
 .curated-row,
 .shelf-item {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 200px;
+  contain: layout;
 }
 
-/* Fast hover state transitions on GPU without layout thrashing */
-@media (hover: hover) {
-  .track-row,
-  .glass-card,
-  .vy-btn {
-    transform: translateZ(0);
-    backface-visibility: hidden;
-  }
-}
+
 

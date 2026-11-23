@@ -68,7 +68,21 @@ const songKey = (p) => `${normKey(cleanTitle(p.title || '') || p.title || '')}|$
 
 /** Title/artist as providers want them; an artist-less upload recovers its artist from the search that found it. */
 export function contextFrom(params) {
-  const title = cleanTitle(params.title || '') || params.title || '';
+  let rawTitle = params.title || '';
+  let album = params.album || undefined;
+
+  // Extract movie / album franchise from title before cleanTitle if album is missing
+  if (!album && rawTitle) {
+    const fromMatch = rawTitle.match(/\s*[(\[]\s*from\s+["']?([^)"']+)["']?\s*[)\]]/i);
+    if (fromMatch && fromMatch[1]) {
+      album = fromMatch[1].trim();
+    } else if (rawTitle.includes('|')) {
+      const parts = rawTitle.split('|').map((p) => p.trim()).filter(Boolean);
+      if (parts[1]) album = parts[1];
+    }
+  }
+
+  const title = cleanTitle(rawTitle) || rawTitle || '';
   let artist = cleanArtist(params.artist || '');
   if (!artist && params.q) {
     const known = new Set(normKey(title).split(' '));
@@ -78,7 +92,7 @@ export function contextFrom(params) {
   return {
     title,
     artist,
-    album: params.album || undefined,
+    album,
     duration: params.duration || undefined,
     isrc: params.isrc || undefined,
     videoId: params.videoId || undefined,

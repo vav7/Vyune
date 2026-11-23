@@ -2823,8 +2823,9 @@ export class AmLyrics extends LitElement {
     const controller = new AbortController();
     this.fetchAbortController = controller;
 
+    const isUpgrade = Boolean(this.lyrics && this.lyrics.length > 0);
     this.isLoading = true;
-    this.sourceUpgrade = false;
+    this.sourceUpgrade = isUpgrade;
     this.lyrics = undefined;
     this.lyricsSource = null;
     this.availableSources = [];
@@ -3090,11 +3091,13 @@ export class AmLyrics extends LitElement {
     this.clearBackgroundExpandedLine();
 
     if (this.lyricsContainer) {
-      this.isProgrammaticScroll = true;
-      this.lyricsContainer.scrollTop = 0;
-      window.setTimeout(() => {
-        this.isProgrammaticScroll = false;
-      }, 100);
+      if (!this.sourceUpgrade) {
+        this.isProgrammaticScroll = true;
+        this.lyricsContainer.scrollTop = 0;
+        window.setTimeout(() => {
+          this.isProgrammaticScroll = false;
+        }, 100);
+      }
     }
 
     if (processAlternates && !this.noAutoAlternates)

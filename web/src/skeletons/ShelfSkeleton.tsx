@@ -17,8 +17,8 @@ const ITEMS: Record<ShelfKind, number> = {
 const caption = 'mt-2 flex flex-col gap-px';
 const trackText = 'flex flex-col gap-px px-1';
 
-function Item({ kind }: { kind: ShelfKind }) {
-  switch (kind) {
+function Item(props: { kind: ShelfKind }) {
+  switch (props.kind) {
     case 'square':
       return (
         <div class="flex flex-col">
@@ -83,18 +83,19 @@ function Item({ kind }: { kind: ShelfKind }) {
 }
 
 /** A shelf in waiting: the real shelf's grid, filled with placeholders. */
-export function ShelfSkeleton({ kind, title = true }: { kind: ShelfKind; title?: boolean }) {
+export function ShelfSkeleton(props: { kind: ShelfKind; title?: boolean }) {
+  const showTitle = () => props.title ?? true;
   return (
     <section class={shelfSection} aria-hidden="true">
-      {title && (
+      {showTitle() && (
         <div class={shelfHeader}>
           <SkeletonLine lineHeight={22} fontSize={17} width={180} />
         </div>
       )}
       <div class="relative">
-        <div class={`${shelfList} ${shelfKinds[kind]}`}>
-          <For each={Array.from({ length: ITEMS[kind] }, (_, i) => i)}>
-            {() => <Item kind={kind} />}
+        <div class={`${shelfList} ${shelfKinds[props.kind]}`}>
+          <For each={Array.from({ length: ITEMS[props.kind] }, (_, i) => i)}>
+            {() => <Item kind={props.kind} />}
           </For>
         </div>
       </div>

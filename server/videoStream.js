@@ -79,6 +79,7 @@ export async function proxyVideoStream(videoId, rangeHeader, method = 'GET', sig
 
   const resHeaders = new Headers();
   resHeaders.set('Content-Type', mimeType);
+  resHeaders.set('Content-Disposition', 'inline');
   resHeaders.set('Accept-Ranges', 'bytes');
   resHeaders.set('Cache-Control', 'public, max-age=7200');
   resHeaders.set('Access-Control-Allow-Origin', '*');

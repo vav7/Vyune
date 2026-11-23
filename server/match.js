@@ -629,6 +629,27 @@ export function isSevereMismatch(expectedSec, actualSec) {
   return Math.abs(actualSec - expectedSec) > DURATION_LIMIT_SEC;
 }
 
+/**
+ * Disambiguates franchise sequels and parts (e.g. Awarapan 2 vs Awarapan, Hate Story 4 vs Hate Story).
+ * Returns true if one is explicitly a numbered sequel/part and the other is a different number or unnumbered.
+ */
+export function areSequelClash(a, b) {
+  if (!a || !b) return false;
+  const sA = String(a).toLowerCase();
+  const sB = String(b).toLowerCase();
+  const numA = (sA.match(/\b(?:part|pt|vol|volume)?\s*([0-9]+|[ivx]+)\b/i) || [])[1];
+  const numB = (sB.match(/\b(?:part|pt|vol|volume)?\s*([0-9]+|[ivx]+)\b/i) || [])[1];
+  if (numA && numB && numA.toLowerCase() !== numB.toLowerCase()) return true;
+  if ((numA && !numB) || (!numA && numB)) {
+    const baseA = sA.replace(/\b(?:part|pt|vol|volume)?\s*([0-9]+|[ivx]+)\b/gi, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    const baseB = sB.replace(/\b(?:part|pt|vol|volume)?\s*([0-9]+|[ivx]+)\b/gi, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    if (baseA && baseB && (baseA === baseB || (baseA.length >= 4 && baseB.length >= 4 && (baseA.includes(baseB) || baseB.includes(baseA))))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /** Both sides state a runtime and agree within `seconds`. */
 export function withinSeconds(candidate, target, seconds) {
   const wanted = target.durationSec;
@@ -643,15 +664,23 @@ export function withinSeconds(candidate, target, seconds) {
  * Null is the common answer and the safe one.
  */
 export function score(candidate, target) {
+  if (target.album && candidate.album && areSequelClash(target.album, candidate.album)) {
+    return null;
+  }
+  if (areSequelClash(target.title, candidate.title)) {
+    return null;
+  }
+
   const wanted = parseTitle(target.title, target.artist);
   const got = parseTitle(candidate.title, candidate.artist);
   if (!wanted.core || !got.core) return null;
   // Same word, different script: katakana コイコガレ vs romaji koikogare.
-  // Past that, a guarded containment absorbs minor punctuation differences.
+  // Past that, a guarded containment absorbs minor punctuation differences (<= 3 chars).
+  const diffLen = Math.abs(wanted.core.length - got.core.length);
   const isTitleMatch =
     wanted.core === got.core ||
     romajiOf(wanted.core) === romajiOf(got.core) ||
-    (wanted.core.length > 3 && got.core.length > 3 &&
+    (wanted.core.length > 3 && got.core.length > 3 && diffLen <= 3 &&
       (wanted.core.includes(got.core) || got.core.includes(wanted.core))) ||
     // the same words in Devanagari and Latin (see the bridge above)
     indicBridge(wanted.core, got.core);

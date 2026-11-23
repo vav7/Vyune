@@ -111,19 +111,21 @@ function writeStoredArt(name: string, art: AppleArtistArt) {
   }
 }
 
-export function AppleArtistBanner({ name, thumb, onMotionVideo, onPalette }: BannerProps) {
+export function AppleArtistBanner(props: BannerProps) {
+  const name = () => props.name;
+  const thumb = () => props.thumb;
   const reduced = useReducedMotion();
   const tier = useTier();
   const still = () => reduced() || !tier.motion;
   const tabVisible = useTabVisible();
   // A repeat visit starts from what the last one found (kept on this device for a day),
   // so the banner and its clip are asked for at once instead of after a round trip.
-  const stored = createMemo(() => readStoredArt(name));
+  const stored = createMemo(() => readStoredArt(name()));
   const query = useQuery(() => ({
-    queryKey: ['apple-art', name],
+    queryKey: ['apple-art', name()],
     queryFn: async () => {
-      const fresh = await api.appleArtist(name);
-      writeStoredArt(name, fresh);
+      const fresh = await api.appleArtist(name());
+      writeStoredArt(name(), fresh);
       return fresh;
     },
     initialData: () => stored()?.art,
@@ -132,7 +134,7 @@ export function AppleArtistBanner({ name, thumb, onMotionVideo, onPalette }: Ban
     refetchInterval: (query) => (query.state.data?.transient ? 5_000 : false),
     refetchIntervalInBackground: false,
     retry: false,
-    enabled: !!name,
+    enabled: !!name(),
   }));
 
   const art = () => query.data;
@@ -159,19 +161,19 @@ export function AppleArtistBanner({ name, thumb, onMotionVideo, onPalette }: Ban
   });
 
   createEffect(() => {
-    onMotionVideo?.(motionReady() && video() ? video() : null);
-    onCleanup(() => onMotionVideo?.(null));
+    props.onMotionVideo?.(motionReady() && video() ? video() : null);
+    onCleanup(() => props.onMotionVideo?.(null));
   });
 
   // More HD pictures for the slideshow, asked for only when Apple has no clip.
   // Asked for right away, in parallel with Apple (the server keeps it for 12 hours): the slideshow never waits.
   const wantsExtras = () => !still();
   const extraQuery = useQuery(() => ({
-    queryKey: ['artist-images', name],
-    queryFn: ({ signal }: { signal: AbortSignal }) => api.artistImages(name, signal),
+    queryKey: ['artist-images', name()],
+    queryFn: ({ signal }: { signal: AbortSignal }) => api.artistImages(name(), signal),
     staleTime: 12 * 3600_000,
     retry: false,
-    enabled: !!name && wantsExtras(),
+    enabled: !!name() && wantsExtras(),
   }));
 
   const wideSource = () => {
@@ -185,13 +187,14 @@ export function AppleArtistBanner({ name, thumb, onMotionVideo, onPalette }: Ban
   const hasWide = () => !!wideSource();
   const allStills = () => {
     const ws = wideSource();
+    const th = thumb();
     const arr = [
       ws,
-      thumb || null,
+      th || null,
       art()?.widePreview && art()?.widePreview !== ws ? art()?.widePreview : null,
       art()?.preview && art()?.preview !== ws ? art()?.preview : null,
       ...(extraQuery.data?.images ?? []),
-      !hasWide() && !thumb ? (art()?.square || art()?.hero || null) : null,
+      !hasWide() && !th ? (art()?.square || art()?.hero || null) : null,
     ].filter((src): src is string => !!src);
     return [...new Set(arr)].slice(0, 6);
   };
@@ -221,16 +224,16 @@ export function AppleArtistBanner({ name, thumb, onMotionVideo, onPalette }: Ban
   const background = () => art()?.background ?? null;
   const paletteSource = () => {
     const ss = slideSources();
-    return ss[Math.min(activeSlide(), Math.max(0, ss.length - 1))] || wideSource() || thumb || null;
+    return ss[Math.min(activeSlide(), Math.max(0, ss.length - 1))] || wideSource() || thumb() || null;
   };
   createEffect(() => {
-    onPalette?.({ artwork: paletteSource() });
+    props.onPalette?.({ artwork: paletteSource() });
   });
 
   const posterSource = () => art()?.widePreview || art()?.preview || wideSource();
   const poster = () => posterSource() ? proxiedImg(posterSource()!) : null;
   const logo = () => art()?.logo ? proxiedImg(art()!.logo!) : null;
-  const displayName = () => art()?.name || name;
+  const displayName = () => art()?.name || name();
 
   return (
     <header
