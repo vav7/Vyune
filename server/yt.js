@@ -169,6 +169,22 @@ function rowTypeText(item) {
   return String(type).trim().toLowerCase();
 }
 
+const ARTIST_TYPE_WORDS = new Set(['song', 'video', 'episode', 'single', 'album', 'ep', 'playlist', 'artist', 'podcast', 'profile']);
+
+export function isNotArtist(part) {
+  if (!part || typeof part !== 'string') return true;
+  const s = part.trim();
+  if (!s) return true;
+  if (ARTIST_TYPE_WORDS.has(s.toLowerCase())) return true;
+  if (/\b\d{1,2}(?::\d{2}){1,2}\b/.test(s)) return true;
+  if (/\b(?:plays?|views?|listeners?|subscribers?|streams?|monthly|audience|crore|cr|lakh)\b/i.test(s)) return true;
+  if (/^[\d.,\s]+[kmb]?$/i.test(s)) return true;
+  if (/^(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},?\s*\d{4}$/i.test(s)) return true;
+  if (/^\d{4}$/.test(s)) return true;
+  if (/^[•·|,&/–—\s\-:]+$/.test(s)) return true;
+  return false;
+}
+
 /**
  * Clean and separate song title and artist.
  * Handles patterns like "Artist - Title", "Artist – Title", "Artist : Title".
@@ -178,7 +194,7 @@ export function parseTitleAndArtist(rawTitle, rawArtists = [], channel = null) {
   let title = String(rawTitle || '').trim();
   let artists = (Array.isArray(rawArtists) ? rawArtists : [])
     .map((a) => (typeof a === 'string' ? a : a?.name || a?.text || ''))
-    .filter(Boolean);
+    .filter((a) => a && !isNotArtist(a));
 
   const dashMatch = title.match(/^([^–—\-:|]+)\s*[-–—:|]\s*(.+)$/);
   if (dashMatch) {
@@ -191,7 +207,7 @@ export function parseTitleAndArtist(rawTitle, rawArtists = [], channel = null) {
     const isVersionSuffix = /^(live|remix|acoustic|instrumental|version|edit|mix|slowed|sped up|karaoke|official)\b/i.test(suffix);
 
     if (!isVersionSuffix && (hasArtistMatch || channelMatch || artists.length === 0)) {
-      if (!artists.length && prefix) {
+      if (!artists.length && prefix && !isNotArtist(prefix)) {
         artists.push(prefix);
       }
       title = suffix;
@@ -207,14 +223,14 @@ export function mapTrack(item, fallbackArtist) {
   const id = item.id;
   if (!id) return null;
   const artistObjs = item.artists || item.authors || [];
-  let artists = artistObjs.map((a) => a?.name).filter(Boolean);
-  if (!artists.length && fallbackArtist) artists.push(fallbackArtist);
+  let artists = artistObjs.map((a) => a?.name).filter((n) => n && !isNotArtist(n));
+  if (!artists.length && fallbackArtist && !isNotArtist(fallbackArtist)) artists.push(fallbackArtist);
   const artistIds = artistObjs.map((a) => a?.id || a?.channel_id).filter(Boolean);
   const rawTitle = typeof item.title === 'string' ? item.title : item.title?.text || '';
   const channel = item.author?.name || item.author || null;
   const parsed = parseTitleAndArtist(rawTitle, artists, typeof channel === 'string' ? channel : null);
   const title = parsed.title;
-  artists = parsed.artists;
+  artists = parsed.artists.filter((a) => !isNotArtist(a));
   const durSec =
     typeof item.duration === 'number'
       ? item.duration
@@ -321,10 +337,15 @@ export async function searchSongs(query, limit = 25) {
       const items = (shelf?.contents || shelf?.items || []).filter(
         (i) => i.type === 'MusicResponsiveListItem' && i.id && i.item_type !== 'video',
       );
-      const tracks = items.map(mapTrack).filter((track) => track && !track.isUpload);
+      const isStudio = (t) => !/(?:live|concert|tour|stage|performance|rehearsal|skit|dialogue|scene|reaction|cover)/i.test(t.title);
+      const tracks = items
+        .map(mapTrack)
+        .filter((track) => track && !track.isUpload)
+        .sort((a, b) => Number(isStudio(b)) - Number(isStudio(a)));
       if (tracks.length) return tracks.slice(0, limit);
     }
-    return (await rawSearchSongs(query, limit)).tracks;
+    const raw = await rawSearchSongs(query, limit);
+    return raw.tracks;
   } catch (err) {
     console.error('[yt] search failed:', err.message);
     const raw = await rawSearchSongs(query, limit);
@@ -1105,21 +1126,23 @@ function mapRawListItem(r) {
       const bid = run.navigationEndpoint?.browseEndpoint?.browseId;
       const pageType = run.navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.musicBrowseEndpointContextSupportedConfigs?.pageType || '';
       if (bid && (bid.startsWith('UC') || pageType.includes('ARTIST'))) {
-        artists.push(run.text);
-        artistIds.push(bid);
+        if (!isNotArtist(run.text)) {
+          artists.push(run.text.trim());
+          artistIds.push(bid);
+        }
       } else if (bid && (bid.startsWith('MPRE') || bid.startsWith('FEmusic_library_album') || pageType.includes('ALBUM'))) {
         album = run.text;
         albumId = bid;
-      } else if (run.text) {
+      } else if (run.text && !isNotArtist(run.text)) {
         // no browse endpoint: plain text — channel or album title
-        plain.push(run.text);
+        plain.push(run.text.trim());
       }
     }
     // If no linked album was found, check if a 3rd flex column (flex[2]) has the album name
     if (!album && flex[2]) {
       const col2Runs = (flex[2]?.musicResponsiveListItemFlexColumnRenderer?.text || flex[2]?.musicResponsiveListItemFlexColumnRenderer?.title)?.runs || [];
       const col2Text = col2Runs.map((x) => x.text).join('').trim();
-      if (col2Text && !/^\s*(?:[•·|]|\d{1,2}:\d{2}|[\d,.]+\s*views?)\s*$/i.test(col2Text)) {
+      if (col2Text && !isNotArtist(col2Text)) {
         album = col2Text;
       }
     }
@@ -1128,11 +1151,11 @@ function mapRawListItem(r) {
     if (!artists.length) {
       for (const run of r.longBylineText?.runs || []) {
         const bid = run.navigationEndpoint?.browseEndpoint?.browseId;
-        if (bid && bid.startsWith('UC')) {
-          artists.push(run.text);
+        if (bid && bid.startsWith('UC') && !isNotArtist(run.text)) {
+          artists.push(run.text.trim());
           artistIds.push(bid);
-        } else if (run.text && !/views?|·|\d/.test(run.text)) {
-          plain.push(run.text);
+        } else if (run.text && !isNotArtist(run.text)) {
+          plain.push(run.text.trim());
         }
       }
     }
@@ -1143,7 +1166,7 @@ function mapRawListItem(r) {
       '';
     const type = String(typeCol).trim().toLowerCase();
     const subText = plain
-      .filter((part) => !/^\s*(?:[•·|]|\d{1,2}:\d{2}|[\d,.]+\s*views?)\s*$/i.test(part))
+      .filter((part) => !isNotArtist(part))
       .join(' ')
       .trim();
     // When the fixed column is missing, the duration is often the trailing
@@ -1162,20 +1185,20 @@ function mapRawListItem(r) {
     const parsed = parseTitleAndArtist(rawTitle, artists, subText);
     const title = parsed.title;
     if (!artists.length && parsed.artists.length) {
-      artists.push(...parsed.artists);
+      artists.push(...parsed.artists.filter((a) => !isNotArtist(a)));
     }
     return {
       id,
       source: 'yt',
       title,
-      artists,
+      artists: artists.filter((a) => !isNotArtist(a)),
       artistIds,
       album,
       albumId,
       duration: parseDuration(effectiveDur),
       thumb: pickThumb(r.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails),
       explicit: false,
-      channel: subText || null,
+      channel: subText && !isNotArtist(subText) ? subText : null,
       // An upload, or a row the catalogue filed without a credited artist —
       // either way it is not the release, so the stream resolver sends it
       // through the catalogue matcher before it is ever played.
@@ -1364,17 +1387,18 @@ export async function getRadio(videoId) {
           if (!id || seen.has(id)) continue;
           seen.add(id);
           const artists = (it.longBylineText?.runs || [])
-            .filter((r) => r.navigationEndpoint?.browseEndpoint?.browseId?.startsWith('UC'))
-            .map((r) => r.text);
+            .filter((r) => r.navigationEndpoint?.browseEndpoint?.browseId?.startsWith('UC') && !isNotArtist(r.text))
+            .map((r) => r.text.trim());
           const plain = (it.longBylineText?.runs || [])
-            .filter((r) => !r.navigationEndpoint?.browseEndpoint?.browseId?.startsWith('UC'))
-            .map((r) => r.text)
-            .join(' • ');
+            .map((r) => (r.text || '').trim())
+            .filter((t) => t && !isNotArtist(t))
+            .join(', ');
+          const finalArtists = artists.length ? artists : (plain && !isNotArtist(plain) ? [plain] : []);
           tracks.push({
             id,
             source: 'yt',
             title: runsText(it.title),
-            artists: artists.length ? artists : plain ? [plain] : [],
+            artists: finalArtists,
             album: null,
             duration: parseDuration(it.duration),
             thumb: pickThumb(it.thumbnail?.thumbnails),
@@ -1992,14 +2016,46 @@ export function scoreMusicVideoCandidate(v, cleanTitle, cleanArtist, album = '',
     score += 150;
   }
 
-  // 5. AUTHORITATIVE LABELS & OFFICIAL CHANNELS
-  const isMajorLabel = /(?:t-series|tseries|sony\s*music|sonymusic|zeemusiccompany|zee\s*music|yrf|yash\s*raj|saregama|tips\s*official|speed\s*records|eros\s*now|warner|universal\s*music|interscope|atlantic\s*records|columbia\s*records|republic\s*records|vevo|monstercat|spinnin|def\s*jam|geet\s*mp3|white\s*hill|vishesh\s*films)/i.test(author);
-  if (isMajorLabel) score += 300;
+  // 5. AUTHORITATIVE LABELS & STRICT ARTIST VERIFICATION
+  const isMajorIndianLabel = /(?:t-series|tseries|sony\s*music|sonymusic|zeemusiccompany|zee\s*music|yrf|yash\s*raj|saregama|tips\s*official|tips\s*music|speed\s*records|eros\s*now|white\s*hill|geet\s*mp3|aditya\s*music|lahari\s*music|svf|times\s*music|junglee\s*music|ishtar\s*music)/i.test(author);
+  const isGlobalLabel = /(?:warner|universal\s*music|interscope|atlantic\s*records|columbia\s*records|republic\s*records|vevo|monstercat|spinnin|def\s*jam|rca\s*records)/i.test(author);
+  const isMajorLabel = isMajorIndianLabel || isGlobalLabel;
+
+  if (isMajorIndianLabel) score += 400; // Big bonus for official Indian label uploads
+  else if (isMajorLabel) score += 300;
   if (verified) score += 200;
 
-  // 6. HD / 4K / REMASTER BOOST
-  if (/(?:8k\s*60fps|8k\s*uhd|8k|4k\s*60fps|4k\s*uhd|4k|remastered(?:\s+in\s+4k)?|ultra\s*hd|1080p\s*60fps|hd\s+video)/i.test(t)) {
-    score += 120;
+  // Strict artist verification:
+  if (cleanArtist && !isNotArtist(cleanArtist)) {
+    const artNorm = normKey(cleanArtist);
+    const artWords = artNorm.split(' ').filter((w) => w.length > 2);
+    const authorNorm = normKey(author);
+    const titleNormKey = normKey(t);
+
+    const authorMatches =
+      artWords.length > 0 &&
+      (authorNorm.includes(artNorm) ||
+        artNorm.includes(authorNorm) ||
+        artWords.some((w) => authorNorm.includes(w)));
+    const titleMatches =
+      artWords.length > 0 &&
+      (titleNormKey.includes(artNorm) || artWords.some((w) => titleNormKey.includes(w)));
+
+    if (authorMatches || titleMatches) {
+      score += 250;
+    } else if (!isMajorLabel) {
+      // Disqualify candidates from random channels that don't match the artist!
+      return -99999;
+    }
+  }
+
+  // 6. 8K / 4K / UHD / REMASTER BOOST (labels like Sony/Zee/T-Series upload 8K/4K)
+  if (/(?:8k\s*60fps|8k\s*uhd|8k|4320p)/i.test(t)) {
+    score += 350;
+  } else if (/(?:4k\s*60fps|4k\s*uhd|4k|2160p|remastered(?:\s+in\s+4k)?|ultra\s*hd)/i.test(t)) {
+    score += 250;
+  } else if (/(?:1440p|2k|1080p\s*60fps|1080p|full\s*hd)/i.test(t)) {
+    score += 150;
   }
 
   // 7. ALBUM / MOVIE DISAMBIGUATION (e.g. Hate Story 4 vs Original 2005)
@@ -2130,16 +2186,30 @@ export async function resolveMusicVideo(title, artist, songVideoId, opts = {}) {
     console.warn('[yt] resolveMusicVideo failed:', err?.message || err);
   }
 
-  // If no high-confidence official music video was found across queries, do NOT return random junk!
+  // If no high-confidence official music video was found across queries, verify songVideoId before using as fallback
   if (songVideoId) {
-    // Only use songVideoId fallback if it was already known to be a video
-    const fallback = {
-      videoId: songVideoId,
-      title: `${title} - Video`,
-      thumbnail: `https://i.ytimg.com/vi/${songVideoId}/hqdefault.jpg`,
-    };
-    mvResolveCache.set(queryKey, fallback);
-    return fallback;
+    try {
+      const yt = await getYT();
+      const info = await yt.getInfo(songVideoId).catch(() => null);
+      if (info?.basic_info) {
+        const candidate = {
+          title: info.basic_info.title,
+          author: { name: info.basic_info.author, is_verified: true },
+          duration: { seconds: info.basic_info.duration || 0 },
+        };
+        const s = scoreMusicVideoCandidate(candidate, cleanTitle, cleanArtist, album, duration);
+        if (s >= 350) {
+          const fallback = {
+            videoId: songVideoId,
+            title: info.basic_info.title || `${title} - Video`,
+            thumbnail: `https://i.ytimg.com/vi/${songVideoId}/hqdefault.jpg`,
+            score: s,
+          };
+          mvResolveCache.set(queryKey, fallback);
+          return fallback;
+        }
+      }
+    } catch {}
   }
 
   mvResolveCache.set(queryKey, null);
@@ -2173,18 +2243,19 @@ export async function resolveVideoStream(videoId) {
       );
       if (!vFormats.length) continue;
 
-      // Filter out >1080p formats (e.g. 4K/8K 60fps re-uploads) to avoid GPU decoding stalls
-      const max1080p = vFormats.filter((f) => !f.height || f.height <= 1080);
-      const candidates = max1080p.length > 0 ? max1080p : vFormats;
+      // Prioritize highest resolution (8K -> 4K -> 2K -> 1080p -> 720p)
+      // Between same resolution, prefer MP4 for native GPU hardware acceleration
+      const sorted = [...vFormats].sort((a, b) => {
+        const hA = a.height || 0;
+        const hB = b.height || 0;
+        if (hA !== hB) return hB - hA;
+        const isMp4A = /mp4/i.test(a.mime_type || '');
+        const isMp4B = /mp4/i.test(b.mime_type || '');
+        if (isMp4A !== isMp4B) return isMp4A ? -1 : 1;
+        return (b.bitrate || 0) - (a.bitrate || 0);
+      });
 
-      // Prefer 1080p MP4 -> 1080p WebM -> 720p for hardware decoding
-      const chosen =
-        candidates.find((f) => /mp4/i.test(f.mime_type || '') && (f.quality_label === '1080p' || f.height === 1080)) ||
-        candidates.find((f) => f.quality_label === '1080p' || f.height === 1080) ||
-        candidates.find((f) => /mp4/i.test(f.mime_type || '') && (f.quality_label === '720p' || f.height === 720)) ||
-        candidates.find((f) => f.quality_label === '720p' || f.height === 720) ||
-        candidates.find((f) => f.height && f.height <= 1080) ||
-        candidates[0];
+      const chosen = sorted[0];
 
       if (!chosen) continue;
 

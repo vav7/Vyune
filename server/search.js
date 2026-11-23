@@ -44,9 +44,23 @@ const runsText = (node) =>
   node?.runs ? node.runs.map((run) => run.text || '').join('') : node?.simpleText || '';
 
 const DURATION = /^\d{1,2}(?::\d{2}){1,2}$/;
-const TALLY = /^[\d.,]+\s*[kmb]?\s*(?:views?|plays?|listeners?|subscribers?|monthly audience)\b/i;
+const TALLY = /^[\d.,]+\s*[kmb]?\s*(?:views?|plays?|listeners?|subscribers?|monthly audience|streams?)\b/i;
 const VIDEO_WORD = /\bvideos?\b/i;
 const TYPE_WORDS = new Set(['song', 'video', 'episode', 'single', 'album', 'ep', 'playlist', 'artist', 'podcast', 'profile']);
+
+export function isNotArtist(part) {
+  if (!part || typeof part !== 'string') return true;
+  const s = part.trim();
+  if (!s) return true;
+  if (TYPE_WORDS.has(s.toLowerCase())) return true;
+  if (/\b\d{1,2}(?::\d{2}){1,2}\b/.test(s)) return true;
+  if (/\b(?:plays?|views?|listeners?|subscribers?|streams?|monthly|audience|crore|cr|lakh)\b/i.test(s)) return true;
+  if (/^[\d.,\s]+[kmb]?$/i.test(s)) return true;
+  if (/^(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},?\s*\d{4}$/i.test(s)) return true;
+  if (/^\d{4}$/.test(s)) return true;
+  if (/^[•·|,&/–—\s\-:]+$/.test(s)) return true;
+  return false;
+}
 
 const pageTypeOf = (endpoint) =>
   String(
@@ -76,7 +90,7 @@ function creditsOf(runs = []) {
   for (const run of runs) {
     const endpoint = run?.navigationEndpoint?.browseEndpoint;
     const id = endpoint?.browseId;
-    if (!id || !run.text) continue;
+    if (!id || !run.text || isNotArtist(run.text)) continue;
     const type = pageTypeOf(endpoint);
     if (type.includes('ARTIST') || (!type && id.startsWith('UC'))) {
       artists.push(run.text.trim());
@@ -93,11 +107,12 @@ function creditsOf(runs = []) {
 
 function splitByline(runs = []) {
   const text = runs.map((run) => run.text || '').join('');
-  const parts = text.split(' • ').map((part) => part.trim()).filter(Boolean);
+  const parts = text
+    .split(/\s*[•·|]\s*/)
+    .map((part) => part.trim())
+    .filter(Boolean);
   const rowType = parts.map((part) => part.toLowerCase()).find((part) => TYPE_WORDS.has(part)) || null;
-  const plainArtist =
-    parts.find((part) => !DURATION.test(part) && !TYPE_WORDS.has(part.toLowerCase()) && !TALLY.test(part)) ||
-    null;
+  const plainArtist = parts.find((part) => !isNotArtist(part)) || null;
   const duration = [...parts].reverse().find((part) => DURATION.test(part)) || null;
   return { parts, rowType, plainArtist, duration };
 }
@@ -107,14 +122,22 @@ function trackFrom({ id, title, byline, thumbs, fixedDuration, explicit, fallbac
   if (rowType === 'episode' || rowType === 'podcast') return null;
   const linked = creditsOf(byline);
   const fb = fallback || {};
-  const artists = linked.artists.length
-    ? linked.artists
-    : plainArtist
-      ? [plainArtist]
-      : fb.artistName
-        ? [fb.artistName]
+  const validLinkedArtists = linked.artists.filter((a) => !isNotArtist(a));
+  const validFbArtist = fb.artistName && !isNotArtist(fb.artistName) ? fb.artistName : null;
+  const validPlainArtist = plainArtist && !isNotArtist(plainArtist) ? plainArtist : null;
+
+  const artists = validLinkedArtists.length
+    ? validLinkedArtists
+    : validFbArtist
+      ? [validFbArtist]
+      : validPlainArtist
+        ? [validPlainArtist]
         : [];
-  const artistIds = linked.artistIds.length ? linked.artistIds : fb.artistId ? [fb.artistId] : [];
+  const artistIds = validLinkedArtists.length
+    ? linked.artistIds
+    : validFbArtist && fb.artistId
+      ? [fb.artistId]
+      : [];
   const video = rowType === 'video' || isNotSquare(thumbs);
   return {
     id,
@@ -127,7 +150,7 @@ function trackFrom({ id, title, byline, thumbs, fixedDuration, explicit, fallbac
     duration: parseDuration(duration || fixedDuration || ''),
     thumb: pickThumb(thumbs),
     explicit: !!explicit,
-    channel: video ? plainArtist : null,
+    channel: video && validPlainArtist ? validPlainArtist : null,
     // A music-video upload is somebody's copy: the stream resolver sends it
     // through the catalogue matcher before playing it.
     isUpload: video,
@@ -145,7 +168,12 @@ function parseTrackRow(renderer, fallback) {
   const columns = renderer.flexColumns || [];
   const title = runsText(columns[0]?.musicResponsiveListItemFlexColumnRenderer?.text).trim();
   if (!title) return null;
-  const byline = columns.slice(1).flatMap((c) => c?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || []);
+  const byline = columns
+    .slice(1)
+    .flatMap((c, i) => {
+      const runs = c?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || [];
+      return i > 0 ? [{ text: ' • ' }, ...runs] : runs;
+    });
   const fixedDuration = (renderer.fixedColumns || [])
     .map((column) => runsText(column?.musicResponsiveListItemFixedColumnRenderer?.text).trim())
     .find((text) => DURATION.test(text));

@@ -25,6 +25,7 @@ import { PlayerMenu } from './PlayerMenu';
 import { artModeStore } from '@/store/artMode';
 import { PrefetchLink } from '@/components/PrefetchLink';
 import { api } from '@/lib/api';
+import { cleanArtistDisplay } from '@/lib/artistCredits';
 import { posterCandidates, thumbCandidates, playerStore } from '@/store/player';
 import { LyricsPanel, LyricPreview } from './LyricsPanel';
 import { ArtworkBackdrop } from './ArtworkBackdrop';
@@ -121,8 +122,10 @@ function Credits() {
   const rawArtists = () => {
     const c = current();
     if (!c) return [];
-    if (c.artists && c.artists.length > 0) return c.artists.filter(Boolean);
-    if (c.channel) return [c.channel];
+    const fromArtists = (c.artists || []).map(cleanArtistDisplay).filter(Boolean);
+    if (fromArtists.length > 0) return fromArtists;
+    const cleanChan = cleanArtistDisplay(c.channel || '');
+    if (cleanChan) return [cleanChan];
     return ['Artist unavailable'];
   };
   const artistIds = () => playerStore.current?.artistIds || [];

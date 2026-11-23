@@ -12,6 +12,8 @@
  * stamp are not different recordings, so those do come off.
  */
 
+import { isNotArtist } from '../yt.js';
+
 /** Lower case, letters/digits/marks only. Combining marks stay: they are the Devanagari vowel signs. */
 export const normKey = (s = '') => String(s).toLowerCase().replace(/[^\p{L}\p{N}\p{M}]+/gu, ' ').trim();
 
@@ -66,9 +68,15 @@ export function cleanTitle(title = '', artist = '') {
   return name || String(title).trim(); // a title that was only packaging is better asked as given than as nothing
 }
 
-/** " - Topic" and "VEVO" are channel names, not artists. */
-export const cleanArtist = (artist = '') =>
-  String(artist).replace(/\s*[-–|]\s*topic\s*$/i, '').replace(/\s*vevo\s*$/i, '').trim();
+/** " - Topic" and "VEVO" are channel names, not artists. Strip play counts and tallies. */
+export const cleanArtist = (artist = '') => {
+  let a = String(artist || '')
+    .replace(/\s*[-–|]\s*topic\s*$/i, '')
+    .replace(/\s*vevo\s*$/i, '')
+    .trim();
+  if (isNotArtist(a)) return '';
+  return a;
+};
 
 /** Full credit + each name in it, the one the query mentions first. */
 export function artistVariants(artist = '', hint = '', max = 3) {

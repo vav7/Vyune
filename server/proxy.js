@@ -131,9 +131,10 @@ export function registerProxies(app) {
         if (session?.session?.context?.client?.visitorData) {
           headers['X-Goog-Visitor-Id'] = session.session.context.client.visitorData;
         }
-        // Google Video request rules: web clients need the
-        // YouTube origin headers; VISIONOS direct URLs explicitly omit them.
-        if (streamClient !== 'VISIONOS') {
+        // Google Video request rules: only web clients need origin headers;
+        // mobile/app clients (ANDROID, IOS, VISIONOS) are rejected with 403 if origin headers are sent.
+        const isWebClient = streamClient === 'WEB' || streamClient === 'MWEB' || streamClient === 'WEB_REMIX';
+        if (isWebClient) {
           headers.Origin = 'https://www.youtube.com';
           headers.Referer = 'https://www.youtube.com/';
           headers['X-Origin'] = 'https://www.youtube.com';
@@ -147,6 +148,16 @@ export function registerProxies(app) {
       }
 
       let up = await fetch(finalUrl.href, { headers });
+
+      // If upstream rejects with 403/401 (e.g. Google Video header mismatch), retry immediately with clean minimal headers
+      if (isYouTube && !up.ok && (up.status === 403 || up.status === 401)) {
+        const cleanHeaders = { 'User-Agent': UA };
+        if (range) cleanHeaders.Range = range;
+        const retryUp = await fetch(finalUrl.href, { headers: cleanHeaders });
+        if (retryUp.ok || retryUp.status === 206) {
+          up = retryUp;
+        }
+      }
 
       // An upstream that refuses the range is answered once more without one:
       // some CDNs refuse a bounded range they would happily serve whole.

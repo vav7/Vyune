@@ -11,7 +11,7 @@
 
 import CryptoJS from 'crypto-js';
 import { safeFetch } from './cache.js';
-import { parseDuration } from './yt.js';
+import { isNotArtist, parseDuration } from './yt.js';
 import {
   CREDIT_OVERRIDE_SEC,
   hasConflictingAlbums,
@@ -93,17 +93,16 @@ export function mapSaavnTrack(t) {
   const mi = t.more_info || {};
 
   const primary =
-    mi.artistMap?.primary_artists?.map((a) => a.name).filter(Boolean) ||
+    mi.artistMap?.primary_artists?.map((a) => a.name).filter((n) => n && !isNotArtist(n)) ||
     (mi.primary_artists
-      ? String(mi.primary_artists).split(',').map((s) => s.trim()).filter(Boolean)
+      ? String(mi.primary_artists).split(',').map((s) => s.trim()).filter((n) => n && !isNotArtist(n))
       : mi.music
-        ? String(mi.music).split(',').map((s) => s.trim()).filter(Boolean)
+        ? String(mi.music).split(',').map((s) => s.trim()).filter((n) => n && !isNotArtist(n))
         : []);
-  const artists = primary.length
-    ? primary
-    : t.subtitle
-      ? t.subtitle.split(' - ')[0].split(',').map((s) => s.trim()).filter(Boolean)
-      : [];
+  const subtitleArtist = t.subtitle
+    ? t.subtitle.split(' - ')[0].split(',').map((s) => s.trim()).filter((n) => n && !isNotArtist(n))
+    : [];
+  const artists = primary.length ? primary : subtitleArtist;
 
   const has320 = mi['320kbps'] === 'true' || mi['320kbps'] === true || mi['320kbps'] === 1;
   const encrypted = mi.encrypted_media_url || null;

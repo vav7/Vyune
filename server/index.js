@@ -278,11 +278,15 @@ app.get('/api/stream', async (c) => {
       }
     }
 
-    // 3) Sureshot YouTube Studio Audio Fallback (Only if not in JioSaavn)
-    // Strictly prioritizes clean studio audio (ATV) over video uploads with dialogue/skits that offset lyrics
-    if (isUpload && title) {
-      const studioTracks = await yt.searchSongs(`${title} ${artist}`.trim(), 4).catch(() => []);
-      const studioMatch = studioTracks.find((t) => !t.isUpload);
+    // 3) Sureshot YouTube Studio Audio Release (Enforce official studio album audio)
+    // Strictly prioritizes clean studio audio (ATV / Official Album Release) over video uploads with dialogue/skits/live concerts
+    if (title) {
+      const studioTracks = await yt.searchSongs(`${title} ${artist}`.trim(), 6).catch(() => []);
+      const studioMatch = studioTracks.find(
+        (t) =>
+          !t.isUpload &&
+          !/(?:live|concert|tour|stage|performance|rehearsal|skit|dialogue|scene|reaction|cover)/i.test(t.title)
+      );
       if (studioMatch?.id) {
         const studioStream = await tryVideo(studioMatch.id);
         if (studioStream) return studioStream;

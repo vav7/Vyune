@@ -313,6 +313,7 @@ function VisualizerPlayer(props: {
   onVideo?: (video: HTMLVideoElement | null) => void;
   onAspect?: (aspect: number) => void;
   onReady?: (ready: boolean) => void;
+  appleOnly?: boolean;
 }) {
   const [videoEl, setVideoEl] = createSignal<HTMLVideoElement | null>(null);
   const [ready, setReady] = createSignal(false);
@@ -340,7 +341,7 @@ function VisualizerPlayer(props: {
     gcTime: 48 * 60 * 60_000,
   }));
 
-  // Query YouTube MV fallback
+  // Query YouTube MV fallback (omitted if appleOnly is specified)
   const ytMvQuery = useQuery(() => ({
     queryKey: [
       'yt-mv-visualizer-v3',
@@ -350,6 +351,7 @@ function VisualizerPlayer(props: {
       props.track.album || '',
     ],
     queryFn: ({ signal }: { signal: AbortSignal }) => api.resolveMv(props.track, signal),
+    enabled: !props.appleOnly,
     staleTime: 24 * 60 * 60_000,
   }));
 
@@ -371,7 +373,8 @@ function VisualizerPlayer(props: {
       }));
     }
 
-    // Fallback: YouTube MV clip
+    // Fallback: YouTube MV clip (disabled when appleOnly is true)
+    if (props.appleOnly) return [];
     const ytVideoId = ytMvQuery.data?.videoId || (props.track.source === 'yt' ? props.track.id : null);
     if (ytVideoId) {
       return [
@@ -590,6 +593,7 @@ export function AppleMotionArtwork(props: {
   onVideo?: (video: HTMLVideoElement | null) => void;
   onAspect?: (aspect: number) => void;
   onReady?: (ready: boolean) => void;
+  appleOnly?: boolean;
 }) {
   const reduceMotion = useReducedMotion();
   const tier = useTier();
@@ -601,7 +605,13 @@ export function AppleMotionArtwork(props: {
         <MvPlayer track={props.track} onVideo={props.onVideo} onAspect={props.onAspect} onReady={props.onReady} />
       </Show>
       <Show when={mode() === 'visualiser' && tier.motion}>
-        <VisualizerPlayer track={props.track} onVideo={props.onVideo} onAspect={props.onAspect} onReady={props.onReady} />
+        <VisualizerPlayer
+          track={props.track}
+          onVideo={props.onVideo}
+          onAspect={props.onAspect}
+          onReady={props.onReady}
+          appleOnly={props.appleOnly}
+        />
       </Show>
     </Show>
   );

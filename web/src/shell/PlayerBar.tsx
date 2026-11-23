@@ -16,6 +16,7 @@ import {
   VolumeIcon,
 } from '@/components/icons/Transport';
 import { FavoriteButton } from '@/components/music/FavoriteButton';
+import { cleanArtistDisplay } from '@/lib/artistCredits';
 import { thumbCandidates, playerStore } from '@/store/player';
 import type { Track } from '@/lib/types';
 import { uiStore } from '@/store/ui';
@@ -209,7 +210,7 @@ export function MiniPlayer() {
                     onClick={(e) => e.stopPropagation()}
                   />
                 </span>
-                <span class="truncate type-callout text-secondary">{(current.artists || []).join(', ')}</span>
+                <span class="truncate type-callout text-secondary">{(current.artists || []).map(cleanArtistDisplay).filter(Boolean).join(', ') || cleanArtistDisplay(current.channel || '')}</span>
               </span>
             </button>
             <button

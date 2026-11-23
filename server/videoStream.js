@@ -28,18 +28,19 @@ export async function proxyVideoStream(videoId, rangeHeader, method = 'GET', sig
       (f) => f.hasVideo && (f.container === 'mp4' || f.container === 'webm')
     );
 
-    // Filter out >1080p formats (e.g. 4K/8K re-uploads) to avoid severe decoding lag
-    const max1080p = videoFormats.filter((f) => !f.height || f.height <= 1080);
-    const candidates = max1080p.length > 0 ? max1080p : videoFormats;
+    // Select highest resolution format (8K -> 4K -> 2K -> 1080p -> 720p)
+    // Between same resolution, prefer MP4 for native GPU hardware acceleration
+    const sorted = [...videoFormats].sort((a, b) => {
+      const hA = a.height || 0;
+      const hB = b.height || 0;
+      if (hA !== hB) return hB - hA;
+      const isMp4A = a.container === 'mp4' || /mp4/i.test(a.mimeType || '');
+      const isMp4B = b.container === 'mp4' || /mp4/i.test(b.mimeType || '');
+      if (isMp4A !== isMp4B) return isMp4A ? -1 : 1;
+      return (b.bitrate || 0) - (a.bitrate || 0);
+    });
 
-    // Prefer MP4 1080p -> 720p -> 480p for hardware decoding
-    const chosen =
-      candidates.find((f) => f.container === 'mp4' && f.height === 1080) ||
-      candidates.find((f) => f.height === 1080) ||
-      candidates.find((f) => f.container === 'mp4' && f.height === 720) ||
-      candidates.find((f) => f.height === 720) ||
-      candidates.find((f) => f.height && f.height <= 1080) ||
-      candidates[0];
+    const chosen = sorted[0];
 
     if (!chosen) {
       return new Response(JSON.stringify({ error: 'no_video_format' }), { status: 404 });
@@ -92,6 +93,32 @@ export async function proxyVideoStream(videoId, rangeHeader, method = 'GET', sig
       status: isRange ? 206 : 200,
       headers: resHeaders,
     });
+  }
+
+  if (format.url) {
+    try {
+      const upHeaders = {};
+      if (isRange && actualEnd !== undefined) {
+        upHeaders.Range = `bytes=${start}-${actualEnd}`;
+      } else if (isRange) {
+        upHeaders.Range = `bytes=${start}-`;
+      }
+      const up = await fetch(format.url, { headers: upHeaders, signal });
+      if (up.ok || up.status === 206) {
+        if (up.headers.has('content-range')) {
+          resHeaders.set('Content-Range', up.headers.get('content-range'));
+        }
+        if (up.headers.has('content-length')) {
+          resHeaders.set('Content-Length', up.headers.get('content-length'));
+        }
+        return new Response(up.body, {
+          status: isRange ? 206 : 200,
+          headers: resHeaders,
+        });
+      }
+    } catch (e) {
+      // Fall through to ytdl.download
+    }
   }
 
   const rangeOpt = isRange && actualEnd !== undefined ? { start, end: actualEnd } : (isRange ? { start } : undefined);

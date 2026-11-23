@@ -2,6 +2,20 @@
  * own page while the byline still reads exactly as it was written.
  * Parallel artists[] / artistIds[] arrays. */
 
+/**
+ * Filter out any leaked play counts, view counts, tallies or timestamps from artist names.
+ */
+export function cleanArtistDisplay(name: string): string {
+  if (!name || typeof name !== 'string') return '';
+  const s = name.trim();
+  if (/\b(?:plays?|views?|listeners?|subscribers?|streams?|monthly|audience|crore|cr|lakh)\b/i.test(s)) return '';
+  if (/\b\d{1,2}(?::\d{2}){1,2}\b/.test(s)) return '';
+  if (/^[\d.,\s]+[kmb]?$/i.test(s)) return '';
+  if (/^(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2},?\s*\d{4}$/i.test(s)) return '';
+  if (/^[•·|,&/–—\s\-:]+$/.test(s)) return '';
+  return s;
+}
+
 export interface CreditSegment {
   text: string;
   /** The artist channel this stretch names, when the catalogue linked one. */

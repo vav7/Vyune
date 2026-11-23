@@ -439,7 +439,7 @@ async function recoverWithYtDlp(track: Track, shouldResume: boolean) {
     const fallback = await resolveStream(track, true, 'yt-dlp');
     if (snap().current !== track) return;
     audio.pause();
-    audio.src = fallback.proxy || fallback.url;
+    audio.src = fallback.source === 'saavn' && fallback.url ? fallback.url : (fallback.proxy || fallback.url);
     audio.load();
     const restorePosition = () => {
       audio.removeEventListener('loadedmetadata', restorePosition);
@@ -572,7 +572,8 @@ async function loadTrack(index: number, autoplay = true) {
   try {
     const stream = await resolveStream(track);
     if (snap().current !== track) return; // skipped while resolving
-    audio.src = stream.proxy || stream.url;
+    // Direct ultra-fast edge playback for JioSaavn; robust range-proxy for YouTube
+    audio.src = stream.source === 'saavn' && stream.url ? stream.url : (stream.proxy || stream.url);
     audio.load();
     streamResolved = true;
     if (autoplay) {
@@ -596,7 +597,7 @@ async function loadTrack(index: number, autoplay = true) {
         recoveredTrackId = track.id;
         const fallback = await resolveStream(track, true, 'yt-dlp');
         if (snap().current !== track) return;
-        audio.src = fallback.proxy || fallback.url;
+        audio.src = fallback.source === 'saavn' && fallback.url ? fallback.url : (fallback.proxy || fallback.url);
         audio.load();
         await audio.play();
         setPlayerStore({ loading: false, playing: true });

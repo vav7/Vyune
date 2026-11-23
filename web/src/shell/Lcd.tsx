@@ -7,7 +7,7 @@ import { ExplicitBadge } from '@/components/music/ExplicitBadge';
 import { albumHref, artistHref } from '@/components/music/links';
 import { PrefetchLink } from '@/components/PrefetchLink';
 import { SongTitle } from '@/components/music/SongTitle';
-import { creditSegments } from '@/lib/artistCredits';
+import { cleanArtistDisplay, creditSegments } from '@/lib/artistCredits';
 import { sizedArtwork } from '@/lib/artwork';
 import { playerStore, thumbCandidates } from '@/store/player';
 import { useScrubber } from './useScrubber';
@@ -20,8 +20,10 @@ export function Credits() {
   return (
     <Show when={playerStore.current} keyed>
       {(current) => {
-        const line = (current.artists || []).filter(Boolean).join(', ') || current.channel || 'Artist unavailable';
-        const segments = creditSegments(line, current.artists || [], current.artistIds);
+        const validArtists = (current.artists || []).map(cleanArtistDisplay).filter(Boolean);
+        const validChannel = cleanArtistDisplay(current.channel || '');
+        const line = validArtists.join(', ') || validChannel || 'Artist unavailable';
+        const segments = creditSegments(line, validArtists, current.artistIds);
         return (
           <For each={segments}>
             {(segment) =>

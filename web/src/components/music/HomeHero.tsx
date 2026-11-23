@@ -7,6 +7,7 @@ import { MotionFrost } from '@/components/music/MotionFrost';
 import { playList, shuffleList } from '@/components/music/play';
 import { PrefetchLink } from '@/components/PrefetchLink';
 import { pageArtStore } from '@/lib/pageArt';
+import { cleanArtistDisplay } from '@/lib/artistCredits';
 import type { Track } from '@/lib/types';
 
 const SLIDES = 6;
@@ -49,7 +50,8 @@ export function HomeHero(props: { tracks: Track[] }) {
   });
 
   const next = () => setIndex((i) => (i + 1) % Math.max(1, slides().length));
-  const artists = (t: Track) => (t.artists || []).join(', ');
+  const artists = (t: Track) =>
+    (t.artists || []).map(cleanArtistDisplay).filter(Boolean).join(', ') || cleanArtistDisplay(t.channel || '');
 
   return (
     <Show when={current()} fallback={<div class="min-h-[clamp(340px,50vh,500px)]" aria-hidden="true" />}>
@@ -137,7 +139,7 @@ export function HomeHero(props: { tracks: Track[] }) {
                   <Artwork src={track.thumb} track={track} displayWidth={560} radius="16px" eager class="size-full rounded-[16px]" />
                   <div class="absolute inset-0 overflow-hidden rounded-[16px]">
                     <Show when={armed()}>
-                      <AppleMotionArtwork track={track} mode="visualiser" onVideo={setVideo} />
+                      <AppleMotionArtwork track={track} mode="visualiser" onVideo={setVideo} appleOnly />
                     </Show>
                   </div>
                   <div class="pointer-events-none absolute inset-0 rounded-[16px] shadow-[inset_0_1px_0_rgba(255,255,255,0.5),inset_0_0_0_1px_rgba(255,255,255,0.15)]" />

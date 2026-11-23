@@ -15,6 +15,7 @@ import {
 import { AppleMotionArtwork } from '@/components/music/AppleMotionArtwork';
 import { sizedArtwork } from '@/lib/artwork';
 import { artModeStore } from '@/store/artMode';
+import { cleanArtistDisplay } from '@/lib/artistCredits';
 import { thumbCandidates, playerStore } from '@/store/player';
 import { uiStore } from '@/store/ui';
 import { useSongTint } from '@/lib/useSongTint';
@@ -95,7 +96,7 @@ export function SidebarPlayer() {
                     href={current.albumId ? albumHref(current.albumId) : (current.album ? `/search?q=${encodeURIComponent(current.album)}&filter=albums` : undefined)}
                   />
                 </p>
-                <p class="truncate type-[500_12px/16px] text-secondary">{current.artists?.join(', ')}</p>
+                <p class="truncate type-[500_12px/16px] text-secondary">{(current.artists || []).map(cleanArtistDisplay).filter(Boolean).join(', ') || cleanArtistDisplay(current.channel || '')}</p>
               </div>
             </div>
 
