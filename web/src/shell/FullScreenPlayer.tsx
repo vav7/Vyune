@@ -621,14 +621,40 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                 >
                   <div class="absolute inset-0 size-full">
                     <Show when={poster()[0]}>
-                      <Artwork
-                        candidates={poster()}
-                        track={artworkTrack()}
-                        displayWidth={800}
-                        radius="20px"
-                        eager
-                        class="size-full rounded-[20px] object-cover"
-                      />
+                      <Show
+                        when={isWidescreenMode()}
+                        fallback={
+                          <Artwork
+                            candidates={poster()}
+                            track={artworkTrack()}
+                            displayWidth={800}
+                            radius="20px"
+                            eager
+                            class="size-full rounded-[20px] object-cover"
+                          />
+                        }
+                      >
+                        {/* Widescreen presentation: ambient blurred expansion in background + UNTOUCHED 1:1 artwork centered (Zero Crop!) */}
+                        <div class="absolute inset-0 size-full overflow-hidden rounded-[20px]">
+                          <Artwork
+                            candidates={poster()}
+                            track={artworkTrack()}
+                            displayWidth={400}
+                            radius="0"
+                            class="absolute inset-0 size-full scale-125 object-cover blur-2xl opacity-60"
+                          />
+                          <div class="relative size-full flex items-center justify-center p-2">
+                            <Artwork
+                              candidates={poster()}
+                              track={artworkTrack()}
+                              displayWidth={800}
+                              radius="16px"
+                              eager
+                              class="max-h-full aspect-square rounded-[16px] object-contain shadow-[0_12px_36px_rgba(0,0,0,0.6)]"
+                            />
+                          </div>
+                        </div>
+                      </Show>
                     </Show>
                     <div class="absolute inset-0 size-full overflow-hidden rounded-[20px]">
                       <Show when={settled() || artModeStore.mode === 'mv'}>

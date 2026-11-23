@@ -137,6 +137,11 @@ function MvPlayer(props: {
   const [fit, setFit] = createSignal<Fit | null>(null);
 
   createEffect(() => {
+    props.track.id;
+    setVideoReady(false);
+  });
+
+  createEffect(() => {
     props.onReady?.(videoReady());
     onCleanup(() => props.onReady?.(false));
   });
@@ -149,7 +154,7 @@ function MvPlayer(props: {
     gcTime: 48 * 3600_000,
   }));
 
-  const videoId = () => ytMvQuery.data?.videoId || (props.track.source === 'yt' ? props.track.id : null);
+  const videoId = () => ytMvQuery.data?.videoId || (!ytMvQuery.isLoading && props.track.source === 'yt' ? props.track.id : null);
   const videoSrc = () => (videoId() ? videoStreamUrl(videoId()!) : null);
 
   // 2. Play / Pause synchronization with Solid store (runs reactively on mount & state change)
@@ -282,7 +287,6 @@ function MvPlayer(props: {
               }
             }}
             onCanPlay={(e) => {
-              setVideoReady(true);
               if (playerStore.playing && e.currentTarget.paused) {
                 e.currentTarget.play().catch(() => {});
               }
@@ -292,6 +296,9 @@ function MvPlayer(props: {
               if (!videoReady() && e.currentTarget.currentTime > 0) {
                 setVideoReady(true);
               }
+            }}
+            onWaiting={() => {
+              if (!videoEl() || videoEl()!.currentTime === 0) setVideoReady(false);
             }}
             onError={(e) => {
               console.warn('[MvPlayer] error loading video:', e);

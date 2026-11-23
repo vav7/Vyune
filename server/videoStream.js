@@ -28,14 +28,20 @@ export async function proxyVideoStream(videoId, rangeHeader, method = 'GET', sig
       (f) => f.hasVideo && (f.container === 'mp4' || f.container === 'webm')
     );
 
-    // Select highest resolution format (8K -> 4K -> 2K -> 1080p -> 720p)
-    // Between same resolution, prefer MP4 for native GPU hardware acceleration
-    const sorted = [...videoFormats].sort((a, b) => {
-      const hA = a.height || 0;
-      const hB = b.height || 0;
+    // Select highest resolution format (4K 2160p -> 1440p -> 1080p -> 720p)
+    // Avoid AV1 (av01) codec when AVC1 (H.264) or VP9 is available:
+    // AV1 lacks hardware decoding on most Windows devices and results in black screens or media pipeline freezes!
+    const isAv1 = (f) => /av01/i.test(f.codecs || f.mimeType || '');
+    const hasGoodNonAv1 = videoFormats.some((f) => !isAv1(f) && (f.height || 0) >= 720);
+    const candidates = hasGoodNonAv1 ? videoFormats.filter((f) => !isAv1(f)) : videoFormats;
+
+    const sorted = [...candidates].sort((a, b) => {
+      const hA = Math.min(a.height || 0, 2160); // 4K max to avoid 30Mbps 8K bandwidth bottlenecks
+      const hB = Math.min(b.height || 0, 2160);
       if (hA !== hB) return hB - hA;
-      const isMp4A = a.container === 'mp4' || /mp4/i.test(a.mimeType || '');
-      const isMp4B = b.container === 'mp4' || /mp4/i.test(b.mimeType || '');
+      // Between same resolution, prefer AVC1 / MP4 for hardware GPU decode, then VP9
+      const isMp4A = /avc1|h264|mp4/i.test(a.codecs || a.container || a.mimeType || '');
+      const isMp4B = /avc1|h264|mp4/i.test(b.codecs || b.container || b.mimeType || '');
       if (isMp4A !== isMp4B) return isMp4A ? -1 : 1;
       return (b.bitrate || 0) - (a.bitrate || 0);
     });
@@ -97,7 +103,11 @@ export async function proxyVideoStream(videoId, rangeHeader, method = 'GET', sig
 
   if (format.url) {
     try {
-      const upHeaders = {};
+      const upHeaders = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'Accept-Encoding': 'identity',
+      };
       if (isRange && actualEnd !== undefined) {
         upHeaders.Range = `bytes=${start}-${actualEnd}`;
       } else if (isRange) {

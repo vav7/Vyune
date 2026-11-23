@@ -27,7 +27,7 @@ export function ArtworkBackdrop(props: {
 
   // Only activate video background when in video mode AND video is actually buffered & ready
   const isVideoMode = () =>
-    (props.mode === 'visualiser' || props.mode === 'mv') && (props.videoReady ?? !!props.motionVideo);
+    (props.mode === 'visualiser' || props.mode === 'mv') && props.videoReady === true && !!props.motionVideo;
 
   const backgroundColor = () => {
     const base = color() ?? lastArtworkColor();
@@ -38,7 +38,7 @@ export function ArtworkBackdrop(props: {
     <div
       class="absolute inset-0 -z-1 overflow-hidden transition-[background-color] duration-700 ease-out"
       aria-hidden="true"
-      style={{ 'background-color': isVideoMode() ? '#07070b' : backgroundColor() }}
+      style={{ 'background-color': backgroundColor() }}
     >
       {/* 1. Frosted Album Artwork Ambient Layer (Always present underneath as baseline; never black) */}
       <ImageFrost
@@ -50,7 +50,7 @@ export function ArtworkBackdrop(props: {
 
       {/* 2. Fullscreen Video playing in background with modern liquid glass blur: smoothly cross-fades when video is ready */}
       <div
-        class={`absolute inset-0 size-full overflow-hidden pointer-events-none select-none bg-[#07070b] transition-opacity duration-1000 ease-in-out ${
+        class={`absolute inset-0 size-full overflow-hidden pointer-events-none select-none transition-opacity duration-1000 ease-in-out ${
           isVideoMode() ? 'opacity-100' : 'opacity-0'
         }`}
       >

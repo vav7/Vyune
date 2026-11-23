@@ -171,6 +171,8 @@ function rowTypeText(item) {
 
 const ARTIST_TYPE_WORDS = new Set(['song', 'video', 'episode', 'single', 'album', 'ep', 'playlist', 'artist', 'podcast', 'profile']);
 
+export const normKey = (s = '') => String(s || '').toLowerCase().replace(/[^\p{L}\p{N}\p{M}]+/gu, ' ').trim();
+
 export function isNotArtist(part) {
   if (!part || typeof part !== 'string') return true;
   const s = part.trim();
