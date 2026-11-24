@@ -46,8 +46,8 @@ const PLAIN_TTL = 75_000;
 /* ---------------------------- caches ---------------------------- */
 
 /** Every provider's sheet for a song, from the main run, so choosing a provider the menu LISTS is a lookup. */
-export const book = new TTLCache({ max: 300, ttl: 7 * DAY });
-const BOOK_PER_SONG = 5;
+export const book = new TTLCache({ max: 500, ttl: 7 * DAY });
+const BOOK_PER_SONG = 20;
 
 export const answers = new AsyncResolver(new TTLCache({ max: 400, ttl: 7 * DAY }), {
   ttl: 7 * DAY,
@@ -289,7 +289,7 @@ async function secondChance(ctx, io, env) {
     duration: ctx.duration || identity.canonical?.duration,
     isrc: ctx.isrc || identity.isrc || undefined,
   };
-  const families = ['amll', 'betterlyrics-ttml', 'betterlyrics-qq', 'lrc.red', 'netease', 'kugou', 'betterlyrics-kugou', 'lrclib', 'yt'];
+  const families = ['lyricsplus', 'betterlyrics-ttml', 'betterlyrics-qq', 'lrc.red', 'simpmusic', 'lrclib', 'unison', 'amll', 'netease', 'kugou', 'betterlyrics-kugou', 'yt'];
   const retry = await Promise.all(PROVIDERS.filter((p) => families.includes(p.id)).map((p) => runProvider(p, better, io, env)));
   return retry.filter(usable);
 }
@@ -360,7 +360,7 @@ async function lookup(params, forceSource, cacheKey) {
   const race = new Race(PROVIDERS, async (provider) => {
     let providerCtx = ctx;
     let env = {};
-    if (provider.needsRecording || ['amll', 'betterlyrics-ttml', 'betterlyrics-qq', 'netease', 'kugou', 'lrc.red'].includes(provider.id)) {
+    if (provider.needsRecording || ['lyricsplus', 'amll', 'betterlyrics-ttml', 'betterlyrics-qq', 'netease', 'kugou', 'lrc.red'].includes(provider.id)) {
       const [recording, identity] = await Promise.all([
         withTimeout(recordingP, 700, { isrc: null, hit: null }),
         withTimeout(identityP, 700, null),
@@ -377,7 +377,9 @@ async function lookup(params, forceSource, cacheKey) {
         };
       }
     }
-    return runProvider(provider, providerCtx, io, env);
+    const res = await runProvider(provider, providerCtx, io, env);
+    if (res && usable(res)) remember(bk, [res]);
+    return res;
   });
   const env = { recording: await withTimeout(recordingP, 50, { isrc: null, hit: null }) };
 

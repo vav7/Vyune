@@ -83,14 +83,17 @@ function useLyricFont(): () => boolean {
 
 
 const ALL_KNOWN_PROVIDERS = [
-  'BiniLyrics',
-  'LRCLIB',
-  'KuGou',
-  'NetEase',
+  'LyricsPlus',
   'LRC.RED',
-  'YouTube Music',
+  'BetterLyrics',
+  'SimpMusic',
+  'LRCLIB',
   'Unison',
   'BetterLyrics (QQ)',
+  'YouTube Music',
+  'BiniLyrics',
+  'NetEase',
+  'KuGou',
   'AMLL',
 ];
 
