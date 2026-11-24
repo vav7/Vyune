@@ -484,9 +484,10 @@ app.get('/api/mv/resolve', async (c) => {
   const mv = await yt.resolveMusicVideo(title, artist, id, { album, duration });
   if (mv?.videoId) return c.json(mv);
   return c.json({
-    videoId: id,
-    title: title || 'Video',
-    thumbnail: id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : '',
+    videoId: null,
+    available: false,
+    title: title || '',
+    thumbnail: '',
   });
 });
 

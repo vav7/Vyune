@@ -150,9 +150,9 @@ export const api = {
         album: track.album || '',
         duration: track.duration ? String(track.duration) : '',
       });
-      return await getJSON<{ videoId: string; title: string; thumbnail: string }>(`/api/mv/resolve?${p}`, signal);
+      return await getJSON<{ videoId: string | null; title?: string; thumbnail?: string; available?: boolean }>(`/api/mv/resolve?${p}`, signal);
     } catch {
-      return { videoId: track.id, title: track.title, thumbnail: track.thumb || '' };
+      return { videoId: null, available: false };
     }
   },
   /** Video stream metadata */

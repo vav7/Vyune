@@ -238,12 +238,16 @@ export function MvPlayer(props: MvPlayerProps) {
     });
   });
 
-  // Reset loaded and playing state on track switch
+  // Reset loaded and playing state strictly on track switch (never on same-track re-renders)
+  let lastMvTrackId: string | null = null;
   createEffect(() => {
-    props.track.id;
-    setLoaded(false);
-    setIsPlaying(false);
-    setFit(null);
+    const curId = props.track?.id || null;
+    if (curId !== lastMvTrackId) {
+      lastMvTrackId = curId;
+      setLoaded(false);
+      setIsPlaying(false);
+      setFit(null);
+    }
   });
 
   // Notify parent of ready state

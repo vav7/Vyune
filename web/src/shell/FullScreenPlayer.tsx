@@ -189,7 +189,6 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
   // The playing song's motion artwork, once it is on screen: the backdrop frosts a copy of it.
   const [motionVideo, setMotionVideo] = createSignal<HTMLVideoElement | null>(null);
   const [mvStreamSrc, setMvStreamSrc] = createSignal<string | null>(null);
-  const [mvPlaying, setMvPlaying] = createSignal(false);
   const [mvReady, setMvReady] = createSignal(false);
   const tint = useSongTint();
 
@@ -362,12 +361,16 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
     if (!playerStore.current) playerStore.setFullscreen(false);
   });
 
-  // Reset MV playing and ready state on track switch or mode change
+  // Reset MV ready state strictly on track switch or mode exit (never spuriously during playback)
+  let lastFsTrackId: string | null = null;
   createEffect(() => {
-    playerStore.current?.id;
-    artModeStore.mode;
-    setMvPlaying(false);
-    setMvReady(false);
+    const curId = playerStore.current?.id || null;
+    if (curId !== lastFsTrackId) {
+      lastFsTrackId = curId;
+      setMvReady(false);
+    } else if (artModeStore.mode !== 'mv') {
+      setMvReady(false);
+    }
   });
 
   const toggleBrowserFullScreen = () => {
@@ -434,9 +437,9 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
         const showQueue = () => panel() === 'queue';
         const column = () => showLyrics() || showQueue();
 
-        // Cinematic 16:9 only when in MV mode AND video is loaded & actually playing;
+        // Cinematic 16:9 in MV mode once video has loaded and is ready;
         // stays in pure square 1:1 while buffering / resolving to eliminate jarring aspect ratio jumps.
-        const isMvActive = createMemo(() => artModeStore.mode === 'mv' && mvReady() && mvPlaying());
+        const isMvActive = createMemo(() => artModeStore.mode === 'mv' && mvReady());
 
         // Responsive artwork stage width: sleek cinematic 16:9 in active MV mode,
         // locked square 1:1 in static art / motion visualizer mode / buffering MV mode
@@ -589,7 +592,6 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                           onVideo={setMotionVideo}
                           onStreamSrc={setMvStreamSrc}
                           onReady={setMvReady}
-                          onPlayingChange={setMvPlaying}
                           class="size-full rounded-[14px]"
                         />
                       </div>
