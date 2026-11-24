@@ -171,11 +171,40 @@ export async function proxyVideoStream(videoId, rangeHeader, method = 'GET', sig
 
   if (format.url) {
     try {
+      const streamUrl = new URL(format.url);
+      const streamClient = (streamUrl.searchParams.get('c') || '').toUpperCase();
+      const clientIds = {
+        VISIONOS: '82',
+        ANDROID_VR: '28',
+        TV_EMBEDDED: '85',
+        IOS: '5',
+        ANDROID: '3',
+        WEB: '1',
+        WEB_REMIX: '67',
+      };
+      const clientUAs = {
+        VISIONOS: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+        ANDROID_VR: 'Mozilla/5.0 (Linux; Android 12; Quest 3 Build/SQ3A.220605.009.A1) AppleWebKit/537.36 (KHTML, like Gecko) OculusBrowser/33.0.0.35.53.585721111 SamsungBrowser/4.0 Chrome/122.0.6261.119 Mobile VR Safari/537.36',
+        TV_EMBEDDED: 'Mozilla/5.0 (SMART-TV; Linux; Tizen 5.0) AppleWebKit/538.1 (KHTML, like Gecko) Version/5.0 NativeClient-FreeBSD Safari/538.1',
+        IOS: 'com.google.ios.youtube/19.45.4 (iPhone16,2; U; CPU iOS 18_1_0 like Mac OS X; en_US)',
+        ANDROID: 'com.google.android.youtube/19.45.36 (Linux; U; Android 14; en_US) gzip',
+      };
+
       const upHeaders = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+        'User-Agent': clientUAs[streamClient] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
         'Accept': '*/*',
         'Accept-Encoding': 'identity',
       };
+      if (clientIds[streamClient]) {
+        upHeaders['X-YouTube-Client-Name'] = clientIds[streamClient];
+      }
+      const isWebClient = streamClient === 'WEB' || streamClient === 'MWEB' || streamClient === 'WEB_REMIX';
+      if (isWebClient) {
+        upHeaders.Origin = 'https://www.youtube.com';
+        upHeaders.Referer = 'https://www.youtube.com/';
+        upHeaders['X-Origin'] = 'https://www.youtube.com';
+      }
+
       if (isRange && actualEnd !== undefined) {
         upHeaders.Range = `bytes=${start}-${actualEnd}`;
       } else if (isRange) {
