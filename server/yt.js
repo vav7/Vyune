@@ -1744,15 +1744,142 @@ async function resolveWithYtDlpOnce(videoId) {
   }
 }
 
+const FAST_CLIENTS = [
+  {
+    name: 'VISIONOS',
+    version: '1.02',
+    id: '82',
+    ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+  },
+  {
+    name: 'ANDROID_VR',
+    version: '1.60.19',
+    id: '28',
+    ua: 'Mozilla/5.0 (Linux; Android 12; Quest 3 Build/SQ3A.220605.009.A1) AppleWebKit/537.36 (KHTML, like Gecko) OculusBrowser/33.0.0.35.53.585721111 SamsungBrowser/4.0 Chrome/122.0.6261.119 Mobile VR Safari/537.36',
+  },
+];
+
+const fastClientCooldown = new Map();
+
+/**
+ * Tokenless Fast Audio Stream Resolver.
+ * Races raw POST https://www.youtube.com/youtubei/v1/player?prettyPrint=false for VISIONOS and ANDROID_VR
+ * with a 2,500ms timeout.
+ */
+export async function resolveFastAudio(videoId, preferOpus = false) {
+  if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) return null;
+
+  const now = Date.now();
+  const availableClients = FAST_CLIENTS.filter(
+    (c) => (fastClientCooldown.get(`${c.name}:${videoId}`) || 0) < now
+  );
+  if (!availableClients.length) return null;
+
+  const resolveClient = async (client) => {
+    const key = `${client.name}:${videoId}`;
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 2500);
+
+      const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Youtube-Client-Name': client.id,
+          'X-Youtube-Client-Version': client.version,
+          'User-Agent': client.ua,
+        },
+        body: JSON.stringify({
+          context: {
+            client: {
+              clientName: client.name,
+              clientVersion: client.version,
+              hl: 'en',
+              gl: 'US',
+            },
+          },
+          videoId,
+        }),
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+
+      if (!res.ok) {
+        fastClientCooldown.set(key, Date.now() + 10 * 60_000);
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      if (data.playabilityStatus?.status !== 'OK') {
+        fastClientCooldown.set(key, Date.now() + 10 * 60_000);
+        throw new Error(`Playability: ${data.playabilityStatus?.status}`);
+      }
+
+      const adaptive = data.streamingData?.adaptiveFormats || [];
+      const audioFormats = adaptive.filter(
+        (f) =>
+          f.url &&
+          f.mimeType?.includes('audio') &&
+          !f.isAutoDubbed &&
+          f.audioTrack?.audioIsDefault !== false &&
+          !f.isDrc &&
+          !/drc/i.test(f.qualityLabel || '')
+      );
+
+      if (!audioFormats.length) {
+        fastClientCooldown.set(key, Date.now() + 10 * 60_000);
+        throw new Error('No direct audio format');
+      }
+
+      const sorted = [...audioFormats].sort((a, b) => {
+        if (preferOpus) {
+          const isOpusA = a.itag === 251 || /opus|webm/i.test(a.mimeType || '');
+          const isOpusB = b.itag === 251 || /opus|webm/i.test(b.mimeType || '');
+          if (isOpusA !== isOpusB) return isOpusA ? -1 : 1;
+        } else {
+          // Prefer AAC itag 141 or 140
+          const isAacA = a.itag === 141 || a.itag === 140 || /mp4a|mp4/i.test(a.mimeType || '');
+          const isAacB = b.itag === 141 || b.itag === 140 || /mp4a|mp4/i.test(b.mimeType || '');
+          if (isAacA !== isAacB) return isAacA ? -1 : 1;
+        }
+        return (b.bitrate || 0) - (a.bitrate || 0);
+      });
+
+      const chosen = sorted[0];
+      if (!chosen?.url) {
+        fastClientCooldown.set(key, Date.now() + 10 * 60_000);
+        throw new Error('No valid stream url');
+      }
+
+      return {
+        url: chosen.url,
+        mime: chosen.mimeType?.split(';')[0] || (preferOpus ? 'audio/webm' : 'audio/mp4'),
+        bitrate: chosen.bitrate || 130000,
+        contentLength: chosen.contentLength ? Number(chosen.contentLength) : null,
+        client: client.name,
+      };
+    } catch (err) {
+      fastClientCooldown.set(key, Date.now() + 10 * 60_000);
+      throw err;
+    }
+  };
+
+  return await Promise.any(availableClients.map(resolveClient)).catch(() => null);
+}
+
 export async function resolveStream(videoId, { skipClients = [], preferOpus = false, wrapper = 'auto' } = {}) {
   if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) return null;
   if (wrapper === 'yt-dlp') return resolveWithYtDlp(videoId);
 
-  // 1. Direct PO-Token Resolution: Instant (~400ms), 0 403s, 0 bot-check failures
+  // 1. Tokenless fast audio resolver (VISIONOS + ANDROID_VR raced via Promise.any)
+  const fast = await resolveFastAudio(videoId, preferOpus).catch(() => null);
+  if (fast?.url) return fast;
+
+  // 2. Direct PO-Token Resolution: Instant (~400ms), 0 403s, 0 bot-check failures
   const distubeFallback = await resolveDistubeAudioStream(videoId, preferOpus).catch(() => null);
   if (distubeFallback?.url) return distubeFallback;
 
-  // 2. Fallback to local yt-dlp binary if available
+  // 3. Fallback to local yt-dlp binary if available
   return resolveWithYtDlp(videoId).catch(() => null);
 }
 
@@ -1860,7 +1987,7 @@ export function scoreMusicVideoCandidate(v, cleanTitle, cleanArtist, album = '',
     return -99999;
   }
   if (
-    /(?:vogue|variety|hollywood\s*reporter|graham\s*norton|fallon|kimmel|vanity\s*fair|gq|architectural\s*digest|actors\s*on\s*actors|73\s*questions|carpool|hot\s*ones|bbc|genius|wired|pitchfork|buzzfeed|elle|gossip|glamour|cosmopolitan|harper|npr|breakfast\s*club|sway|tmz|entertainment\s*tonight|access\s*hollywood|extratv|e!\s*news|lallantop|news|podcast|media|review|react)/i.test(author)
+    /(?:vogue|variety|hollywood[\s._-]*reporter|graham[\s._-]*norton|fallon|kimmel|vanity[\s._-]*fair|gq|architectural[\s._-]*digest|actors[\s._-]*on[\s._-]*actors|73[\s._-]*questions|carpool|hot[\s._-]*ones|bbc|genius|wired|pitchfork|buzzfeed|elle|gossip|glamour|cosmopolitan|harper|npr|breakfast[\s._-]*club|sway|tmz|entertainment[\s._-]*tonight|access[\s._-]*hollywood|extratv|e![\s._-]*news|lallantop|news|podcast|media|review|react)/i.test(author)
   ) {
     return -99999;
   }

@@ -43,13 +43,15 @@ export function ArtworkBackdrop(props: {
       aria-hidden="true"
       style={bgStyle()}
     >
-      {/* 1. Frosted Album Artwork Ambient Layer (Always present underneath as baseline; never black) */}
-      <ImageFrost
-        src={props.artworkUrl || props.fallbackUrl || null}
-        palette={color()?.palette}
-        dim={(color()?.lum ?? 0) > 0.6 ? 0.6 : 0.42}
-        class="bg-transparent"
-      />
+      {/* 1. Frosted Album Artwork Ambient Layer (Unmounted while isVideoMode() is active to prevent dual-WebGL contention) */}
+      <Show when={!isVideoMode()}>
+        <ImageFrost
+          src={props.artworkUrl || props.fallbackUrl || null}
+          palette={color()?.palette}
+          dim={(color()?.lum ?? 0) > 0.6 ? 0.6 : 0.42}
+          class="bg-transparent"
+        />
+      </Show>
 
       {/* 2. Fullscreen Video playing in background with modern liquid glass blur: smoothly cross-fades when video is ready */}
       <div

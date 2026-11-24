@@ -285,29 +285,75 @@ app.get('/api/stream', async (c) => {
       }
     }
 
-    // 2) JioSaavn Priority Match: Pristine 320kbps CD Quality Audio
-    // Guarantees zero 403 errors and prevents YouTube bot-check challenges on catalog tracks
+    // 2) Hedged Race: JioSaavn (320kbps CD Quality) vs Tokenless Fast YouTube Audio
+    // Starts saavn.findSaavnMatch at t = 0. If it hasn't resolved within 150ms,
+    // launches resolveFastAudio(id) in parallel so non-JioSaavn tracks start immediately without waiting 2.5s.
     if (wrapper !== 'yt-dlp' && title) {
-      try {
-        const match = await withTimeout(
-          saavn.findSaavnMatch(title, artist, { album, duration }),
-          2500,
-          null
-        ).catch(() => null);
-        if (match) {
-          const media = await saavn.saavnStreamUrl(match).catch(() => null);
-          if (media?.url) {
-            const params = new URLSearchParams({ url: media.url });
-            return {
-              url: media.url,
-              proxy: `/api/media?${params}`,
-              source: 'saavn',
-              bitrate: media.bitrate || 320000,
-              mime: 'audio/mp4',
-            };
+      const saavnPromise = (async () => {
+        try {
+          const match = await withTimeout(
+            saavn.findSaavnMatch(title, artist, { album, duration }),
+            2500,
+            null
+          ).catch(() => null);
+          if (match) {
+            const media = await saavn.saavnStreamUrl(match).catch(() => null);
+            if (media?.url) {
+              const params = new URLSearchParams({ url: media.url });
+              return {
+                url: media.url,
+                proxy: `/api/media?${params}`,
+                source: 'saavn',
+                bitrate: media.bitrate || 320000,
+                mime: 'audio/mp4',
+              };
+            }
           }
+        } catch {}
+        return null;
+      })();
+
+      // Quick 150ms check for instant/cached JioSaavn response
+      const instantSaavn = await Promise.race([
+        saavnPromise,
+        new Promise((resolve) => setTimeout(() => resolve('timeout'), 150)),
+      ]);
+
+      if (instantSaavn && instantSaavn !== 'timeout') {
+        return instantSaavn;
+      }
+
+      // If JioSaavn has not resolved within 150ms, hedge in parallel with resolveFastAudio
+      if (id && /^[\w-]{11}$/.test(id)) {
+        const fastYtPromise = (async () => {
+          const fast = await yt.resolveFastAudio(id, preferOpus).catch(() => null);
+          return fast
+            ? withProxy({
+                url: fast.url,
+                source: 'yt',
+                mime: fast.mime,
+                bitrate: fast.bitrate,
+                contentLength: fast.contentLength,
+              })
+            : null;
+        })();
+
+        // Race remaining JioSaavn with fast tokenless YouTube audio
+        const fastest = await Promise.race([
+          saavnPromise.then((res) => (res ? { from: 'saavn', res } : null)),
+          fastYtPromise.then((res) => (res ? { from: 'yt', res } : null)),
+        ]);
+
+        if (fastest?.res) {
+          return fastest.res;
         }
-      } catch {}
+
+        const saavnRes = await saavnPromise;
+        if (saavnRes) return saavnRes;
+      } else {
+        const saavnRes = await saavnPromise;
+        if (saavnRes) return saavnRes;
+      }
     }
 
     // 3) YouTube Studio Track Fallback:

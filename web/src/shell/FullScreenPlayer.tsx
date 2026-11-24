@@ -21,7 +21,7 @@ import { FavoriteButton } from '@/components/music/FavoriteButton';
 import { albumHref, artistLink } from '@/components/music/links';
 import { AppleMotionArtwork } from '@/components/music/AppleMotionArtwork';
 import { MvPlayer } from '@/components/music/MvPlayer';
-import { artModeStore } from '@/store/artMode';
+import { artModeStore, ART_MODE_LABEL } from '@/store/artMode';
 import { ArtVolume } from './ArtControls';
 import { PlayerMenu } from './PlayerMenu';
 import { PrefetchLink } from '@/components/PrefetchLink';
@@ -431,12 +431,12 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
         const showQueue = () => panel() === 'queue';
         const column = () => showLyrics() || showQueue();
 
-        const isMvActiveAndPlaying = createMemo(() => artModeStore.mode === 'mv' && mvPlaying());
+        const isMvMode = createMemo(() => artModeStore.mode === 'mv');
 
-        // Responsive artwork stage width: sleek cinematic 16:9 ONLY once video is actively playing,
-        // otherwise stays in locked square 1:1 art mode with smooth transition
+        // Responsive artwork stage width: sleek cinematic 16:9 in MV mode,
+        // locked square 1:1 in static art / motion visualizer mode
         const stageWidth = createMemo(() => {
-          if (isMvActiveAndPlaying()) {
+          if (isMvMode()) {
             return 'min(44vw, calc((100dvh - 240px) * 16 / 9), 680px)';
           }
           return 'min(42vw, calc(100dvh - 160px), 640px)';
@@ -535,18 +535,18 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                 }}
                 aria-label="Player"
               >
-                {/* Apple-grade squarish card with subtle curve, morphing smoothly into 16:9 when video is loaded and ready */}
+                {/* Apple-grade squarish card with subtle curve, morphing into 16:9 in MV mode */}
                 <div
-                  class={`fs-poster group/poster relative rounded-[14px] overflow-hidden bg-black/40 shadow-[0_24px_60px_rgba(0,0,0,0.6)] border border-white/15 transition-all duration-600 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer select-none group-data-[idle=true]:scale-[0.98]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.94]'}`}
+                  class={`fs-poster group/poster relative rounded-[14px] overflow-hidden bg-black/40 shadow-[0_24px_60px_rgba(0,0,0,0.6)] border border-white/15 transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer select-none group-data-[idle=true]:scale-[0.98]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.94]'}`}
                   style={{
                     width: stageWidth(),
-                    'aspect-ratio': isMvActiveAndPlaying() ? '16 / 9' : '1',
+                    'aspect-ratio': isMvMode() ? '16 / 9' : '1',
                     'max-width': '100%',
                   }}
                   onClick={() => {
-                    artModeStore.setMode(artModeStore.mode === 'mv' ? 'art' : 'mv');
+                    artModeStore.cycle();
                   }}
-                  title={artModeStore.mode === 'mv' ? 'Click artwork to return to Art mode' : 'Click artwork to watch Music Video'}
+                  title={`Mode: ${ART_MODE_LABEL[artModeStore.mode] || artModeStore.mode} (click to switch between Art, Visualizer, and MV)`}
                 >
                   <div class="absolute inset-0 size-full">
                     {/* Base Layer: High-Res Album Artwork — ALWAYS VISIBLE! Zero black screen while MV resolves */}

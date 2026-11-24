@@ -135,25 +135,50 @@ export async function streamMedia(c, rawUrl, declaredSize = null) {
       const streamClient = (finalUrl.searchParams.get('c') || '').toUpperCase();
       const clientVersion = finalUrl.searchParams.get('cver');
       const clientIds = {
-        WEB: '1', MWEB: '2', ANDROID: '3', IOS: '5',
-        ANDROID_MUSIC: '21', ANDROID_VR: '28', WEB_REMIX: '67', VISIONOS: '82',
+        VISIONOS: '82',
+        ANDROID_VR: '28',
+        TV_EMBEDDED: '85',
+        IOS: '5',
+        ANDROID: '3',
+        WEB: '1',
+        WEB_REMIX: '67',
       };
+      const clientUAs = {
+        VISIONOS: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+        ANDROID_VR: 'Mozilla/5.0 (Linux; Android 12; Quest 3 Build/SQ3A.220605.009.A1) AppleWebKit/537.36 (KHTML, like Gecko) OculusBrowser/33.0.0.35.53.585721111 SamsungBrowser/4.0 Chrome/122.0.6261.119 Mobile VR Safari/537.36',
+        TV_EMBEDDED: 'Mozilla/5.0 (SMART-TV; Linux; Tizen 5.0) AppleWebKit/538.1 (KHTML, like Gecko) Version/5.0 NativeClient-FreeBSD Safari/538.1',
+        IOS: 'com.google.ios.youtube/19.45.4 (iPhone16,2; U; CPU iOS 18_1_0 like Mac OS X; en_US)',
+        ANDROID: 'com.google.android.youtube/19.45.36 (Linux; U; Android 14; en_US) gzip',
+        WEB: UA,
+        WEB_REMIX: UA,
+      };
+
       const session = await getYT().catch(() => null);
-      headers['User-Agent'] = session?.session?.user_agent || UA;
+      headers['User-Agent'] = clientUAs[streamClient] || session?.session?.user_agent || UA;
       if (clientVersion) headers['X-YouTube-Client-Version'] = clientVersion;
       if (clientIds[streamClient]) headers['X-YouTube-Client-Name'] = clientIds[streamClient];
       if (session?.session?.context?.client?.visitorData) {
         headers['X-Goog-Visitor-Id'] = session.session.context.client.visitorData;
       }
       // Google Video request rules: only web clients need origin headers;
-      // mobile/app clients (ANDROID, IOS, VISIONOS) are rejected with 403 if origin headers are sent.
+      // mobile/app clients (ANDROID, IOS, VISIONOS, ANDROID_VR, TV_EMBEDDED) are rejected with 403 if origin headers are sent.
       const isWebClient = streamClient === 'WEB' || streamClient === 'MWEB' || streamClient === 'WEB_REMIX';
       if (isWebClient) {
         headers.Origin = 'https://www.youtube.com';
         headers.Referer = 'https://www.youtube.com/';
         headers['X-Origin'] = 'https://www.youtube.com';
       }
-      if (range) headers.Range = range;
+
+      // Cap open-ended Range: bytes=start- requests to 1 MB chunks (bytes=start-(start + 1048575))
+      // to avoid YouTube's open-range throttling and deliver the first playable audio chunk immediately.
+      if (range) {
+        if (requested?.end === null) {
+          const chunkEnd = totalSize !== null ? Math.min(start + 1048575, totalSize - 1) : start + 1048575;
+          headers.Range = `bytes=${start}-${chunkEnd}`;
+        } else {
+          headers.Range = range;
+        }
+      }
     } else if (isSaavn && range) {
       headers.Range = range;
     }
