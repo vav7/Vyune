@@ -1950,8 +1950,19 @@ export function scoreMusicVideoCandidate(v, cleanTitle, cleanArtist, album = '',
     return -99999;
   }
 
-  // Lyrics / lyrical / karaoke / subtitles / text videos
+  // Lyrics / lyrical / karaoke / subtitles / text videos (both title & author channel)
   if (/(?:lyrics?|lyrical(?:\s+video)?|with\s+lyrics?|song\s+with\s+lyrics?|subtitles?|eng\s*sub|बोल\s*के\s*साथ|गीत|karaoke|instrumental)/i.test(t)) {
+    return -99999;
+  }
+  if (/\b(?:lyrics?|lyrical|karaoke|subtitles?)\b/i.test(author)) {
+    return -99999;
+  }
+
+  // BTS, making of, behind the scenes, rehearsals (unless requested artist is BTS)
+  if (/\b(?:behind\s+the\s+scenes|making\s+of|studio\s+vlog|in\s+the\s+studio|b-roll|rehearsal)\b/i.test(t)) {
+    return -99999;
+  }
+  if (!/\bbts\b/i.test(cleanArtist) && /\bbts\b/i.test(t)) {
     return -99999;
   }
 
@@ -1961,8 +1972,13 @@ export function scoreMusicVideoCandidate(v, cleanTitle, cleanArtist, album = '',
   }
 
   // Live concerts, tours, stadium performances (unless requested track title itself has 'live')
-  if (!/(?:live|tour|concert)/i.test(cleanTitle) && /(?:live\s+(?:from|at|in|performance)|til dawn tour|world tour|live concert|stadium tour)/i.test(t)) {
-    return -99999;
+  if (!/\b(?:live|tour|concert)\b/i.test(cleanTitle)) {
+    if (
+      /\b(?:live|tour|concert|acoustic\s+live|live\s+at|live\s+in|live\s+session|live\s+from|on\s+tour|world\s+tour|stadium\s+tour|live\s+performance|live\s+20\d\d)\b/i.test(t) ||
+      /[(\[]\s*live(?:\s+version|\s+performance|\s+\d{4})?\s*[)\]]/i.test(t)
+    ) {
+      return -99999;
+    }
   }
 
   // Covers, fan edits, status, shorts, lofi, remix, choreography
@@ -1978,10 +1994,10 @@ export function scoreMusicVideoCandidate(v, cleanTitle, cleanArtist, album = '',
     return -99999;
   }
 
-  // Interviews, podcasts, documentaries, BTS, commentaries (avoid matching when movie/album title has 'story', e.g. Hate Story, Love Story, etc.)
+  // Interviews, podcasts, documentaries, talk shows, celebrity conversations (avoid matching when movie/album title has 'story', e.g. Hate Story, Love Story, etc.)
   const isStoryMovie = /(?:story)/i.test(cleanTitle) || /(?:story)/i.test(album);
   if (
-    /\b(?:interview|podcast|documentary|commentary|untold\s+story|real\s+story|life\s+story|success\s+story|confession|talks?\s+about|speaks?\s+about|answers|q&a|73\s+questions|carpool\s+karaoke|actors\s+on\s+actors|snl\s+sketch|monologue|acceptance\s+speech|speech|red\s+carpet)\b/i.test(t) ||
+    /\b(?:interview|interviews|podcast|documentary|commentary|untold\s+story|real\s+story|life\s+story|success\s+story|confession|talks?\s+(?:to|with|about)|speaks?\s+(?:to|with|about)|sits?\s+down|chats?\s+(?:with|to)|answers|q&a|73\s+questions|carpool\s+karaoke|actors\s+on\s+actors|snl\s+sketch|monologue|acceptance\s+speech|speech|red\s+carpet)\b/i.test(t) ||
     (!isStoryMovie && /\bstory\b/i.test(t))
   ) {
     return -99999;
@@ -2194,14 +2210,15 @@ export async function resolveMusicVideo(title, artist, songVideoId, opts = {}) {
     // Queries to test sequentially until a high-confidence MV (score >= 350) is found
     const queries = [];
     if (cleanArtist) {
-      queries.push(`${cleanArtist} ${cleanTitle} official video`.trim());
+      queries.push(`${cleanArtist} ${cleanTitle} official music video`.trim());
       queries.push(`${cleanArtist} ${cleanTitle} vevo`.trim());
+      queries.push(`${cleanArtist} ${cleanTitle} official video`.trim());
     }
     if (album && !cleanTitle.toLowerCase().includes(album.toLowerCase())) {
-      queries.push(`${cleanTitle} ${album} official video`.trim());
+      queries.push(`${cleanTitle} ${album} official music video`.trim());
     }
-    queries.push(`${cleanTitle} ${cleanArtist} official video`.trim());
     queries.push(`"${cleanTitle}" official music video`.trim());
+    queries.push(`${cleanTitle} ${cleanArtist} official music video`.trim());
     queries.push(`${cleanTitle} official video song`.trim());
 
     for (const query of queries) {

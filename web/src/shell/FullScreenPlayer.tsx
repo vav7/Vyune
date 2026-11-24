@@ -21,7 +21,7 @@ import { FavoriteButton } from '@/components/music/FavoriteButton';
 import { albumHref, artistLink } from '@/components/music/links';
 import { AppleMotionArtwork } from '@/components/music/AppleMotionArtwork';
 import { MvPlayer } from '@/components/music/MvPlayer';
-import { artModeStore, ART_MODE_LABEL } from '@/store/artMode';
+import { artModeStore } from '@/store/artMode';
 import { ArtVolume } from './ArtControls';
 import { PlayerMenu } from './PlayerMenu';
 import { PrefetchLink } from '@/components/PrefetchLink';
@@ -190,6 +190,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
   const [motionVideo, setMotionVideo] = createSignal<HTMLVideoElement | null>(null);
   const [mvStreamSrc, setMvStreamSrc] = createSignal<string | null>(null);
   const [mvPlaying, setMvPlaying] = createSignal(false);
+  const [mvReady, setMvReady] = createSignal(false);
   const tint = useSongTint();
 
   let close!: HTMLButtonElement;
@@ -361,10 +362,12 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
     if (!playerStore.current) playerStore.setFullscreen(false);
   });
 
-  // Reset MV playing state on track switch
+  // Reset MV playing and ready state on track switch or mode change
   createEffect(() => {
     playerStore.current?.id;
+    artModeStore.mode;
     setMvPlaying(false);
+    setMvReady(false);
   });
 
   const toggleBrowserFullScreen = () => {
@@ -431,12 +434,14 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
         const showQueue = () => panel() === 'queue';
         const column = () => showLyrics() || showQueue();
 
-        const isMvMode = createMemo(() => artModeStore.mode === 'mv');
+        // Cinematic 16:9 only when in MV mode AND video is loaded & actually playing;
+        // stays in pure square 1:1 while buffering / resolving to eliminate jarring aspect ratio jumps.
+        const isMvActive = createMemo(() => artModeStore.mode === 'mv' && mvReady() && mvPlaying());
 
-        // Responsive artwork stage width: sleek cinematic 16:9 in MV mode,
-        // locked square 1:1 in static art / motion visualizer mode
+        // Responsive artwork stage width: sleek cinematic 16:9 in active MV mode,
+        // locked square 1:1 in static art / motion visualizer mode / buffering MV mode
         const stageWidth = createMemo(() => {
-          if (isMvMode()) {
+          if (isMvActive()) {
             return 'min(44vw, calc((100dvh - 240px) * 16 / 9), 680px)';
           }
           return 'min(42vw, calc(100dvh - 160px), 640px)';
@@ -479,7 +484,8 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
               fallbackUrl={current().thumb}
               videoSrc={artModeStore.mode === 'mv' ? mvStreamSrc() : null}
               motionVideo={settled() ? motionVideo() : null}
-              videoReady={mvPlaying()}
+              mode={artModeStore.mode}
+              videoReady={artModeStore.mode === 'mv' ? isMvActive() : (artModeStore.mode === 'motion' && settled() && !!motionVideo())}
             />
 
             {/* The pull handle spans the top edge so it is easy to catch with a thumb. */}
@@ -535,18 +541,18 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                 }}
                 aria-label="Player"
               >
-                {/* Apple-grade squarish card with subtle curve, morphing into 16:9 in MV mode */}
+                {/* Apple-grade squarish card with subtle curve, morphing into 16:9 only once MV is playing & ready */}
                 <div
-                  class={`fs-poster group/poster relative rounded-[14px] overflow-hidden bg-black/40 shadow-[0_24px_60px_rgba(0,0,0,0.6)] border border-white/15 transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer select-none group-data-[idle=true]:scale-[0.98]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.94]'}`}
+                  class={`fs-poster group/poster relative rounded-[14px] overflow-hidden bg-black/40 shadow-[0_24px_60px_rgba(0,0,0,0.6)] border border-white/15 transition-[width,aspect-ratio,transform,opacity] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer select-none group-data-[idle=true]:scale-[0.98]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.94]'}`}
                   style={{
                     width: stageWidth(),
-                    'aspect-ratio': isMvMode() ? '16 / 9' : '1',
+                    'aspect-ratio': isMvActive() ? '16 / 9' : '1',
                     'max-width': '100%',
                   }}
                   onClick={() => {
                     artModeStore.cycle();
                   }}
-                  title={`Mode: ${ART_MODE_LABEL[artModeStore.mode] || artModeStore.mode} (click to switch between Art, Visualizer, and MV)`}
+                  title="Switch visual mode"
                 >
                   <div class="absolute inset-0 size-full">
                     {/* Base Layer: High-Res Album Artwork — ALWAYS VISIBLE! Zero black screen while MV resolves */}
@@ -570,12 +576,19 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
 
                     {/* Layer 3: YouTube 16:9 Music Video with Smooth Fade-in */}
                     <Show when={artModeStore.mode === 'mv'}>
-                      <div class="absolute inset-0 size-full overflow-hidden rounded-[14px] z-10">
+                      <div
+                        class="absolute inset-0 size-full overflow-hidden rounded-[14px] z-10 transition-opacity duration-500 ease-out"
+                        classList={{
+                          'opacity-100 pointer-events-auto': isMvActive(),
+                          'opacity-0 pointer-events-none': !isMvActive(),
+                        }}
+                      >
                         <MvPlayer
                           track={current()}
                           active={true}
                           onVideo={setMotionVideo}
                           onStreamSrc={setMvStreamSrc}
+                          onReady={setMvReady}
                           onPlayingChange={setMvPlaying}
                           class="size-full rounded-[14px]"
                         />

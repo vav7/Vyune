@@ -501,7 +501,14 @@ export function LyricPreview() {
     return index >= 0 ? lines()[index] : null;
   });
   const parts = createMemo(() => line()?.text.filter((part) => part.text?.trim()) || []);
-  const wordTimced = createMemo(() => state() === 'lyric' && !!primary()?.isWordSynced && parts().length > 1);
+  const wordTimced = createMemo(
+    () =>
+      state() === 'lyric' &&
+      !!primary()?.isWordSynced &&
+      parts().length > 1 &&
+      parts().some((part) => !part.lineSynced && part.endtime > part.timestamp) &&
+      new Set(parts().map((p) => `${p.timestamp}|${p.endtime}`)).size > 1,
+  );
   let words: HTMLParagraphElement | undefined;
   // The sung part of each word, written straight to its element once per frame
   // while the song moves (and once when it is paused or sought).
@@ -524,10 +531,10 @@ export function LyricPreview() {
       list.forEach((part, i) => {
         const start = part.timestamp || current.timestamp;
         const end = part.endtime > start ? part.endtime : start + 1;
-        const value = Math.round(Math.max(0, Math.min(1, (ms - start) / (end - start))) * 1000) / 1000;
-        if (written[i] !== value && spans[i]) {
+        const value = Math.max(0, Math.min(1, (ms - start) / (end - start)));
+        if (Math.abs((written[i] ?? -1) - value) > 0.003 && spans[i]) {
           written[i] = value;
-          spans[i]!.style.setProperty('--fill', String(value));
+          spans[i]!.style.setProperty('--fill', value.toFixed(3));
         }
       });
       if (!audio.paused) frame = requestAnimationFrame(draw);
@@ -608,10 +615,10 @@ export function LyricPreview() {
           if (!box || matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
           box.animate(
             [
-              { opacity: 0, filter: 'blur(2.5px)' },
-              { opacity: 1, filter: 'blur(0)' },
+              { opacity: 0, transform: 'translateY(3px)' },
+              { opacity: 1, transform: 'translateY(0)' },
             ],
-            { duration: 380, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+            { duration: 240, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
           );
         });
       },

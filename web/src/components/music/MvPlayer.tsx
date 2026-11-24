@@ -75,46 +75,17 @@ function detectBars(video: HTMLVideoElement): Fit | null {
     let bottom = 0;
     while (bottom < 26 && rowIsBar(S - 1 - bottom)) bottom++;
 
-    // 3. Check left & right vertical columns (pillarbox bars)
-    const colIsBar = (col: number) => {
-      let sum = 0;
-      let peak = 0;
-      for (let y = 0; y < S; y++) {
-        const i = (y * S + col) * 4;
-        const luma = data[i]! * 0.299 + data[i + 1]! * 0.587 + data[i + 2]! * 0.114;
-        sum += luma;
-        if (luma > peak) peak = luma;
-      }
-      return sum / S < 18 && peak < 45;
-    };
-
-    let left = 0;
-    while (left < 26 && colIsBar(left)) left++;
-    let right = 0;
-    while (right < 26 && colIsBar(S - 1 - right)) right++;
-
     const vBars = (top + bottom) / S;
-    const hBars = (left + right) / S;
-
-    if (vBars < 0.04 && hBars < 0.04) {
+    // Only crop true horizontal letterbox (top and bottom black bars from 2.35:1 / 2.39:1 widescreen films).
+    // Never pillarbox-zoom horizontally on widescreen videos so it never stutters into a square or vertical slice.
+    if (vBars < 0.04) {
       return null;
     }
 
-    const scaleY = vBars > 0.04 ? 1 / Math.max(0.25, 1 - vBars) : 1;
-    const scaleX = hBars > 0.04 ? 1 / Math.max(0.25, 1 - hBars) : 1;
-    const scale = Math.min(2.2, Math.max(scaleX, scaleY));
-    const shiftX = ((right - left) / S) * 50;
+    const scale = Math.min(1.42, 1 / Math.max(0.7, 1 - vBars));
     const shiftY = ((bottom - top) / S) * 50;
 
-    let effectiveAspect: number | undefined;
-    if (video.videoWidth > 0 && video.videoHeight > 0) {
-      const rawAspect = video.videoWidth / video.videoHeight;
-      const contentW = 1 - hBars;
-      const contentH = 1 - vBars;
-      effectiveAspect = rawAspect * (contentW / Math.max(0.1, contentH));
-    }
-
-    return { scale, shiftX, shiftY, effectiveAspect };
+    return { scale, shiftX: 0, shiftY, effectiveAspect: 16 / 9 };
   } catch {
     return null;
   }

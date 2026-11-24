@@ -19,7 +19,7 @@ export function ArtworkBackdrop(props: {
   const measured = useArtworkColor(() => props.artworkUrl);
   const color = () => measured() ?? knownArtworkColor(props.fallbackUrl ?? null) ?? null;
 
-  const isVideoMode = () => !!props.motionVideo && props.videoReady === true;
+  const isVideoMode = () => props.mode !== 'art' && !!props.motionVideo && props.videoReady === true;
 
   const bgStyle = createMemo(() => {
     const c = color() ?? lastArtworkColor();
@@ -43,19 +43,17 @@ export function ArtworkBackdrop(props: {
       aria-hidden="true"
       style={bgStyle()}
     >
-      {/* 1. Frosted Album Artwork Ambient Layer (Unmounted while isVideoMode() is active to prevent dual-WebGL contention) */}
-      <Show when={!isVideoMode()}>
-        <ImageFrost
-          src={props.artworkUrl || props.fallbackUrl || null}
-          palette={color()?.palette}
-          dim={(color()?.lum ?? 0) > 0.6 ? 0.6 : 0.42}
-          class="bg-transparent"
-        />
-      </Show>
+      {/* 1. Frosted Album Artwork Ambient Layer (Always rendered as the stable base layer so mode-switching never flickers) */}
+      <ImageFrost
+        src={props.artworkUrl || props.fallbackUrl || null}
+        palette={color()?.palette}
+        dim={(color()?.lum ?? 0) > 0.6 ? 0.6 : 0.42}
+        class="bg-transparent"
+      />
 
       {/* 2. Fullscreen Video playing in background with modern liquid glass blur: smoothly cross-fades when video is ready */}
       <div
-        class={`absolute inset-0 size-full overflow-hidden pointer-events-none select-none transition-opacity duration-1000 ease-in-out ${
+        class={`absolute inset-0 size-full overflow-hidden pointer-events-none select-none transition-opacity duration-700 ease-out ${
           isVideoMode() ? 'opacity-100' : 'opacity-0'
         }`}
       >

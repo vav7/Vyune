@@ -157,6 +157,29 @@ const CHROME = `
     padding-inline-start: 0 !important;
     padding-inline-end: 28px !important;
   }
+  /* ---- Honest Line-Synced Lyrics (No Fake Horizontal Progressive Wipe) ---- */
+  .lyrics-syllable.line-synced,
+  .lyrics-line .lyrics-syllable.line-synced,
+  .lyrics-line.active .lyrics-syllable.line-synced,
+  .lyrics-line.pre-active .lyrics-syllable.line-synced {
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+    background-image: none !important;
+    background: transparent !important;
+    animation: none !important;
+    transform: none !important;
+    -webkit-text-fill-color: initial !important;
+  }
+  .lyrics-line.active .lyrics-syllable.line-synced {
+    color: #ffffff !important;
+    opacity: 1 !important;
+    transition: color 0.22s ease-out, opacity 0.22s ease-out !important;
+  }
+  .lyrics-line:not(.active) .lyrics-syllable.line-synced {
+    color: rgba(255, 255, 255, 0.42) !important;
+    opacity: 0.42 !important;
+    transition: color 0.35s ease-out, opacity 0.35s ease-out !important;
+  }
   /* Duet songs: align the other singer's voice clearly to the right side */
   .lyrics-line.singer-right,
   .lyrics-container .lyrics-line.singer-right,

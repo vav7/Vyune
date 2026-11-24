@@ -251,7 +251,10 @@
   .fs-oneline .mc-kinetic-note i { animation: none; }
 }
 /* The fill is written every frame here, so it must not ease behind the voice. */
-.fs-oneline .lyric-word { transition: translate 0.5s var(--lyric-spring, ease); }
+.fs-oneline .lyric-word {
+  --wipe-feather: 0.35em;
+  transition: translate 0.5s var(--lyric-spring, ease) !important;
+}
 
 /* ------------------------------------------------------------------ */
 /* Kinetic words: the fill is a gradient that slides (Web Animations). */

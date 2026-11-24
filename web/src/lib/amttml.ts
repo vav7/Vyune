@@ -43,7 +43,8 @@ const spanOf = (syllable: Syllable, index?: number, arr?: readonly Syllable[]) =
 const wordTimed = (line: LyricsLine) =>
   line.isWordSynced !== false &&
   line.text.length > 0 &&
-  line.text.some((syllable) => !syllable.lineSynced && syllable.endtime > syllable.timestamp);
+  line.text.some((syllable) => !syllable.lineSynced && syllable.endtime > syllable.timestamp) &&
+  (line.text.length === 1 ? !line.text[0].lineSynced : new Set(line.text.map((s) => `${s.timestamp}|${s.endtime}`)).size > 1);
 
 export function linesToTtml(lines: readonly LyricsLine[], opts: { translation?: boolean; romanization?: boolean } = {}): string {
   const hasContent = (line: LyricsLine) =>

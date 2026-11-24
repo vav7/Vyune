@@ -156,12 +156,10 @@ void main() {
   col = mix(vec3(luma), col, 1.42);
 
   // Soft highlight shoulder so white lyrics stay perfectly legible
-  col = col / (1.0 + col * 0.25);
-  col *= 0.68;
+  col = col / (1.0 + col * 0.22);
+  col *= 0.72;
 
-  // Interleaved Gradient Noise (IGN) dithering to eliminate 8-bit banding
-  col += (ign(gl_FragCoord.xy) - 0.5) / 255.0;
-
+  // Pure clean output with zero artificial grain noise
   outColor = vec4(clamp(col, 0.0, 1.0), u_alpha);
 }`;
 
@@ -276,12 +274,10 @@ export function MotionFrost(props: {
       return { fbo, tex, width, height };
     }
 
-    // Allocate Dual-Kawase pyramid FBOs (Down: 256x144 -> 128x72 -> 64x36 -> 32x18, Up: 32x18 -> 64x36 -> 128x72)
-    const fbo256 = createFBO(256, 144);
+    // Allocate Dual-Kawase pyramid FBOs (Down: 256x144 -> 128x72 -> 64x36, Up: 64x36 -> 128x72)
+    // Finely tuned offset gives distinct, vibrant Apple-grade color contours with no foggy soup
     const fbo128Down = createFBO(128, 72);
     const fbo64Down = createFBO(64, 36);
-    const fbo32 = createFBO(32, 18);
-    const fbo64Up = createFBO(64, 36);
     const fbo128Result = createFBO(128, 72);
 
     // Temporal accumulation FBOs (128x72 RGBA16F)
@@ -322,33 +318,21 @@ export function MotionFrost(props: {
       gl.bindTexture(gl.TEXTURE_2D, videoInputTex);
       gl.uniform1i(downUniforms.u_tex, 0);
       gl.uniform2f(downUniforms.u_resolution, 128, 72);
-      gl.uniform1f(downUniforms.u_offset, 2.0);
+      gl.uniform1f(downUniforms.u_offset, 1.2);
       renderPass(fbo128Down.fbo, 128, 72);
 
       // Pass 2: 128x72 -> 64x36 (Down)
       gl.bindTexture(gl.TEXTURE_2D, fbo128Down.tex);
       gl.uniform2f(downUniforms.u_resolution, 64, 36);
-      gl.uniform1f(downUniforms.u_offset, 2.0);
+      gl.uniform1f(downUniforms.u_offset, 1.3);
       renderPass(fbo64Down.fbo, 64, 36);
 
-      // Pass 3: 64x36 -> 32x18 (Down)
-      gl.bindTexture(gl.TEXTURE_2D, fbo64Down.tex);
-      gl.uniform2f(downUniforms.u_resolution, 32, 18);
-      gl.uniform1f(downUniforms.u_offset, 2.0);
-      renderPass(fbo32.fbo, 32, 18);
-
-      // Pass 4: 32x18 -> 64x36 (Up)
+      // Pass 3: 64x36 -> 128x72 (Up)
       gl.useProgram(upProgram);
-      gl.bindTexture(gl.TEXTURE_2D, fbo32.tex);
+      gl.bindTexture(gl.TEXTURE_2D, fbo64Down.tex);
       gl.uniform1i(upUniforms.u_tex, 0);
-      gl.uniform2f(upUniforms.u_resolution, 64, 36);
-      gl.uniform1f(upUniforms.u_offset, 2.0);
-      renderPass(fbo64Up.fbo, 64, 36);
-
-      // Pass 5: 64x36 -> 128x72 (Up)
-      gl.bindTexture(gl.TEXTURE_2D, fbo64Up.tex);
       gl.uniform2f(upUniforms.u_resolution, 128, 72);
-      gl.uniform1f(upUniforms.u_offset, 2.0);
+      gl.uniform1f(upUniforms.u_offset, 1.2);
       renderPass(fbo128Result.fbo, 128, 72);
 
       hasCaptured = true;
@@ -462,7 +446,7 @@ export function MotionFrost(props: {
       source.removeEventListener('waiting', stopLoop);
 
       // Clean up WebGL resources
-      const fbos = [fbo256, fbo128Down, fbo64Down, fbo32, fbo64Up, fbo128Result, temporalPrev, temporalCurr];
+      const fbos = [fbo128Down, fbo64Down, fbo128Result, temporalPrev, temporalCurr];
       for (const item of fbos) {
         gl.deleteFramebuffer(item.fbo);
         gl.deleteTexture(item.tex);

@@ -8205,6 +8205,7 @@ export class AmLyrics extends LitElement {
     syllable: HTMLElement,
     elapsedTimeMs = 0,
   ): void {
+    if (syllable.classList.contains('line-synced')) return;
     if (syllable.classList.contains('highlight')) return;
 
     if (
