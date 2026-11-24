@@ -1,8 +1,63 @@
-import { Ytdl, chooseFormat } from '@distube/ytdl-core';
+import { Ytdl, createPoTokenProvider, chooseFormat } from '@distube/ytdl-core';
 import { Readable } from 'node:stream';
 
-const ytdl = new Ytdl();
+let ytdlPromise = null;
+export async function getYtdl() {
+  if (!ytdlPromise) {
+    ytdlPromise = (async () => {
+      try {
+        const getPoToken = await createPoTokenProvider();
+        return new Ytdl({ getPoToken });
+      } catch (err) {
+        console.warn('[videoStream] createPoTokenProvider fallback to default:', err?.message || err);
+        return new Ytdl();
+      }
+    })();
+  }
+  return ytdlPromise;
+}
+
 const videoFormatCache = new Map();
+
+/**
+ * Resolves pristine audio stream using local PO-token provider to bypass bot challenges.
+ */
+export async function resolveDistubeAudioStream(videoId, preferOpus = false) {
+  if (!videoId || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) return null;
+  try {
+    const ytdl = await getYtdl();
+    const info = await ytdl.getInfo(`https://www.youtube.com/watch?v=${videoId}`);
+    const audioFormats = (info.formats || []).filter((f) => f.hasAudio && !f.hasVideo);
+    if (!audioFormats.length) return null;
+
+    let chosen = null;
+    if (preferOpus) {
+      chosen = audioFormats
+        .filter((f) => /webm|opus/i.test(f.container || f.mimeType || ''))
+        .sort((a, b) => (b.audioBitrate || 0) - (a.audioBitrate || 0))[0];
+    }
+    if (!chosen) {
+      chosen = audioFormats
+        .filter((f) => /mp4|aac|m4a/i.test(f.container || f.mimeType || ''))
+        .sort((a, b) => (b.audioBitrate || 0) - (a.audioBitrate || 0))[0];
+    }
+    if (!chosen) {
+      chosen = audioFormats.sort((a, b) => (b.audioBitrate || 0) - (a.audioBitrate || 0))[0];
+    }
+    if (!chosen?.url) return null;
+
+    return {
+      url: chosen.url,
+      mime: chosen.mimeType?.split(';')[0] || (chosen.container === 'mp4' ? 'audio/mp4' : 'audio/webm'),
+      bitrate: (chosen.audioBitrate || 128) * 1000,
+      contentLength: chosen.contentLength ? parseInt(chosen.contentLength, 10) : null,
+      client: 'YTDL_PO',
+    };
+  } catch (err) {
+    console.warn(`[videoStream] audio stream resolution failed for ${videoId}:`, err?.message || err);
+    return null;
+  }
+}
 
 /**
  * Streams 1080p/720p hardware-accelerated YouTube music video with full RFC 7233 range support.
@@ -23,6 +78,7 @@ export async function proxyVideoStream(videoId, rangeHeader, method = 'GET', sig
 
   if (!cached || now > cached.expiresAt) {
     const url = `https://www.youtube.com/watch?v=${videoId}`;
+    const ytdl = await getYtdl();
     const info = await ytdl.getInfo(url);
     const videoFormats = info.formats.filter(
       (f) => f.hasVideo && (f.container === 'mp4' || f.container === 'webm')

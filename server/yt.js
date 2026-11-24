@@ -13,6 +13,7 @@
  */
 
 import { openStream } from './openstreams.js';
+import { resolveDistubeAudioStream } from './videoStream.js';
 import { Innertube, Platform, UniversalCache } from 'youtubei.js';
 import { safeFetch, withTimeout } from './cache.js';
 import { execFile as execute } from 'node:child_process';
@@ -1829,7 +1830,11 @@ export async function resolveStream(videoId, { skipClients = [], preferOpus = fa
 
   if (fallback) return fallback;
 
-  // 3. Fallback to local yt-dlp binary if available
+  // 3. Ultra-Reliable Distube YTDL with PO-token provider (bypasses bot challenges and 403s)
+  const distubeFallback = await resolveDistubeAudioStream(videoId, preferOpus).catch(() => null);
+  if (distubeFallback) return distubeFallback;
+
+  // 4. Fallback to local yt-dlp binary if available
   return resolveWithYtDlp(videoId).catch(() => null);
 }
 
@@ -1930,10 +1935,15 @@ export function scoreMusicVideoCandidate(v, cleanTitle, cleanArtist, album = '',
 
   // Interviews, podcasts, documentaries, BTS, commentaries (avoid matching when movie/album title has 'story', e.g. Hate Story, Love Story, etc.)
   const isStoryMovie = /(?:story)/i.test(cleanTitle) || /(?:story)/i.test(album);
-  if (/(?:interview|podcast|documentary|commentary|untold\s+story|real\s+story|life\s+story|success\s+story|confession)/i.test(t) || (!isStoryMovie && /\bstory\b/i.test(t))) {
+  if (
+    /(?:interview|podcast|documentary|commentary|untold\s+story|real\s+story|life\s+story|success\s+story|confession|talks?\s+about|speaks?\s+about|answers|q&a|73\s+questions|carpool\s+karaoke|actors\s+on\s+actors|snl\s+sketch|monologue|acceptance\s+speech|speech|red\s+carpet|on\s+[A-Z][a-z]+)/i.test(t) ||
+    (!isStoryMovie && /\bstory\b/i.test(t))
+  ) {
     return -99999;
   }
-  if (/(?:lallantop|news|podcast|media|review|react)/i.test(author)) {
+  if (
+    /(?:vogue|variety|hollywood\s*reporter|graham\s*norton|fallon|kimmel|vanity\s*fair|gq|architectural\s*digest|actors\s*on\s*actors|73\s*questions|carpool|hot\s*ones|bbc|genius|wired|pitchfork|buzzfeed|elle|gossip|glamour|cosmopolitan|harper|npr|breakfast\s*club|sway|tmz|entertainment\s*tonight|access\s*hollywood|extratv|e!\s*news|lallantop|news|podcast|media|review|react)/i.test(author)
+  ) {
     return -99999;
   }
 
@@ -2003,6 +2013,11 @@ export function scoreMusicVideoCandidate(v, cleanTitle, cleanArtist, album = '',
   if (isMajorIndianLabel) score += 400; // Big bonus for official Indian label uploads
   else if (isMajorLabel) score += 300;
   if (verified) score += 200;
+
+  // 4K/8K official remastered re-uploads: Big bonus ONLY when uploaded by the official label
+  if ((isMajorLabel || verified) && /(?:4k|8k|ultra\s*hd|remaster(?:ed)?|uhd)/i.test(t)) {
+    score += 250;
+  }
 
   // Strict artist verification:
   if (cleanArtist && !isNotArtist(cleanArtist)) {

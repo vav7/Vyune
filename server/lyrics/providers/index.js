@@ -23,6 +23,7 @@ export const PROVIDERS = [
   lrcred,
   betterlyrics.ttml,
   betterlyrics.qq,
+  betterlyrics.kugou,
   simpmusic,
   lrclib,
   unison,
@@ -31,7 +32,6 @@ export const PROVIDERS = [
   netease,
   kugou,
   yt,
-  betterlyrics.kugou,
 ];
 
 const ALIASES = {

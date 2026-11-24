@@ -57,7 +57,7 @@ export function Artwork(props: ArtworkProps) {
       if (url && !out.includes(url)) out.push(url);
     };
     // High-res catalogue studio artwork lookup takes priority over video stills
-    if (needsLookup() && catalogArtwork.data?.thumb) {
+    if (catalogArtwork.data?.thumb) {
       add(catalogArtwork.data.thumb);
     }
     if (props.candidates) {

@@ -1,9 +1,11 @@
-import { createMemo } from 'solid-js';
+import { createMemo, Show } from 'solid-js';
 import { knownArtworkColor, lastArtworkColor, useArtworkColor } from '@/lib/artworkColor';
+import { ImageFrost } from '@/components/music/ImageFrost';
+import { MotionFrost } from '@/components/music/MotionFrost';
 
 /**
- * Premium Apple Music-grade fluid ambient backdrop.
- * Renders luminous, deep, color-matched ambient mesh lighting with zero WebGL/video overhead.
+ * Premium Apple Music-grade fluid ambient backdrop with authentic liquid glass optics.
+ * Cross-fades between high-fidelity frosted album art and real-time GPU-accelerated video motion frost.
  * 100% compositor-driven for a buttery-smooth 120 FPS experience.
  */
 export function ArtworkBackdrop(props: {
@@ -16,6 +18,8 @@ export function ArtworkBackdrop(props: {
 }) {
   const measured = useArtworkColor(() => props.artworkUrl);
   const color = () => measured() ?? knownArtworkColor(props.fallbackUrl ?? null) ?? null;
+
+  const isVideoMode = () => !!props.motionVideo && (props.videoReady !== false);
 
   const bgStyle = createMemo(() => {
     const c = color() ?? lastArtworkColor();
@@ -39,6 +43,42 @@ export function ArtworkBackdrop(props: {
       aria-hidden="true"
       style={bgStyle()}
     >
+      {/* 1. Frosted Album Artwork Ambient Layer (Always present underneath as baseline; never black) */}
+      <ImageFrost
+        src={props.artworkUrl || props.fallbackUrl || null}
+        palette={color()?.palette}
+        dim={(color()?.lum ?? 0) > 0.6 ? 0.6 : 0.42}
+        class="bg-transparent"
+      />
+
+      {/* 2. Fullscreen Video playing in background with modern liquid glass blur: smoothly cross-fades when video is ready */}
+      <div
+        class={`absolute inset-0 size-full overflow-hidden pointer-events-none select-none transition-opacity duration-1000 ease-in-out ${
+          isVideoMode() ? 'opacity-100' : 'opacity-0'
+        }`}
+      >
+        <Show when={props.motionVideo}>
+          {(video) => (
+            <MotionFrost
+              video={video()}
+              detail={220}
+              dim={0.22}
+              class="absolute inset-0 size-full scale-[1.06]"
+            />
+          )}
+        </Show>
+
+        {/* Crystalline Liquid Glass Transparency & Specular Sheen Layer (Zero Dirty Grey, Pure Color Transmission) */}
+        <div
+          class="absolute inset-0 size-full pointer-events-none"
+          style={{
+            background:
+              'linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, transparent 40%, rgba(255, 255, 255, 0.02) 100%), ' +
+              'linear-gradient(to top, rgba(6, 6, 10, 0.62) 0%, rgba(6, 6, 10, 0.12) 40%, transparent 70%)',
+          }}
+        />
+      </div>
+
       {/* Subtle organic noise/dither to eliminate color banding, like Apple Music on OLED */}
       <div
         class="absolute inset-0 size-full opacity-40 mix-blend-overlay"

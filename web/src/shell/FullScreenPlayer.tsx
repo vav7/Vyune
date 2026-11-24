@@ -189,6 +189,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
   // The playing song's motion artwork, once it is on screen: the backdrop frosts a copy of it.
   const [motionVideo, setMotionVideo] = createSignal<HTMLVideoElement | null>(null);
   const [mvStreamSrc, setMvStreamSrc] = createSignal<string | null>(null);
+  const [mvReady, setMvReady] = createSignal(false);
   const tint = useSongTint();
 
   let close!: HTMLButtonElement;
@@ -424,10 +425,13 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
         const showQueue = () => panel() === 'queue';
         const column = () => showLyrics() || showQueue();
 
-        // Responsive artwork stage width: grand cinematic 16:9 in MV mode, spacious locked square in art mode
+        const isMvActiveAndReady = createMemo(() => artModeStore.mode === 'mv' && mvReady());
+
+        // Responsive artwork stage width: sleek cinematic 16:9 ONLY once video is ready and playing,
+        // otherwise stays in locked square 1:1 art mode with smooth transition
         const stageWidth = createMemo(() => {
-          if (artModeStore.mode === 'mv') {
-            return 'min(64vw, calc((100dvh - 170px) * 16 / 9), 1120px)';
+          if (isMvActiveAndReady()) {
+            return 'min(54vw, calc((100dvh - 200px) * 16 / 9), 860px)';
           }
           return 'min(52vw, calc(100dvh - 140px), 840px)';
         });
@@ -469,6 +473,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
               fallbackUrl={current().thumb}
               videoSrc={artModeStore.mode === 'mv' ? mvStreamSrc() : null}
               motionVideo={settled() ? motionVideo() : null}
+              videoReady={mvReady()}
             />
 
             {/* The pull handle spans the top edge so it is easy to catch with a thumb. */}
@@ -524,14 +529,18 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                 }}
                 aria-label="Player"
               >
-                {/* Apple-grade squarish card with subtle curve (rounded-[14px]), extended in 16:9 MV mode */}
+                {/* Apple-grade squarish card with subtle curve, morphing smoothly into 16:9 when video is loaded and ready */}
                 <div
-                  class={`fs-poster group/poster relative rounded-[14px] overflow-hidden bg-black/40 shadow-[0_24px_60px_rgba(0,0,0,0.6)] border border-white/15 transition-[aspect-ratio,transform,width] duration-500 ease-out group-data-[idle=true]:scale-[0.98]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.94]'}`}
+                  class={`fs-poster group/poster relative rounded-[14px] overflow-hidden bg-black/40 shadow-[0_24px_60px_rgba(0,0,0,0.6)] border border-white/15 transition-all duration-600 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer select-none group-data-[idle=true]:scale-[0.98]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.94]'}`}
                   style={{
                     width: stageWidth(),
-                    'aspect-ratio': artModeStore.mode === 'mv' ? '16 / 9' : '1',
+                    'aspect-ratio': isMvActiveAndReady() ? '16 / 9' : '1',
                     'max-width': '100%',
                   }}
+                  onClick={() => {
+                    artModeStore.setMode(artModeStore.mode === 'mv' ? 'art' : 'mv');
+                  }}
+                  title={artModeStore.mode === 'mv' ? 'Click artwork to return to Art mode' : 'Click artwork to watch Music Video'}
                 >
                   <div class="absolute inset-0 size-full">
                     {/* Base Layer: High-Res Album Artwork — ALWAYS VISIBLE! Zero black screen while MV resolves */}
@@ -561,6 +570,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                           active={true}
                           onVideo={setMotionVideo}
                           onStreamSrc={setMvStreamSrc}
+                          onReady={setMvReady}
                           class="size-full rounded-[14px]"
                         />
                       </div>

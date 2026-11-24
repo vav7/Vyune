@@ -10,7 +10,113 @@ interface MvPlayerProps {
   onVideo?: (video: HTMLVideoElement | null) => void;
   onAvailable?: (available: boolean) => void;
   onStreamSrc?: (src: string | null) => void;
+  onReady?: (ready: boolean) => void;
   class?: string;
+}
+
+interface Fit {
+  scale: number;
+  shiftX: number;
+  shiftY: number;
+  effectiveAspect?: number;
+}
+
+let sharedBarCanvas: HTMLCanvasElement | null = null;
+let sharedBarCtx: CanvasRenderingContext2D | null = null;
+
+function detectBars(video: HTMLVideoElement): Fit | null {
+  try {
+    if (!video || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+      return null;
+    }
+    const S = 64;
+    if (!sharedBarCanvas) {
+      sharedBarCanvas = document.createElement('canvas');
+      sharedBarCanvas.width = S;
+      sharedBarCanvas.height = S;
+      sharedBarCtx = sharedBarCanvas.getContext('2d', { willReadFrequently: true });
+    }
+    const ctx = sharedBarCtx;
+    if (!ctx) return null;
+    ctx.drawImage(video, 0, 0, S, S);
+    const { data } = ctx.getImageData(0, 0, S, S);
+
+    // 1. Guard against blank / dark intro frames
+    let centerLumaSum = 0;
+    const cStart = 20;
+    const cEnd = 44;
+    const cCount = (cEnd - cStart) * (cEnd - cStart);
+    for (let y = cStart; y < cEnd; y++) {
+      for (let x = cStart; x < cEnd; x++) {
+        const i = (y * S + x) * 4;
+        centerLumaSum += data[i]! * 0.299 + data[i + 1]! * 0.587 + data[i + 2]! * 0.114;
+      }
+    }
+    if (centerLumaSum / cCount < 14) {
+      return null;
+    }
+
+    // 2. Check top & bottom horizontal rows (letterbox bars)
+    const rowIsBar = (row: number) => {
+      let sum = 0;
+      let peak = 0;
+      for (let x = 0; x < S; x++) {
+        const i = (row * S + x) * 4;
+        const luma = data[i]! * 0.299 + data[i + 1]! * 0.587 + data[i + 2]! * 0.114;
+        sum += luma;
+        if (luma > peak) peak = luma;
+      }
+      return sum / S < 18 && peak < 45;
+    };
+
+    let top = 0;
+    while (top < 26 && rowIsBar(top)) top++;
+    let bottom = 0;
+    while (bottom < 26 && rowIsBar(S - 1 - bottom)) bottom++;
+
+    // 3. Check left & right vertical columns (pillarbox bars)
+    const colIsBar = (col: number) => {
+      let sum = 0;
+      let peak = 0;
+      for (let y = 0; y < S; y++) {
+        const i = (y * S + col) * 4;
+        const luma = data[i]! * 0.299 + data[i + 1]! * 0.587 + data[i + 2]! * 0.114;
+        sum += luma;
+        if (luma > peak) peak = luma;
+      }
+      return sum / S < 18 && peak < 45;
+    };
+
+    let left = 0;
+    while (left < 26 && colIsBar(left)) left++;
+    let right = 0;
+    while (right < 26 && colIsBar(S - 1 - right)) right++;
+
+    const vBars = (top + bottom) / S;
+    const hBars = (left + right) / S;
+
+    if (vBars < 0.04 && hBars < 0.04) {
+      return null;
+    }
+
+    const scaleY = vBars > 0.04 ? 1 / Math.max(0.25, 1 - vBars) : 1;
+    const scaleX = hBars > 0.04 ? 1 / Math.max(0.25, 1 - hBars) : 1;
+    const scale = Math.min(2.2, Math.max(scaleX, scaleY));
+    const shiftX = ((right - left) / S) * 50;
+    const shiftY = ((bottom - top) / S) * 50;
+
+    let effectiveAspect: number | undefined;
+    if (video.videoWidth > 0 && video.videoHeight > 0) {
+      const rawAspect = video.videoWidth / video.videoHeight;
+      const contentW = 1 - hBars;
+      const contentH = 1 - vBars;
+      effectiveAspect = rawAspect * (contentW / Math.max(0.1, contentH));
+    }
+
+    return { scale, shiftX, shiftY, effectiveAspect };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -139,6 +245,31 @@ export function MvPlayer(props: MvPlayerProps) {
   createEffect(() => {
     props.track.id;
     setLoaded(false);
+    setFit(null);
+  });
+
+  // Notify parent of ready state
+  createEffect(() => {
+    props.onReady?.(props.active && loaded());
+  });
+
+  // Letterbox and pillarbox auto-crop detection
+  const [fit, setFit] = createSignal<Fit | null>(null);
+  createEffect(() => {
+    const el = videoEl();
+    if (!loaded() || !el || !props.active) return;
+    const checkBars = () => {
+      const detected = detectBars(el);
+      if (detected) setFit(detected);
+    };
+    const t1 = window.setTimeout(checkBars, 600);
+    const t2 = window.setTimeout(checkBars, 2000);
+    const t3 = window.setTimeout(checkBars, 5000);
+    onCleanup(() => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    });
   });
 
   // Report video element to parent
@@ -195,6 +326,12 @@ export function MvPlayer(props: MvPlayerProps) {
             console.warn('[MvPlayer] video playback error:', e);
           }}
           class="size-full transition-opacity duration-500 ease-out will-change-[opacity,transform] object-cover"
+          style={{
+            transform: fit() ? `scale(${fit()!.scale}) translate(${fit()!.shiftX}%, ${fit()!.shiftY}%)` : undefined,
+            'transition-property': 'transform, opacity',
+            'transition-duration': '700ms',
+            'transition-timing-function': 'cubic-bezier(0.22, 1, 0.36, 1)',
+          }}
           classList={{
             'opacity-100 pointer-events-auto': loaded(),
             'opacity-0 pointer-events-none': !loaded(),

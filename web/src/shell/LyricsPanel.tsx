@@ -8,6 +8,7 @@
  */
 
 import { ensureIndicFonts } from '@/lib/fonts';
+import { LyricClock } from '@/lib/clock';
 import { Check, ChevronDown, Languages, RotateCw, Type } from 'lucide-solid';
 import { createEffect, createMemo, createSignal, For, lazy, on, onCleanup, onMount, Show, Suspense } from 'solid-js';
 import { useQuery } from '@tanstack/solid-query';
@@ -512,10 +513,14 @@ export function LyricPreview() {
     if (!el || !timed || !current) return;
     const spans = Array.from(el.children) as HTMLElement[];
     const written: number[] = [];
+    const clock = new LyricClock(Math.trunc(audio.currentTime * 1000));
     let frame = 0;
+    let discontinuity = 0;
     const draw = () => {
       frame = 0;
-      const ms = audio.currentTime * 1000 + (lyricsStore.syncOffsetMs || 0);
+      const now = performance.now();
+      const rawAudioMs = Math.max(0, Math.trunc(audio.currentTime * 1000) + (lyricsStore.syncOffsetMs || 0));
+      const ms = clock.frame(now, rawAudioMs, now, discontinuity);
       list.forEach((part, i) => {
         const start = part.timestamp || current.timestamp;
         const end = part.endtime > start ? part.endtime : start + 1;
@@ -528,14 +533,28 @@ export function LyricPreview() {
       if (!audio.paused) frame = requestAnimationFrame(draw);
     };
     const wake = () => {
-      if (!frame) frame = requestAnimationFrame(draw);
+      if (!frame) {
+        clock.restart();
+        frame = requestAnimationFrame(draw);
+      }
+    };
+    const onSeek = () => {
+      discontinuity++;
+      wake();
     };
     draw();
-    const events = ['play', 'playing', 'seeked', 'timeupdate'] as const;
-    for (const name of events) audio.addEventListener(name, wake);
+    audio.addEventListener('play', wake);
+    audio.addEventListener('playing', wake);
+    audio.addEventListener('seeked', onSeek);
+    audio.addEventListener('seeking', onSeek);
+    audio.addEventListener('timeupdate', wake);
     onCleanup(() => {
       cancelAnimationFrame(frame);
-      for (const name of events) audio.removeEventListener(name, wake);
+      audio.removeEventListener('play', wake);
+      audio.removeEventListener('playing', wake);
+      audio.removeEventListener('seeked', onSeek);
+      audio.removeEventListener('seeking', onSeek);
+      audio.removeEventListener('timeupdate', wake);
     });
   });
 

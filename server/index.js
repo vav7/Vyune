@@ -285,67 +285,35 @@ app.get('/api/stream', async (c) => {
       }
     }
 
-    // 2) Official catalogue YouTube track (!isUpload):
-    // Parallel resolution! Start direct YouTube stream immediately (~300ms) while checking JioSaavn in parallel.
-    if (id && /^[\w-]{11}$/.test(id) && !isUpload) {
-      const ytPromise = tryVideo(id);
-
-      if (wrapper !== 'yt-dlp' && title) {
-        try {
-          const match = await withTimeout(
-            saavn.findSaavnMatch(title, artist, { album, duration }),
-            750,
-            null
-          ).catch(() => null);
-          if (match) {
-            const media = await saavn.saavnStreamUrl(match).catch(() => null);
-            if (media?.url) {
-              const params = new URLSearchParams({ url: media.url });
-              return {
-                url: media.url,
-                proxy: `/api/media?${params}`,
-                source: 'saavn',
-                bitrate: media.bitrate || 320000,
-                mime: 'audio/mp4',
-              };
-            }
+    // 2) JioSaavn Priority Match: Pristine 320kbps CD Quality Audio
+    // Guarantees zero 403 errors and prevents YouTube bot-check challenges on catalog tracks
+    if (wrapper !== 'yt-dlp' && title) {
+      try {
+        const match = await withTimeout(
+          saavn.findSaavnMatch(title, artist, { album, duration }),
+          2500,
+          null
+        ).catch(() => null);
+        if (match) {
+          const media = await saavn.saavnStreamUrl(match).catch(() => null);
+          if (media?.url) {
+            const params = new URLSearchParams({ url: media.url });
+            return {
+              url: media.url,
+              proxy: `/api/media?${params}`,
+              source: 'saavn',
+              bitrate: media.bitrate || 320000,
+              mime: 'audio/mp4',
+            };
           }
-        } catch {}
-      }
-
-      // If JioSaavn is not available, YouTube stream was already resolving in parallel with zero extra delay
-      const viaYoutube = await ytPromise;
-      if (viaYoutube) return viaYoutube;
+        }
+      } catch {}
     }
 
-    // 3) Video playlist / upload track (isUpload === true):
-    // Prioritize clean studio version audio so video dialogue/skit noise does not desynchronize lyrics
-    if (isUpload && title) {
-      // 3a. Search studio match on JioSaavn (tight 1200ms budget)
-      if (wrapper !== 'yt-dlp') {
-        try {
-          const match = await withTimeout(
-            saavn.findSaavnMatch(title, artist, { album, duration }),
-            1200,
-            null
-          ).catch(() => null);
-          if (match) {
-            const media = await saavn.saavnStreamUrl(match).catch(() => null);
-            if (media?.url) {
-              const params = new URLSearchParams({ url: media.url });
-              return {
-                url: media.url,
-                proxy: `/api/media?${params}`,
-                source: 'saavn',
-                bitrate: media.bitrate || 320000,
-                mime: 'audio/mp4',
-              };
-            }
-          }
-        } catch {}
-      }
-
-      // 3b. Search official studio album release on YouTube
+    // 3) YouTube Studio Track Fallback:
+    // If the track is missing on JioSaavn, or was a video/MV track from a playlist:
+    // Prioritize clean official studio album recording over dialogue/skits/noise
+    if (title) {
       const studioTracks = await yt.searchSongs(`${title} ${artist}`.trim(), 4).catch(() => []);
       const studioMatch = studioTracks.find(
         (t) =>
@@ -358,13 +326,13 @@ app.get('/api/stream', async (c) => {
       }
     }
 
-    // Direct YouTube stream for any remaining valid ID
+    // 4) Direct YouTube stream for requested ID
     if (id && /^[\w-]{11}$/.test(id)) {
       const viaYoutube = await tryVideo(id);
       if (viaYoutube) return viaYoutube;
     }
 
-    // Final search fallback on YouTube
+    // 5) Final search fallback on YouTube
     if (title) {
       const hits = await yt.searchSongs(`${title} ${artist}`.trim(), 3).catch(() => []);
       for (const hit of hits.slice(0, 2)) {

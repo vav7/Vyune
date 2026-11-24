@@ -923,10 +923,9 @@ export function posterCandidates(t: Pick<Track, 'thumb' | 'source' | 'id' | 'tit
   if (!t.thumb) return [];
   const u = String(t.thumb);
   if (/ytimg\.com/i.test(u)) {
-    // Return base thumbnail first so player opens instantly on frame 0, with HD hq720 as parallel enhancement
+    // Return reliable hqdefault thumbnail first so player opens instantly with no 404s
     const base = u.replace(/(?:mqdefault|default|sddefault)\.(jpg|webp)/i, 'hqdefault.$1');
-    const hd = u.replace(/(?:hqdefault|mqdefault|default|sddefault)\.(jpg|webp)/i, 'hq720.$1');
-    return [base, hd];
+    return [base];
   }
   const high = hiRes(t.thumb);
   return high !== t.thumb ? [high, t.thumb] : [t.thumb];
