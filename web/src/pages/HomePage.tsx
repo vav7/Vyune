@@ -42,6 +42,16 @@ export default function HomePage() {
           }
         }
       }
+      for (const item of data.apple?.playlists || []) {
+        if (item?.id && item?.title) {
+          setNavHint('playlist', item.id, {
+            title: item.title,
+            thumb: item.thumb,
+            subtitle: item.subtitle,
+          });
+          if (item.thumb) prewarmArtworkColor(item.thumb);
+        }
+      }
       return data;
     },
     staleTime: 10 * 60_000,
@@ -76,11 +86,25 @@ export default function HomePage() {
     });
   });
 
-  const shelves = createMemo(() =>
-    !home.isPending && curated().length === 0 && chartPlaylists().length
+  const applePlaylists = createMemo(() => {
+    const raw = (home.data as any)?.apple?.playlists || [];
+    if (!raw.length) return [];
+    return [
+      {
+        title: 'Apple Music Essentials',
+        detail: 'Official global playlists and charts curated by Apple Music',
+        layout: 'square' as const,
+        items: raw.map(cardItem),
+      },
+    ];
+  });
+
+  const chartShelves = createMemo(() =>
+    chartPlaylists().length
       ? [
           {
-            title: 'Chart Playlists',
+            title: 'Top Chart Playlists',
+            detail: 'Worldwide chart toppers & mainstream collections',
             layout: 'square' as const,
             seeAll: '/browse',
             items: chartPlaylists().map(cardItem),
@@ -94,8 +118,9 @@ export default function HomePage() {
       <h1 class="sr-only">Home</h1>
       <HomeHero tracks={[...globalTracks(), ...(charts()?.tracks || [])]} />
       {globalTracks().length > 0 && <TrackShelf title="Global Top 20" tracks={globalTracks()} />}
+      <Shelves shelves={applePlaylists()} />
+      <Shelves shelves={chartShelves()} />
       <Shelves shelves={curated()} />
-      <Shelves shelves={shelves()} />
     </>
   );
 }

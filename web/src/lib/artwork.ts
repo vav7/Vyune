@@ -15,9 +15,6 @@ const MZSTATIC = /mzstatic\.com/i;
 
 export const isVideoThumbnail = (url?: string | null) => !!url && /(?:^|\/\/)(?:i\d*\.)?ytimg\.com\//i.test(url);
 
-/** The largest square the saavn CDN token ladder serves. */
-const SAAVN_SIZES = [50, 150, 500];
-
 /**
  * Asks the image CDN for a size close to what's displayed: the smallest
  * standard size at least as large as the rendered pixels (× DPR, capped at 3).
@@ -26,14 +23,13 @@ const SAAVN_SIZES = [50, 150, 500];
 export function sizedArtwork(url: string | null | undefined, cssPx: number, aspect = 1): string {
   if (!url) return '';
   if (SAAVN.test(url)) {
-    const needed = cssPx * Math.min(typeof window === 'undefined' ? 2 : window.devicePixelRatio || 1, 3);
-    const size = SAAVN_SIZES.find((s) => s >= needed) ?? 500;
-    return saavnAtPixels(url, size);
+    return saavnAtPixels(url, 500);
   }
   if (MZSTATIC.test(url)) {
-    const needed = Math.max(600, cssPx * Math.min(typeof window === 'undefined' ? 2 : window.devicePixelRatio || 1, 3));
-    const size = needed > 600 ? 1200 : 600;
-    return url.replace(/\d+x\d+bb\./, `${size}x${size}bb.`);
+    const size = cssPx >= 250 ? 1200 : 600;
+    return url
+      .replace('{w}x{h}', `${size}x${size}`)
+      .replace(/\d+x\d+(bb|cc|SC)?\./, `${size}x${size}$1.`);
   }
   if (YTIMG.test(url) && cssPx >= 280) {
     // Keep hqdefault as reliable high quality (480x360), avoiding 404s/deleted placeholder icons from missing maxresdefault
@@ -54,12 +50,11 @@ export function artworkAtPixels(url: string, px: number): string {
 }
 
 /** A JioSaavn CDN artwork at one of its ladder sizes. */
-export function saavnAtPixels(url: string, px: number): string {
-  const saavnSize = px >= 500 ? 500 : px >= 150 ? 150 : 50;
-  if (/-(50x50|150x150|500x500)(\.\w+)?$/.test(url)) {
-    return url.replace(/-(50x50|150x150|500x500)(\.\w+)?$/, `-${saavnSize}x${saavnSize}.jpg`);
-  }
-  return url.replace(/\.jpg$/, `-${saavnSize}x${saavnSize}.jpg`);
+export function saavnAtPixels(url: string, px = 500): string {
+  if (!url) return '';
+  return url
+    .replace(/^http:\/\//i, 'https://')
+    .replace(/[-_](?:50x50|150x150|500x500)(\.\w+)?$/, `-${px}x${px}.jpg`);
 }
 
 /**

@@ -1,5 +1,6 @@
 import { Ytdl, createPoTokenProvider, chooseFormat } from '@distube/ytdl-core';
 import { Readable } from 'node:stream';
+import { resolveVideoStream } from './yt.js';
 
 let ytdlPromise = null;
 export async function getYtdl() {
@@ -77,54 +78,72 @@ export async function proxyVideoStream(videoId, rangeHeader, method = 'GET', sig
   let cached = videoFormatCache.get(videoId);
 
   if (!cached || now > cached.expiresAt) {
-    const url = `https://www.youtube.com/watch?v=${videoId}`;
-    const ytdl = await getYtdl();
-    const info = await ytdl.getInfo(url);
-    const videoFormats = info.formats.filter(
-      (f) => f.hasVideo && (f.container === 'mp4' || f.container === 'webm')
-    );
+    try {
+      const url = `https://www.youtube.com/watch?v=${videoId}`;
+      const ytdl = await getYtdl();
+      const info = await ytdl.getInfo(url);
+      const videoFormats = (info.formats || []).filter(
+        (f) => f.hasVideo && (f.container === 'mp4' || f.container === 'webm')
+      );
 
-    // Cap at 1080p H.264 (avc1) for universal hardware GPU decode and instant seeking.
-    // 4K 2160p progressive MP4 streams force massive keyframe downloads and decoder flushes,
-    // whereas 1080p H.264 starts in <150ms, uses 4-6x less bandwidth, and decodes smoothly on all GPUs.
-    const isAv1 = (f) => /av01/i.test(f.codecs || f.mimeType || '');
-    const hasGoodNonAv1 = videoFormats.some((f) => !isAv1(f) && (f.height || 0) >= 480);
-    const nonAv1 = hasGoodNonAv1 ? videoFormats.filter((f) => !isAv1(f)) : videoFormats;
+      // Cap at 1080p H.264 (avc1) for universal hardware GPU decode and instant seeking.
+      const isAv1 = (f) => /av01/i.test(f.codecs || f.mimeType || '');
+      const hasGoodNonAv1 = videoFormats.some((f) => !isAv1(f) && (f.height || 0) >= 480);
+      const nonAv1 = hasGoodNonAv1 ? videoFormats.filter((f) => !isAv1(f)) : videoFormats;
 
-    const hdCandidates = nonAv1.filter((f) => (f.height || 0) <= 1080 && (f.height || 0) >= 480);
-    const candidates = hdCandidates.length > 0 ? hdCandidates : nonAv1;
+      const hdCandidates = nonAv1.filter((f) => (f.height || 0) <= 1080 && (f.height || 0) >= 480);
+      const candidates = hdCandidates.length > 0 ? hdCandidates : nonAv1;
 
-    const sorted = [...candidates].sort((a, b) => {
-      // 1. Prefer AVC1 / H.264 for hardware GPU decode
-      const isAvc1A = /avc1|h264/i.test(a.codecs || a.container || a.mimeType || '');
-      const isAvc1B = /avc1|h264/i.test(b.codecs || b.container || b.mimeType || '');
-      if (isAvc1A !== isAvc1B) return isAvc1A ? -1 : 1;
+      const sorted = [...candidates].sort((a, b) => {
+        const isAvc1A = /avc1|h264/i.test(a.codecs || a.container || a.mimeType || '');
+        const isAvc1B = /avc1|h264/i.test(b.codecs || b.container || b.mimeType || '');
+        if (isAvc1A !== isAvc1B) return isAvc1A ? -1 : 1;
 
-      // 2. Highest resolution capped at 1080p (1080p -> 720p -> 480p)
-      const hA = Math.min(a.height || 0, 1080);
-      const hB = Math.min(b.height || 0, 1080);
-      if (hA !== hB) return hB - hA;
+        const hA = Math.min(a.height || 0, 1080);
+        const hB = Math.min(b.height || 0, 1080);
+        if (hA !== hB) return hB - hA;
 
-      // 3. Prefer MP4 container
-      const isMp4A = /mp4/i.test(a.container || a.mimeType || '');
-      const isMp4B = /mp4/i.test(b.container || b.mimeType || '');
-      if (isMp4A !== isMp4B) return isMp4A ? -1 : 1;
+        const isMp4A = /mp4/i.test(a.container || a.mimeType || '');
+        const isMp4B = /mp4/i.test(b.container || b.mimeType || '');
+        if (isMp4A !== isMp4B) return isMp4A ? -1 : 1;
 
-      return (b.bitrate || 0) - (a.bitrate || 0);
-    });
+        return (b.bitrate || 0) - (a.bitrate || 0);
+      });
 
-    const chosen = sorted[0];
-
-    if (!chosen) {
-      return new Response(JSON.stringify({ error: 'no_video_format' }), { status: 404 });
+      const chosen = sorted[0];
+      if (chosen) {
+        cached = {
+          info,
+          format: chosen,
+          expiresAt: now + 3 * 3600_000,
+        };
+        videoFormatCache.set(videoId, cached);
+      }
+    } catch (err) {
+      console.warn(`[videoStream] ytdl info failed for ${videoId}:`, err?.message || err);
     }
 
-    cached = {
-      info,
-      format: chosen,
-      expiresAt: now + 3 * 3600_000,
-    };
-    videoFormatCache.set(videoId, cached);
+    if (!cached) {
+      const resolved = await resolveVideoStream(videoId).catch(() => null);
+      if (resolved?.url) {
+        cached = {
+          info: null,
+          format: {
+            url: resolved.url,
+            mimeType: resolved.mime || 'video/mp4',
+            container: 'mp4',
+            contentLength: resolved.contentLength,
+            height: resolved.height || 720,
+          },
+          expiresAt: now + 2 * 3600_000,
+        };
+        videoFormatCache.set(videoId, cached);
+      }
+    }
+
+    if (!cached?.format) {
+      return new Response(JSON.stringify({ error: 'no_video_format' }), { status: 404 });
+    }
   }
 
   const format = cached.format;
@@ -230,40 +249,44 @@ export async function proxyVideoStream(videoId, rangeHeader, method = 'GET', sig
 
   const rangeOpt = isRange && actualEnd !== undefined ? { start, end: actualEnd } : (isRange ? { start } : undefined);
 
-  try {
-    const nodeStream = await ytdl.download(cached.info, {
-      format,
-      range: rangeOpt,
-      dlChunkSize: 1024 * 1024,
-    });
+  if (cached.info) {
+    try {
+      const ytdl = await getYtdl();
+      const nodeStream = await ytdl.download(cached.info, {
+        format,
+        range: rangeOpt,
+        dlChunkSize: 1024 * 1024,
+      });
 
-    let destroyed = false;
-    const cleanup = () => {
-      if (destroyed) return;
-      destroyed = true;
-      try {
-        if (!nodeStream.destroyed) {
-          nodeStream.destroy();
-        }
-      } catch {}
-    };
+      let destroyed = false;
+      const cleanup = () => {
+        if (destroyed) return;
+        destroyed = true;
+        try {
+          if (!nodeStream.destroyed) {
+            nodeStream.destroy();
+          }
+        } catch {}
+      };
 
-    if (signal) {
-      signal.addEventListener('abort', cleanup, { once: true });
+      if (signal) {
+        signal.addEventListener('abort', cleanup, { once: true });
+      }
+      nodeStream.on('close', cleanup);
+      nodeStream.on('end', cleanup);
+      nodeStream.on('error', cleanup);
+
+      const webStream = Readable.toWeb(nodeStream);
+
+      return new Response(webStream, {
+        status: isRange ? 206 : 200,
+        headers: resHeaders,
+      });
+    } catch (err) {
+      console.warn(`[videoStream] download failed for ${videoId}:`, err?.message || err);
+      videoFormatCache.delete(videoId);
     }
-    nodeStream.on('close', cleanup);
-    nodeStream.on('end', cleanup);
-    nodeStream.on('error', cleanup);
-
-    const webStream = Readable.toWeb(nodeStream);
-
-    return new Response(webStream, {
-      status: isRange ? 206 : 200,
-      headers: resHeaders,
-    });
-  } catch (err) {
-    console.error(`[videoStream] download failed for ${videoId}:`, err?.message || err);
-    videoFormatCache.delete(videoId);
-    return new Response(JSON.stringify({ error: 'stream_download_failed' }), { status: 502 });
   }
+
+  return new Response(JSON.stringify({ error: 'stream_unavailable' }), { status: 404 });
 }

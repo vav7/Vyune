@@ -29,7 +29,7 @@ import { identify } from './identify.js';
 import { registerProxies, streamMedia } from './proxy.js';
 import { globalTopTracks, globalChartPlaylists } from './globalcharts.js';
 import { spotifyTrack } from './spotify.js';
-import { artistArt, trackMotionArt, trackMusicVideos, warmAppleCatalog } from './appleart.js';
+import { artistArt, trackMotionArt, trackMusicVideos, warmAppleCatalog, appleCuratedPlaylists, appleCatalogToken, appleCatalogGet } from './appleart.js';
 import { ranked as rankRecordings } from './match.js';
 import { saavnPlaylist } from './feeds.js';
 import { cleanTitle } from './lyrics/text.js';
@@ -562,11 +562,12 @@ const homeCache = new AsyncResolver(new TTLCache({ max: 4, ttl: 10 * 60_000 }), 
 const part = (promise, fallback, timeoutMs = 5_000) => withTimeout(Promise.resolve(promise).catch(() => fallback), timeoutMs, fallback);
 
 async function buildHome() {
-  const [global, genres, curated, charts] = await Promise.all([
+  const [global, genres, curated, charts, applePlaylists] = await Promise.all([
     part(globalTopTracks(20), [], 4_000),
     part(genreCache.resolve('genres', () => yt.genreCategories()), null, 4_000),
     part(curatedHome(), null, 4_000),
     part(chartsCache.resolve('charts', () => yt.chartsContent()), null, 4_000),
+    part(appleCuratedPlaylists(), [], 4_000),
   ]);
   const chartTracks = (global && global.length > 0) ? global : (charts?.tracks || []);
   const chartItems = (charts?.playlists && charts.playlists.length > 0) ? charts.playlists : globalChartPlaylists();
@@ -575,16 +576,56 @@ async function buildHome() {
     global: { tracks: global || [] },
     genres: { categories: genres || [] },
     curated: { rows: curated?.rows || [] },
+    apple: { playlists: applePlaylists || [] },
   };
-  const empty = !out.charts.tracks.length && !out.global.tracks.length && !out.curated.rows.length;
+  const empty = !out.charts.tracks.length && !out.global.tracks.length && !out.curated.rows.length && !out.apple.playlists.length;
   return empty ? null : out; // nothing at all is a miss, not an answer to keep
 }
 
-app.get('/api/home', async (c) => c.json((await homeCache.resolve('home', buildHome)) || { charts: { tracks: [], items: [] }, global: { tracks: [] }, genres: { categories: [] }, curated: { rows: [] } }));
+app.get('/api/home', async (c) => c.json((await homeCache.resolve('home', buildHome)) || { charts: { tracks: [], items: [] }, global: { tracks: [] }, genres: { categories: [] }, curated: { rows: [] }, apple: { playlists: [] } }));
 
 app.get('/api/playlist', async (c) => {
   const id = String(c.req.query('id') || '');
   if (!id) return c.json({ error: 'id required' }, 400);
+
+  // An Apple Music playlist (pl.***) — resolve directly via Apple catalog API
+  if (id.startsWith('pl.')) {
+    const cachedApple = await playlistCache.resolve(`apple_pl:${id}`, async () => {
+      const token = await appleCatalogToken();
+      if (!token) return null;
+      const data = await appleCatalogGet(`https://amp-api.music.apple.com/v1/catalog/us/playlists/${id}`, token);
+      const p = data?.data?.[0];
+      if (!p) return null;
+      const rawTracks = p.relationships?.tracks?.data || [];
+      const tracks = rawTracks.map((t, idx) => {
+        const attr = t.attributes || {};
+        const art = attr.artwork?.url;
+        const thumb = art ? art.replace('{w}x{h}', '600x600') : null;
+        return {
+          id: `apple:${t.id || idx}`,
+          title: attr.name || '',
+          artists: attr.artistName ? [attr.artistName] : [],
+          album: attr.albumName || '',
+          duration: Math.round((attr.durationInMillis || 0) / 1000),
+          thumb,
+          explicit: attr.contentRating === 'explicit',
+          source: 'apple',
+        };
+      }).filter((t) => t.title);
+
+      const art = p.attributes?.artwork?.url;
+      const thumb = art ? art.replace('{w}x{h}', '600x600') : null;
+      return {
+        id,
+        title: p.attributes?.name || 'Apple Music Playlist',
+        subtitle: p.attributes?.curatorName || 'Apple Music',
+        thumb,
+        tracks,
+        source: 'apple',
+      };
+    });
+    if (cachedApple) return c.json(cachedApple);
+  }
 
   // A numeric id is a JioSaavn playlist — handle directly without stalling on YouTube
   if (/^\d+$/.test(id)) {

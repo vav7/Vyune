@@ -450,6 +450,11 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
           return 'min(42vw, calc(100dvh - 160px), 640px)';
         });
 
+        const [lyricsEverOpened, setLyricsEverOpened] = createSignal(false);
+        createEffect(() => {
+          if (showLyrics()) setLyricsEverOpened(true);
+        });
+
         const playingContext = () => playerStore.sourceContext;
         const playingFromHeader = createMemo(() => {
           const ctx = playingContext();
@@ -555,7 +560,6 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                   onClick={() => {
                     artModeStore.cycle();
                   }}
-                  title="Switch visual mode"
                 >
                   <div class="absolute inset-0 size-full">
                     {/* Base Layer: High-Res Album Artwork — ALWAYS VISIBLE! Zero black screen while MV resolves */}
@@ -680,8 +684,15 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                 </section>
               </Show>
 
-              <Show when={showLyrics()}>
-                <section class="-my-16 flex min-h-0 min-w-0 animate-fade-in self-stretch max-md:my-0" aria-label="Lyrics">
+              <Show when={lyricsEverOpened() || showLyrics()}>
+                <section
+                  class="-my-16 flex min-h-0 min-w-0 self-stretch max-md:my-0 transition-opacity duration-300"
+                  classList={{
+                    'animate-fade-in': showLyrics(),
+                    hidden: !showLyrics(),
+                  }}
+                  aria-label="Lyrics"
+                >
                   <LyricsPanel variant="full" />
                 </section>
               </Show>

@@ -95,6 +95,7 @@ export const api = {
       global: { tracks: Track[] };
       genres: { categories: GenreCategory[] };
       curated: { rows: { id: string; title: string; detail: string; items: Card[] }[] };
+      apple?: { playlists: Card[] };
     }>('/api/home'),
   charts: () => getJSON<{ tracks: Track[]; items: Card[] }>('/api/charts'),
   playlist: (id: string, full = false) => getJSON<Playlist>(`/api/playlist?id=${enc(id)}${full ? '&full=1' : ''}`),

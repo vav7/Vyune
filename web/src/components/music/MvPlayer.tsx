@@ -15,94 +15,25 @@ interface MvPlayerProps {
   class?: string;
 }
 
-interface Fit {
-  scale: number;
-  shiftX: number;
-  shiftY: number;
-  effectiveAspect?: number;
-}
-
-let sharedBarCanvas: HTMLCanvasElement | null = null;
-let sharedBarCtx: CanvasRenderingContext2D | null = null;
-
-function detectBars(video: HTMLVideoElement): Fit | null {
-  try {
-    if (!video || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
-      return null;
-    }
-    const S = 64;
-    if (!sharedBarCanvas) {
-      sharedBarCanvas = document.createElement('canvas');
-      sharedBarCanvas.width = S;
-      sharedBarCanvas.height = S;
-      sharedBarCtx = sharedBarCanvas.getContext('2d', { willReadFrequently: true });
-    }
-    const ctx = sharedBarCtx;
-    if (!ctx) return null;
-    ctx.drawImage(video, 0, 0, S, S);
-    const { data } = ctx.getImageData(0, 0, S, S);
-
-    // 1. Guard against blank / dark intro frames
-    let centerLumaSum = 0;
-    const cStart = 20;
-    const cEnd = 44;
-    const cCount = (cEnd - cStart) * (cEnd - cStart);
-    for (let y = cStart; y < cEnd; y++) {
-      for (let x = cStart; x < cEnd; x++) {
-        const i = (y * S + x) * 4;
-        centerLumaSum += data[i]! * 0.299 + data[i + 1]! * 0.587 + data[i + 2]! * 0.114;
-      }
-    }
-    if (centerLumaSum / cCount < 14) {
-      return null;
-    }
-
-    // 2. Check top & bottom horizontal rows (letterbox bars)
-    const rowIsBar = (row: number) => {
-      let sum = 0;
-      let peak = 0;
-      for (let x = 0; x < S; x++) {
-        const i = (row * S + x) * 4;
-        const luma = data[i]! * 0.299 + data[i + 1]! * 0.587 + data[i + 2]! * 0.114;
-        sum += luma;
-        if (luma > peak) peak = luma;
-      }
-      return sum / S < 18 && peak < 45;
-    };
-
-    let top = 0;
-    while (top < 26 && rowIsBar(top)) top++;
-    let bottom = 0;
-    while (bottom < 26 && rowIsBar(S - 1 - bottom)) bottom++;
-
-    const vBars = (top + bottom) / S;
-    // Only crop true horizontal letterbox (top and bottom black bars from 2.35:1 / 2.39:1 widescreen films).
-    // Never pillarbox-zoom horizontally on widescreen videos so it never stutters into a square or vertical slice.
-    if (vBars < 0.04) {
-      return null;
-    }
-
-    const scale = Math.min(1.42, 1 / Math.max(0.7, 1 - vBars));
-    const shiftY = ((bottom - top) / S) * 50;
-
-    return { scale, shiftX: 0, shiftY, effectiveAspect: 16 / 9 };
-  } catch {
-    return null;
-  }
-}
-
 /**
  * High-definition, hardware-accelerated YouTube Music Video Player.
- * Stretches cleanly to 16:9 with edge-to-edge crop-fill for black bars,
+ * Stretches cleanly to 16:9 with subtle edge-to-edge crop-fill for black bars,
  * instantaneous seekbar tracking, and smooth zero-black-screen transitions over artwork.
+ * Features automatic YouTube iframe fallback when direct proxy stream is challenged.
  */
 export function MvPlayer(props: MvPlayerProps) {
   const [videoEl, setVideoEl] = createSignal<HTMLVideoElement | null>(null);
+  const [iframeEl, setIframeEl] = createSignal<HTMLIFrameElement | null>(null);
+  const [useIframe, setUseIframe] = createSignal(false);
   const [loaded, setLoaded] = createSignal(false);
   const [isPlaying, setIsPlaying] = createSignal(false);
 
   const updatePlayingState = () => {
     const el = videoEl();
+    if (useIframe()) {
+      setIsPlaying(loaded() && playerStore.playing && !audio.paused);
+      return;
+    }
     const playing = !!(
       el &&
       !el.paused &&
@@ -136,7 +67,6 @@ export function MvPlayer(props: MvPlayerProps) {
   const streamSrc = () => {
     const id = videoId();
     if (!id) return null;
-    // Direct same-origin 1080p/720p hardware-accelerated stream via RFC 7233 byte-range proxy
     return `/api/video/${encodeURIComponent(id)}`;
   };
 
@@ -144,11 +74,25 @@ export function MvPlayer(props: MvPlayerProps) {
     props.onStreamSrc?.(streamSrc());
   });
 
-  // Active playback state and source synchronization
+  // PostMessage helper for embedded YouTube player
+  function sendIframeCommand(func: string, args: any[] = []) {
+    const ifr = iframeEl();
+    if (!ifr?.contentWindow) return;
+    ifr.contentWindow.postMessage(
+      JSON.stringify({
+        event: 'command',
+        func,
+        args,
+      }),
+      '*'
+    );
+  }
+
+  // Active playback state and source synchronization for <video>
   createEffect(() => {
     const el = videoEl();
     const src = streamSrc();
-    if (!el || !props.active || !src) return;
+    if (!el || !props.active || !src || useIframe()) return;
 
     el.muted = true;
     el.defaultMuted = true;
@@ -166,18 +110,29 @@ export function MvPlayer(props: MvPlayerProps) {
 
   // Sync play/pause directly with audio element and playerStore
   createEffect(() => {
-    const el = videoEl();
-    if (!el || !props.active) return;
-    el.muted = true;
+    if (!props.active) return;
 
     const onPlay = () => {
-      if (props.active && document.visibilityState === 'visible') {
-        el.muted = true;
-        el.play().catch(() => {});
+      if (!props.active || document.visibilityState !== 'visible') return;
+      if (useIframe()) {
+        sendIframeCommand('playVideo');
+      } else {
+        const el = videoEl();
+        if (el) {
+          el.muted = true;
+          el.play().catch(() => {});
+        }
       }
+      updatePlayingState();
     };
+
     const onPause = () => {
-      el.pause();
+      if (useIframe()) {
+        sendIframeCommand('pauseVideo');
+      } else {
+        const el = videoEl();
+        if (el) el.pause();
+      }
       updatePlayingState();
     };
 
@@ -186,10 +141,9 @@ export function MvPlayer(props: MvPlayerProps) {
     audio.addEventListener('pause', onPause);
 
     if (playerStore.playing && !audio.paused && document.visibilityState === 'visible') {
-      el.play().catch(() => {});
+      onPlay();
     } else {
-      el.pause();
-      updatePlayingState();
+      onPause();
     }
 
     onCleanup(() => {
@@ -201,30 +155,47 @@ export function MvPlayer(props: MvPlayerProps) {
 
   // PLL Phase-Locked Loop micro-sync: steers playbackRate without decoder flushes or stuttering
   createEffect(() => {
-    const el = videoEl();
-    if (!el || !props.active) return;
+    if (!props.active) return;
 
     const onSeek = () => {
       const audioTime = audio.currentTime || 0;
-      el.playbackRate = 1.0;
-      el.currentTime = audioTime;
+      if (useIframe()) {
+        sendIframeCommand('seekTo', [audioTime, true]);
+      } else {
+        const el = videoEl();
+        if (el) {
+          el.playbackRate = 1.0;
+          el.currentTime = audioTime;
+        }
+      }
     };
 
     audio.addEventListener('seeked', onSeek);
     audio.addEventListener('seeking', onSeek);
-
-    // Initial seek alignment
     onSeek();
 
     // rAF loop progress listener to keep video locked with audio with zero timer drift
+    let lastIframeSeek = 0;
     const unsub = subscribeProgress((cur) => {
-      if (!props.active || document.hidden || el.seeking) return;
+      if (!props.active || document.hidden) return;
+
+      if (useIframe()) {
+        // Iframe periodic alignment check
+        const now = Date.now();
+        if (now - lastIframeSeek > 3500) {
+          lastIframeSeek = now;
+          sendIframeCommand('seekTo', [cur, true]);
+        }
+        return;
+      }
+
+      const el = videoEl();
+      if (!el || el.seeking) return;
       const delta = cur - el.currentTime; // + means video is behind audio
       if (Math.abs(delta) > 0.8 && el.readyState >= 2) {
         el.playbackRate = 1.0;
         el.currentTime = cur; // hard seek only on real scrub
       } else if (Math.abs(delta) > 0.04) {
-        // Smooth PLL clock nudge (0.92x - 1.08x): smoothly glides video into lock without decoder flushes
         el.playbackRate = Math.min(1.08, Math.max(0.92, 1.0 + delta * 0.45));
       } else {
         el.playbackRate = 1.0;
@@ -238,7 +209,7 @@ export function MvPlayer(props: MvPlayerProps) {
     });
   });
 
-  // Reset loaded and playing state strictly on track switch (never on same-track re-renders)
+  // Reset loaded and playing state strictly on track switch
   let lastMvTrackId: string | null = null;
   createEffect(() => {
     const curId = props.track?.id || null;
@@ -246,8 +217,25 @@ export function MvPlayer(props: MvPlayerProps) {
       lastMvTrackId = curId;
       setLoaded(false);
       setIsPlaying(false);
-      setFit(null);
+      setUseIframe(false);
     }
+  });
+
+  // Fallback timer: if <video> does not become ready within 3.5s, switch to iframe embed
+  createEffect(() => {
+    const active = props.active;
+    const id = videoId();
+    if (!active || !id || useIframe() || loaded()) return;
+
+    const timer = window.setTimeout(() => {
+      const el = videoEl();
+      if (!loaded() && (!el || el.readyState < 2)) {
+        console.info('[MvPlayer] video element timeout, falling back to YouTube player');
+        setUseIframe(true);
+      }
+    }, 3500);
+
+    onCleanup(() => window.clearTimeout(timer));
   });
 
   // Notify parent of ready state
@@ -255,33 +243,10 @@ export function MvPlayer(props: MvPlayerProps) {
     props.onReady?.(props.active && loaded());
   });
 
-  // Letterbox and pillarbox auto-crop detection
-  const [fit, setFit] = createSignal<Fit | null>(null);
-  let lastCropCheck = 0;
-  const checkBars = () => {
-    const el = videoEl();
-    if (!el || el.readyState < 2) return;
-    const detected = detectBars(el);
-    if (detected) setFit(detected);
-  };
-
+  // Report video element to parent (for WebGL background sampling when video is available)
   createEffect(() => {
     const el = videoEl();
-    if (!loaded() || !el || !props.active) return;
-    const t1 = window.setTimeout(checkBars, 600);
-    const t2 = window.setTimeout(checkBars, 2000);
-    const t3 = window.setTimeout(checkBars, 5000);
-    onCleanup(() => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.clearTimeout(t3);
-    });
-  });
-
-  // Report video element to parent
-  createEffect(() => {
-    const el = videoEl();
-    if (props.active && el && loaded()) {
+    if (props.active && el && loaded() && !useIframe()) {
       props.onVideo?.(el);
     } else {
       props.onVideo?.(null);
@@ -290,80 +255,99 @@ export function MvPlayer(props: MvPlayerProps) {
 
   return (
     <Show when={props.active && videoId()}>
-      <div class={`group/mv relative size-full overflow-hidden ${props.class || ''}`}>
-        <video
-          ref={(el) => {
-            setVideoEl(el);
-            if (el) {
-              el.muted = true;
-              el.defaultMuted = true;
-              el.playsInline = true;
-            }
-          }}
-          autoplay
-          muted
-          playsinline
-          preload="auto"
-          src={streamSrc() || undefined}
-          onPlay={() => {
-            setLoaded(true);
-            updatePlayingState();
-          }}
-          onPlaying={() => {
-            setLoaded(true);
-            updatePlayingState();
-          }}
-          onPause={() => updatePlayingState()}
-          onWaiting={() => updatePlayingState()}
-          onTimeUpdate={() => {
-            setLoaded(true);
-            updatePlayingState();
-            if (!fit()) {
-              const now = Date.now();
-              if (now - lastCropCheck > 1200) {
-                lastCropCheck = now;
-                checkBars();
+      <div class={`group/mv relative size-full overflow-hidden bg-black ${props.class || ''}`}>
+        <Show
+          when={!useIframe()}
+          fallback={
+            <iframe
+              ref={(el) => setIframeEl(el)}
+              src={`https://www.youtube-nocookie.com/embed/${videoId()}?enablejsapi=1&autoplay=1&mute=1&controls=0&playsinline=1&loop=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
+              class="size-full pointer-events-auto border-0 object-cover select-none transition-opacity duration-700 ease-out"
+              allow="autoplay; encrypted-media; picture-in-picture"
+              style={{
+                transform: 'scale(1.15)',
+                'transform-origin': 'center center',
+              }}
+              classList={{
+                'opacity-100': loaded(),
+                'opacity-0': !loaded(),
+              }}
+              onLoad={() => {
+                setLoaded(true);
+                setIsPlaying(true);
+                sendIframeCommand('seekTo', [audio.currentTime || 0, true]);
+                if (playerStore.playing && !audio.paused) {
+                  sendIframeCommand('playVideo');
+                }
+              }}
+            />
+          }
+        >
+          <video
+            ref={(el) => {
+              setVideoEl(el);
+              if (el) {
+                el.muted = true;
+                el.defaultMuted = true;
+                el.playsInline = true;
               }
-            }
-          }}
-          onProgress={() => {
-            const el = videoEl();
-            if (el && el.readyState >= 1) setLoaded(true);
-          }}
-          onCanPlay={() => {
-            setLoaded(true);
-            updatePlayingState();
-            const el = videoEl();
-            if (el && props.active && playerStore.playing && !audio.paused) {
-              el.muted = true;
-              el.play().catch(() => {});
-            }
-          }}
-          onLoadedData={() => {
-            setLoaded(true);
-            updatePlayingState();
-            const el = videoEl();
-            if (el && props.active && playerStore.playing && !audio.paused) {
-              el.muted = true;
-              el.play().catch(() => {});
-            }
-          }}
-          onError={(e) => {
-            console.warn('[MvPlayer] video playback error:', e);
-            setIsPlaying(false);
-          }}
-          class="size-full transition-opacity duration-500 ease-out will-change-[opacity,transform] object-cover"
-          style={{
-            transform: fit() ? `scale(${fit()!.scale}) translate(${fit()!.shiftX}%, ${fit()!.shiftY}%)` : undefined,
-            'transition-property': 'transform, opacity',
-            'transition-duration': '700ms',
-            'transition-timing-function': 'cubic-bezier(0.22, 1, 0.36, 1)',
-          }}
-          classList={{
-            'opacity-100 pointer-events-auto': loaded(),
-            'opacity-0 pointer-events-none': !loaded(),
-          }}
-        />
+            }}
+            autoplay
+            muted
+            playsinline
+            preload="auto"
+            src={streamSrc() || undefined}
+            onPlay={() => {
+              setLoaded(true);
+              updatePlayingState();
+            }}
+            onPlaying={() => {
+              setLoaded(true);
+              updatePlayingState();
+            }}
+            onPause={() => updatePlayingState()}
+            onWaiting={() => updatePlayingState()}
+            onTimeUpdate={() => {
+              setLoaded(true);
+              updatePlayingState();
+            }}
+            onProgress={() => {
+              const el = videoEl();
+              if (el && el.readyState >= 1) setLoaded(true);
+            }}
+            onCanPlay={() => {
+              setLoaded(true);
+              updatePlayingState();
+              const el = videoEl();
+              if (el && props.active && playerStore.playing && !audio.paused) {
+                el.muted = true;
+                el.play().catch(() => {});
+              }
+            }}
+            onLoadedData={() => {
+              setLoaded(true);
+              updatePlayingState();
+              const el = videoEl();
+              if (el && props.active && playerStore.playing && !audio.paused) {
+                el.muted = true;
+                el.play().catch(() => {});
+              }
+            }}
+            onError={(e) => {
+              console.warn('[MvPlayer] video element error, falling back to YouTube player:', e);
+              setUseIframe(true);
+            }}
+            class="size-full transition-opacity duration-500 ease-out will-change-[opacity,transform] object-cover"
+            style={{
+              transform: 'scale(1.08)',
+              'transform-origin': 'center center',
+            }}
+            classList={{
+              'opacity-100 pointer-events-auto': loaded(),
+              'opacity-0 pointer-events-none': !loaded(),
+            }}
+          />
+        </Show>
       </div>
     </Show>
   );

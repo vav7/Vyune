@@ -85,7 +85,9 @@ function stripTags(s = '') {
 
 function upscaledImage(img) {
   if (!img) return null;
-  return String(img).replace(/-(50x50|150x150|500x500)(\.\w+)?$/, '') + '-500x500.jpg';
+  return String(img)
+    .replace(/^http:\/\//i, 'https://')
+    .replace(/[-_](?:50x50|150x150|500x500)(\.\w+)?$/, '-500x500.jpg');
 }
 
 export function mapSaavnTrack(t) {
@@ -177,7 +179,26 @@ export async function saavnSearch(query, limit = 15) {
       .map(mapSaavnTrack)
       .filter((t) => t && t.id && t.title);
 
-    const out = prioritizeExplicit(results);
+    const seenSongs = new Set();
+    const dedupedResults = [];
+    for (const t of results) {
+      const cleanTitle = String(t.title || '')
+        .toLowerCase()
+        .replace(/\(.*?\)/g, '')
+        .replace(/\[.*?\]/g, '')
+        .replace(/[^\p{L}\p{N}]/gu, '')
+        .trim();
+      const primaryArtist = String(t.artists?.[0] || '')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]/gu, '')
+        .trim();
+      const key = cleanTitle ? `${cleanTitle}|${primaryArtist}` : t.id;
+      if (seenSongs.has(key)) continue;
+      seenSongs.add(key);
+      dedupedResults.push(t);
+    }
+
+    const out = prioritizeExplicit(dedupedResults);
     searchCache.set(cacheKey, { data: out, ts: Date.now() });
     if (searchCache.size > 800) {
       const oldest = searchCache.keys().next().value;

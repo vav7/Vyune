@@ -847,3 +847,32 @@ export async function artistArt(name) {
   inFlight.set(key, p);
   return p;
 }
+
+export async function appleCuratedPlaylists() {
+  const token = await appleCatalogToken();
+  if (!token) return [];
+  try {
+    const res = await appleCatalogGet(
+      `https://amp-api.music.apple.com/v1/catalog/${APPLE_STOREFRONT}/charts?types=playlists&limit=15`,
+      token
+    );
+    const rawList = res?.results?.playlists?.[0]?.data || [];
+    return rawList
+      .map((p) => {
+        const art = p.attributes?.artwork?.url;
+        const thumb = art ? art.replace('{w}x{h}', '600x600') : null;
+        return {
+          id: p.id,
+          title: p.attributes?.name || 'Apple Playlist',
+          subtitle: p.attributes?.curatorName || 'Apple Music',
+          thumb,
+          source: 'apple',
+          kind: 'playlist',
+        };
+      })
+      .filter((p) => p.id && p.title && p.thumb);
+  } catch (err) {
+    console.warn('[apple] failed to fetch curated playlists:', err?.message || err);
+    return [];
+  }
+}

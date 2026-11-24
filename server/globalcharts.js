@@ -39,11 +39,16 @@ export function globalTopTracks(limit = 20) {
 }
 
 export function globalChartPlaylists() {
-  return GLOBAL_PLAYLISTS.map((p) => ({
+  const thumbs = [
+    'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600&auto=format&fit=crop&q=80',
+    'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80',
+  ];
+  return GLOBAL_PLAYLISTS.map((p, idx) => ({
     kind: 'playlist',
     id: p.id,
     title: p.title,
     subtitle: p.subtitle,
-    thumb: `https://i.ytimg.com/vi/${p.id}/hqdefault.jpg`,
+    thumb: thumbs[idx] || thumbs[0],
   }));
 }

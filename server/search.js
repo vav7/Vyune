@@ -289,8 +289,31 @@ export function continuationToken(root) {
 export function parseSearchPage(data, { includeVideos = false } = {}) {
   const rows = [];
   const seen = new Set();
+  const seenSongs = new Set();
+
+  const normalizeSongKey = (track) => {
+    if (!track?.title) return null;
+    const cleanTitle = String(track.title)
+      .toLowerCase()
+      .replace(/\(.*?\)/g, '')
+      .replace(/\[.*?\]/g, '')
+      .replace(/[^\p{L}\p{N}]/gu, '')
+      .trim();
+    const primaryArtist = String(track.artists?.[0] || track.artist || '')
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]/gu, '')
+      .trim();
+    return cleanTitle ? `${cleanTitle}|${primaryArtist}` : null;
+  };
+
   const push = (row, key) => {
     if (!key || seen.has(key)) return;
+    const track = row.track;
+    if (track) {
+      const songKey = normalizeSongKey(track);
+      if (songKey && seenSongs.has(songKey)) return;
+      if (songKey) seenSongs.add(songKey);
+    }
     seen.add(key);
     rows.push(row);
   };
