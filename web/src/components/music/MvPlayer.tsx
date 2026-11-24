@@ -11,6 +11,7 @@ interface MvPlayerProps {
   onAvailable?: (available: boolean) => void;
   onStreamSrc?: (src: string | null) => void;
   onReady?: (ready: boolean) => void;
+  onPlayingChange?: (isPlaying: boolean) => void;
   class?: string;
 }
 
@@ -127,6 +128,23 @@ function detectBars(video: HTMLVideoElement): Fit | null {
 export function MvPlayer(props: MvPlayerProps) {
   const [videoEl, setVideoEl] = createSignal<HTMLVideoElement | null>(null);
   const [loaded, setLoaded] = createSignal(false);
+  const [isPlaying, setIsPlaying] = createSignal(false);
+
+  const updatePlayingState = () => {
+    const el = videoEl();
+    const playing = !!(
+      el &&
+      !el.paused &&
+      !el.ended &&
+      el.readyState >= 2 &&
+      el.currentTime > 0.05
+    );
+    setIsPlaying(playing);
+  };
+
+  createEffect(() => {
+    props.onPlayingChange?.(isPlaying());
+  });
 
   const mvQuery = useQuery(() => ({
     queryKey: ['mv-resolve-v2', props.track.id, props.track.title, (props.track.artists || []).join('|')],
@@ -167,7 +185,7 @@ export function MvPlayer(props: MvPlayerProps) {
       setLoaded(true);
     }
     const audioTime = audio.currentTime || 0;
-    if (Math.abs(el.currentTime - audioTime) > 0.3) {
+    if (Math.abs(el.currentTime - audioTime) > 0.5) {
       el.currentTime = audioTime;
     }
     if (playerStore.playing && !audio.paused && document.visibilityState === 'visible') {
@@ -189,6 +207,7 @@ export function MvPlayer(props: MvPlayerProps) {
     };
     const onPause = () => {
       el.pause();
+      updatePlayingState();
     };
 
     audio.addEventListener('play', onPlay);
@@ -199,6 +218,7 @@ export function MvPlayer(props: MvPlayerProps) {
       el.play().catch(() => {});
     } else {
       el.pause();
+      updatePlayingState();
     }
 
     onCleanup(() => {
@@ -208,43 +228,50 @@ export function MvPlayer(props: MvPlayerProps) {
     });
   });
 
-  // High-precision seek synchronization: instant sync on audio seek and rAF progress
+  // PLL Phase-Locked Loop micro-sync: steers playbackRate without decoder flushes or stuttering
   createEffect(() => {
     const el = videoEl();
     if (!el || !props.active) return;
 
-    const doSync = () => {
+    const onSeek = () => {
       const audioTime = audio.currentTime || 0;
-      if (Math.abs(el.currentTime - audioTime) > 0.25) {
-        el.currentTime = audioTime;
-      }
+      el.playbackRate = 1.0;
+      el.currentTime = audioTime;
     };
 
-    audio.addEventListener('seeked', doSync);
-    audio.addEventListener('seeking', doSync);
+    audio.addEventListener('seeked', onSeek);
+    audio.addEventListener('seeking', onSeek);
 
     // Initial seek alignment
-    doSync();
+    onSeek();
 
     // rAF loop progress listener to keep video locked with audio with zero timer drift
     const unsub = subscribeProgress((cur) => {
-      if (!props.active || document.hidden) return;
-      if (Math.abs(el.currentTime - cur) > 0.35) {
-        el.currentTime = cur;
+      if (!props.active || document.hidden || el.seeking) return;
+      const delta = cur - el.currentTime; // + means video is behind audio
+      if (Math.abs(delta) > 0.8 && el.readyState >= 2) {
+        el.playbackRate = 1.0;
+        el.currentTime = cur; // hard seek only on real scrub
+      } else if (Math.abs(delta) > 0.04) {
+        // Smooth PLL clock nudge (0.92x - 1.08x): smoothly glides video into lock without decoder flushes
+        el.playbackRate = Math.min(1.08, Math.max(0.92, 1.0 + delta * 0.45));
+      } else {
+        el.playbackRate = 1.0;
       }
     });
 
     onCleanup(() => {
-      audio.removeEventListener('seeked', doSync);
-      audio.removeEventListener('seeking', doSync);
+      audio.removeEventListener('seeked', onSeek);
+      audio.removeEventListener('seeking', onSeek);
       unsub();
     });
   });
 
-  // Reset loaded state on track switch
+  // Reset loaded and playing state on track switch
   createEffect(() => {
     props.track.id;
     setLoaded(false);
+    setIsPlaying(false);
     setFit(null);
   });
 
@@ -255,13 +282,17 @@ export function MvPlayer(props: MvPlayerProps) {
 
   // Letterbox and pillarbox auto-crop detection
   const [fit, setFit] = createSignal<Fit | null>(null);
+  let lastCropCheck = 0;
+  const checkBars = () => {
+    const el = videoEl();
+    if (!el || el.readyState < 2) return;
+    const detected = detectBars(el);
+    if (detected) setFit(detected);
+  };
+
   createEffect(() => {
     const el = videoEl();
     if (!loaded() || !el || !props.active) return;
-    const checkBars = () => {
-      const detected = detectBars(el);
-      if (detected) setFit(detected);
-    };
     const t1 = window.setTimeout(checkBars, 600);
     const t2 = window.setTimeout(checkBars, 2000);
     const t3 = window.setTimeout(checkBars, 5000);
@@ -299,15 +330,34 @@ export function MvPlayer(props: MvPlayerProps) {
           playsinline
           preload="auto"
           src={streamSrc() || undefined}
-          onPlay={() => setLoaded(true)}
-          onPlaying={() => setLoaded(true)}
-          onTimeUpdate={() => setLoaded(true)}
+          onPlay={() => {
+            setLoaded(true);
+            updatePlayingState();
+          }}
+          onPlaying={() => {
+            setLoaded(true);
+            updatePlayingState();
+          }}
+          onPause={() => updatePlayingState()}
+          onWaiting={() => updatePlayingState()}
+          onTimeUpdate={() => {
+            setLoaded(true);
+            updatePlayingState();
+            if (!fit()) {
+              const now = Date.now();
+              if (now - lastCropCheck > 1200) {
+                lastCropCheck = now;
+                checkBars();
+              }
+            }
+          }}
           onProgress={() => {
             const el = videoEl();
             if (el && el.readyState >= 1) setLoaded(true);
           }}
           onCanPlay={() => {
             setLoaded(true);
+            updatePlayingState();
             const el = videoEl();
             if (el && props.active && playerStore.playing && !audio.paused) {
               el.muted = true;
@@ -316,6 +366,7 @@ export function MvPlayer(props: MvPlayerProps) {
           }}
           onLoadedData={() => {
             setLoaded(true);
+            updatePlayingState();
             const el = videoEl();
             if (el && props.active && playerStore.playing && !audio.paused) {
               el.muted = true;
@@ -324,6 +375,7 @@ export function MvPlayer(props: MvPlayerProps) {
           }}
           onError={(e) => {
             console.warn('[MvPlayer] video playback error:', e);
+            setIsPlaying(false);
           }}
           class="size-full transition-opacity duration-500 ease-out will-change-[opacity,transform] object-cover"
           style={{

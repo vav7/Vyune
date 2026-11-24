@@ -1747,94 +1747,12 @@ async function resolveWithYtDlpOnce(videoId) {
 export async function resolveStream(videoId, { skipClients = [], preferOpus = false, wrapper = 'auto' } = {}) {
   if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) return null;
   if (wrapper === 'yt-dlp') return resolveWithYtDlp(videoId);
-  const yt = await getYT();
 
-  // 1. Ultra-Fast Sureshot: Raw IOS /player endpoint (~300ms, direct unencrypted itag 140 AAC stream)
-  // Completely bypasses Innertube's heavy DOM parser, cipher decipher delays, and 403s.
-  try {
-    const rawPlayer = await withTimeout(
-      yt.actions.execute('/player', { videoId, client: 'IOS' }),
-      3500,
-      null
-    );
-    const adaptive = rawPlayer?.data?.streamingData?.adaptiveFormats || [];
-    const audioFmt = adaptive
-      .filter((f) => f.mimeType?.includes('audio') && f.url)
-      .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0];
-
-    if (audioFmt?.url) {
-      return {
-        url: audioFmt.url,
-        mime: audioFmt.mimeType || 'audio/mp4; codecs="mp4a.40.2"',
-        bitrate: audioFmt.bitrate || 130000,
-        contentLength: audioFmt.contentLength ? Number(audioFmt.contentLength) : null,
-        client: 'IOS',
-      };
-    }
-  } catch {}
-
-  // 2. High-Fidelity Decipher Path: YTMUSIC / TV_EMBEDDED
-  const resolveWithClient = async (client) => {
-    try {
-      const options = { client };
-      const poToken = await getVideoPoToken(client, videoId);
-      if (poToken) options.po_token = poToken;
-      const info = await withTimeout(yt.getInfo(videoId, options), 4500, null);
-      if (!info || info.playability_status?.status !== 'OK') return null;
-
-      const opus = preferOpus
-        ? (info.streaming_data?.adaptive_formats || [])
-            .filter((format) => format.has_audio && !format.has_video && /audio\/webm/i.test(format.mime_type || format.mime || ''))
-            .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))[0]
-        : null;
-      const fmt = opus || info.chooseFormat({ type: 'audio', quality: 'best' });
-      if (!fmt) return null;
-
-      let url = fmt.url || null;
-      if (!url && typeof fmt.decipher === 'function') {
-        try {
-          url = await fmt.decipher(yt.session.player);
-        } catch {
-          url = null;
-        }
-      }
-      if (!url || typeof url !== 'string') return null;
-
-      if (poToken) {
-        try {
-          const streamUrl = new URL(url);
-          if (!streamUrl.searchParams.has('pot')) streamUrl.searchParams.set('pot', poToken);
-          url = streamUrl.href;
-        } catch {}
-      }
-
-      return {
-        url,
-        mime: fmt.mime_type || fmt.mime,
-        bitrate: fmt.bitrate,
-        contentLength: Number.isSafeInteger(Number(fmt.content_length)) ? Number(fmt.content_length) : null,
-        client,
-      };
-    } catch {
-      return null;
-    }
-  };
-
-  const fallback = await Promise.any(
-    ['YTMUSIC', 'TV_EMBEDDED'].map(async (client) => {
-      const res = await resolveWithClient(client);
-      if (!res?.url) throw new Error(`No stream from ${client}`);
-      return res;
-    })
-  ).catch(() => null);
-
-  if (fallback) return fallback;
-
-  // 3. Ultra-Reliable Distube YTDL with PO-token provider (bypasses bot challenges and 403s)
+  // 1. Direct PO-Token Resolution: Instant (~400ms), 0 403s, 0 bot-check failures
   const distubeFallback = await resolveDistubeAudioStream(videoId, preferOpus).catch(() => null);
-  if (distubeFallback) return distubeFallback;
+  if (distubeFallback?.url) return distubeFallback;
 
-  // 4. Fallback to local yt-dlp binary if available
+  // 2. Fallback to local yt-dlp binary if available
   return resolveWithYtDlp(videoId).catch(() => null);
 }
 
@@ -1936,7 +1854,7 @@ export function scoreMusicVideoCandidate(v, cleanTitle, cleanArtist, album = '',
   // Interviews, podcasts, documentaries, BTS, commentaries (avoid matching when movie/album title has 'story', e.g. Hate Story, Love Story, etc.)
   const isStoryMovie = /(?:story)/i.test(cleanTitle) || /(?:story)/i.test(album);
   if (
-    /(?:interview|podcast|documentary|commentary|untold\s+story|real\s+story|life\s+story|success\s+story|confession|talks?\s+about|speaks?\s+about|answers|q&a|73\s+questions|carpool\s+karaoke|actors\s+on\s+actors|snl\s+sketch|monologue|acceptance\s+speech|speech|red\s+carpet|on\s+[A-Z][a-z]+)/i.test(t) ||
+    /\b(?:interview|podcast|documentary|commentary|untold\s+story|real\s+story|life\s+story|success\s+story|confession|talks?\s+about|speaks?\s+about|answers|q&a|73\s+questions|carpool\s+karaoke|actors\s+on\s+actors|snl\s+sketch|monologue|acceptance\s+speech|speech|red\s+carpet)\b/i.test(t) ||
     (!isStoryMovie && /\bstory\b/i.test(t))
   ) {
     return -99999;
@@ -2037,8 +1955,12 @@ export function scoreMusicVideoCandidate(v, cleanTitle, cleanArtist, album = '',
 
     if (authorMatches || titleMatches) {
       score += 250;
-    } else if (!isMajorLabel) {
-      // Disqualify candidates from random channels that don't match the artist!
+      // Massive priority bonus for Official VEVO channel or Artist's Own Channel
+      if (authorNorm.includes('vevo') || authorNorm === artNorm || authorNorm.startsWith(artNorm)) {
+        score += 600;
+      }
+    } else {
+      // Disqualify candidates whose author AND title do NOT match the requested artist!
       return -99999;
     }
   }
@@ -2144,6 +2066,10 @@ export async function resolveMusicVideo(title, artist, songVideoId, opts = {}) {
 
     // Queries to test sequentially until a high-confidence MV (score >= 350) is found
     const queries = [];
+    if (cleanArtist) {
+      queries.push(`${cleanArtist} ${cleanTitle} official video`.trim());
+      queries.push(`${cleanArtist} ${cleanTitle} vevo`.trim());
+    }
     if (album && !cleanTitle.toLowerCase().includes(album.toLowerCase())) {
       queries.push(`${cleanTitle} ${album} official video`.trim());
     }

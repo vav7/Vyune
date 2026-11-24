@@ -19,7 +19,7 @@ export function ArtworkBackdrop(props: {
   const measured = useArtworkColor(() => props.artworkUrl);
   const color = () => measured() ?? knownArtworkColor(props.fallbackUrl ?? null) ?? null;
 
-  const isVideoMode = () => !!props.motionVideo && (props.videoReady !== false);
+  const isVideoMode = () => !!props.motionVideo && props.videoReady === true;
 
   const bgStyle = createMemo(() => {
     const c = color() ?? lastArtworkColor();
