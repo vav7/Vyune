@@ -13,6 +13,7 @@ import {
   Settings,
   Sparkles,
   Trash2,
+  Volume2,
   X,
 } from 'lucide-solid';
 import { A, useNavigate } from '@solidjs/router';
@@ -70,7 +71,28 @@ export function CommandPalette() {
       label: () => 'Settings',
       keywords: () => ['settings', 'prefs', 'preferences'],
       icon: () => <Settings size={16} />,
-      perform: () => window.dispatchEvent(new CustomEvent('mc:palette')),
+      perform: () => playerStore.showToast('All audio & visual settings are active'),
+      when: () => true,
+    },
+    {
+      label: () => 'Open Lyrics',
+      keywords: () => ['lyrics', 'words', 'sing'],
+      icon: () => <Sparkles size={16} />,
+      perform: () => uiStore.toggleSidePanel('lyrics'),
+      when: () => !!playerStore.current,
+    },
+    {
+      label: () => (playerStore.shuffle ? 'Shuffle: On' : 'Shuffle: Off'),
+      keywords: () => ['shuffle', 'random'],
+      icon: () => <Sparkles size={16} />,
+      perform: () => playerStore.toggleShuffle(),
+      when: () => true,
+    },
+    {
+      label: () => (playerStore.muted ? 'Unmute audio' : 'Mute audio'),
+      keywords: () => ['mute', 'unmute', 'sound', 'volume'],
+      icon: () => <Volume2 size={16} />,
+      perform: () => playerStore.toggleMute(),
       when: () => true,
     },
     {
@@ -210,18 +232,28 @@ export function CommandPalette() {
   });
 
   onMount(() => {
+    const onToggle = () => {
+      setOpen((value) => !value);
+      if (!open()) {
+        setQuery('');
+        setSelected(0);
+      }
+    };
+
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        setOpen((value) => !value);
-        if (!open()) {
-          setQuery('');
-          setSelected(0);
-        }
+        onToggle();
       }
     };
+
     window.addEventListener('keydown', onKey);
-    onCleanup(() => window.removeEventListener('keydown', onKey));
+    window.addEventListener('mc:palette', onToggle);
+
+    onCleanup(() => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('mc:palette', onToggle);
+    });
   });
 
   return (

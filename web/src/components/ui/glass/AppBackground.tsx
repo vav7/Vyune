@@ -20,14 +20,15 @@ export function AppBackground() {
         class="absolute inset-0 bg-[#07070a]"
       />
 
-      {/* 2. Pure ambient mesh glow ONLY from song artwork colors — zero bluish-grey fog */}
+      {/* 2. Pure ambient mesh glow spreading across sidebar, main stage, and lyrics panel — zero noise, zero fog */}
       <div
-        class="absolute inset-0 opacity-[0.28] transition-opacity duration-[1.5s] ease-out"
+        class="absolute inset-0 opacity-[0.45] transition-opacity duration-[1.2s] ease-out pointer-events-none"
         style={{
           background:
-            'radial-gradient(ellipse 75% 55% at 20% 12%, var(--amb1, transparent) 0%, transparent 65%), ' +
-            'radial-gradient(ellipse 65% 50% at 80% 80%, var(--amb2, transparent) 0%, transparent 60%), ' +
-            'radial-gradient(ellipse 45% 35% at 50% 40%, var(--amb3, transparent) 0%, transparent 55%)',
+            'radial-gradient(ellipse 75% 65% at 4% 22%, var(--amb1, transparent) 0%, transparent 68%), ' +
+            'radial-gradient(ellipse 70% 60% at 94% 72%, var(--amb2, transparent) 0%, transparent 68%), ' +
+            'radial-gradient(ellipse 85% 70% at 50% 38%, color-mix(in srgb, var(--amb1, transparent) 60%, var(--amb3, transparent)) 0%, transparent 70%), ' +
+            'radial-gradient(circle at 50% 85%, var(--amb4, transparent) 0%, transparent 60%)',
         }}
       />
     </div>

@@ -1913,9 +1913,9 @@ function detectPart(str) {
   return null;
 }
 
-// 1. Hard-rejected keywords (no live, no lyrics, no fan-made/edits, no audio-only, no interviews/talk-shows)
+// 1. Hard-rejected keywords (no live, no lyrics, no fan-made/edits, no audio-only, no interviews/talk-shows, no room/casual sessions)
 const BANNED_RE =
-  /\b(live|concert|unplugged|acoustic|session|performance|tour|festival|lyrical|lyric\s*video|lyrics|with\s*lyrics|audio|official\s*audio|full\s*audio|fan\s*made|fanmade|edit|status|whatsapp|shorts|#shorts|teaser|trailer|promo|making|bts|behind\s*the\s*scenes|reaction|cover|karaoke|instrumental|8d|slowed|reverb|sped\s*up|lofi|lo-fi|mashup|jukebox|remix|dj\s*mix|interview|talk\s*show|podcast|q&a|vlog|speech|documentary|review|tutorial|dance\s*practice|choreography|audition)\b/i;
+  /\b(live|concert|unplugged|acoustic|session|performance|tour|festival|lyrical|lyric\s*video|lyrics|with\s*lyrics|audio|official\s*audio|full\s*audio|fan\s*made|fanmade|edit|status|whatsapp|shorts|#shorts|teaser|trailer|promo|making|bts|behind\s*the\s*scenes|reaction|cover|karaoke|instrumental|8d|slowed|reverb|sped\s*up|lofi|lo-fi|mashup|jukebox|remix|dj\s*mix|interview|talk\s*show|podcast|q&a|vlog|speech|documentary|review|tutorial|dance\s*practice|choreography|audition|in\s*room|singing|jamming|rehearsal|practice|casual|at\s*home|home\s*video|room\s*recording|homerecording|selfie)\b/i;
 
 // 2. Trusted official Indian & global label channels (blocks fan-made re-uploads)
 const INDIAN_LABELS_RE =
@@ -1956,6 +1956,10 @@ function isOfficialChannel(channel, cleanArtist) {
   const ch = channel.toLowerCase().trim();
   if (!ch || /-\s*topic$/.test(ch)) return null; // never pick auto-generated audio Topic channels
 
+  // Priority 1: Label authority (major record labels are the primary owners of official video songs)
+  if (INDIAN_LABELS_RE.test(ch)) return 'indian_label';
+  if (GLOBAL_LABELS_RE.test(ch)) return 'global_label';
+
   const chAlpha = ch.replace(/[^a-z0-9]/g, '');
 
   // Split multi-artist strings (e.g. "Adele", "Arijit Singh, Pritam", "The Weeknd & Daft Punk")
@@ -1973,19 +1977,22 @@ function isOfficialChannel(channel, cleanArtist) {
       return 'vevo';
     }
 
-    // Direct channel match (e.g. "Adele", "Red Hot Chili Peppers")
-    if (chAlpha === artistAlpha || chAlpha.includes(artistAlpha) || artistAlpha.includes(chAlpha)) {
-      return 'artist';
-    }
-
-    const words = tokens(artist).filter((w) => w.length > 1);
-    if (words.length > 0 && words.every((w) => ch.includes(w))) {
-      return 'artist';
+    // Direct channel match (for short artist names like "KK" or "U2", require EXACT match to prevent false positives)
+    if (artistAlpha.length <= 3) {
+      if (chAlpha === artistAlpha || chAlpha === `${artistAlpha}official` || chAlpha === `${artistAlpha}music`) {
+        return 'artist';
+      }
+    } else {
+      if (chAlpha === artistAlpha || chAlpha.includes(artistAlpha) || artistAlpha.includes(chAlpha)) {
+        return 'artist';
+      }
+      const words = tokens(artist).filter((w) => w.length > 1);
+      if (words.length > 0 && words.every((w) => ch.includes(w))) {
+        return 'artist';
+      }
     }
   }
 
-  if (INDIAN_LABELS_RE.test(ch)) return 'indian_label';
-  if (GLOBAL_LABELS_RE.test(ch)) return 'global_label';
   return null; // anything else (fan channels, random uploaders) -> rejected
 }
 
@@ -2052,13 +2059,14 @@ export function pickBestMusicVideo(candidates, { cleanTitle, cleanArtist, album 
 
     // Prefer explicit music video labels
     if (/\bofficial\s*(music\s*)?video\b|\bofficial\s*mv\b/i.test(rawTitle)) rank += 35;
-    else if (/\bfull\s*video\b|\bvideo\s*song\b/i.test(rawTitle)) rank += 20;
+    else if (/\bfull\s*video\s*song\b|\bofficial\s*video\s*song\b/i.test(rawTitle)) rank += 35;
+    else if (/\bfull\s*video\b|\bvideo\s*song\b/i.test(rawTitle)) rank += 25;
 
-    // Channel authority tie-breaker
-    if (authority === 'vevo') rank += 30;
+    // Channel authority tie-breaker (Indian and global verified labels are top authority for film/album music videos)
+    if (authority === 'indian_label') rank += 35;
+    else if (authority === 'vevo') rank += 30;
     else if (authority === 'artist') rank += 25;
-    else if (authority === 'indian_label') rank += 20;
-    else if (authority === 'global_label') rank += 20;
+    else if (authority === 'global_label') rank += 25;
 
     // Closer duration to the original audio track
     if (duration > 0 && targetDuration > 0 && Math.abs(duration - targetDuration) <= 15) {
@@ -2100,12 +2108,15 @@ export async function resolveMusicVideo(title, artist, songVideoId, opts = {}) {
   try {
     const yt = await getYT();
 
-    // 2 parallel searches: one official music video query and one 4K remaster query
+    // 3 parallel targeted searches: official MV query, album full video song query, and HD remaster query
     const queries = [
       `${cleanArtist} ${cleanTitle} official music video`.trim(),
       album && !cleanTitle.toLowerCase().includes(album.toLowerCase())
-        ? `${cleanTitle} ${album} 4k full video song`.trim()
+        ? `${cleanTitle} ${album} full video song`.trim()
         : `${cleanArtist} ${cleanTitle} 4k official video`.trim(),
+      album
+        ? `${cleanTitle} ${album} official video song`.trim()
+        : `${cleanArtist} ${cleanTitle} full video song`.trim(),
     ];
 
     const settled = await Promise.allSettled(

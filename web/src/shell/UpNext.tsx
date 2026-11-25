@@ -25,8 +25,8 @@ function Row(props: {
 
   return (
     <li
-      class={`track-row group/row relative grid h-[55px] grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-x-3 rounded-[12px] px-2.5 border border-white/[0.06] hover:border-white/[0.18] hover:bg-white/[0.06] transition-colors duration-150 data-dragging:opacity-40 data-over:before:absolute data-over:before:inset-x-2.5 data-over:before:-top-px data-over:before:border-t-2 data-over:before:border-t-key cursor-pointer ${
-        isCurrent() ? 'bg-[color-mix(in_srgb,var(--keyColor)_24%,rgba(255,255,255,0.08))] border-white/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_4px_20px_-4px_rgba(var(--keyColor-rgb),0.4)]' : ''
+      class={`track-row group/row relative grid h-[55px] grid-cols-[40px_minmax(0,1fr)_40px] items-center gap-x-3 rounded-[12px] px-2.5 transition-all duration-150 data-dragging:opacity-40 data-over:before:absolute data-over:before:inset-x-2.5 data-over:before:-top-px data-over:before:border-t-2 data-over:before:border-t-key cursor-pointer ${
+        isCurrent() ? '!bg-white/[0.14] !border-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_6px_20px_rgba(0,0,0,0.45)]' : ''
       }`}
       data-current={isCurrent() || undefined}
       data-over={over() || undefined}

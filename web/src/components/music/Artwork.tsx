@@ -2,6 +2,7 @@ import { createEffect, createMemo, createSignal, on, Show, type JSX } from 'soli
 import { useQuery } from '@tanstack/solid-query';
 import { api } from '@/lib/api';
 import { sizedArtwork } from '@/lib/artwork';
+import { getCachedArtwork, setCachedArtwork } from '@/lib/artworkCache';
 import type { Track } from '@/lib/types';
 
 interface ArtworkProps {
@@ -38,10 +39,17 @@ const isVideoThumbnail = (url?: string | null) => !!url && /(?:^|\/\/)(?:i\d*\.)
  * the first picture it was given.
  */
 export function Artwork(props: ArtworkProps) {
-  // Only look up high-res catalogue artwork for large sleeves/posters (>64px).
+  // Check memory / localStorage cache synchronously
+  const cachedArt = () => (props.track ? getCachedArtwork(props.track) : null);
+
+  // Only look up high-res catalogue artwork for large sleeves/posters (>64px) if not already cached.
   // Tracklist rows (40px) use their video/catalog thumbnail directly, avoiding 100s of network lookups.
   const needsLookup = () =>
-    props.displayWidth > 64 && !!props.track && (isVideoThumbnail(props.track.thumb) || !props.track.thumb);
+    props.displayWidth > 64 &&
+    !!props.track &&
+    !cachedArt() &&
+    (isVideoThumbnail(props.track.thumb) || !props.track.thumb);
+
   const catalogArtwork = useQuery(() => ({
     queryKey: ['catalog-artwork', props.track?.id],
     queryFn: ({ signal }: { signal: AbortSignal }) =>
@@ -56,9 +64,19 @@ export function Artwork(props: ArtworkProps) {
     const add = (url?: string | null) => {
       if (url && !out.includes(url)) out.push(url);
     };
-    // High-res catalogue studio artwork lookup takes priority over video stills
+
+    // 1. Instant cached studio artwork if available
+    const hit = cachedArt();
+    if (hit) {
+      add(hit);
+    }
+
+    // 2. High-res catalogue studio artwork lookup takes priority over video stills
     if (catalogArtwork.data?.thumb) {
       add(catalogArtwork.data.thumb);
+      if (props.track && !isVideoThumbnail(catalogArtwork.data.thumb)) {
+        setCachedArtwork(props.track, catalogArtwork.data.thumb);
+      }
     }
     if (props.candidates) {
       props.candidates.forEach(add);
@@ -67,6 +85,9 @@ export function Artwork(props: ArtworkProps) {
     // Track's own artwork always takes priority over ambient list fallback
     add(props.src);
     add(props.track?.thumb);
+    if (props.track && props.track.thumb && !isVideoThumbnail(props.track.thumb)) {
+      setCachedArtwork(props.track, props.track.thumb);
+    }
     // Ambient fallback (e.g. album sleeve) only when track has no artwork or if it fails
     add(props.fallbackSrc);
 

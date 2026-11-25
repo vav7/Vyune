@@ -34,16 +34,6 @@ const action = 'grid h-7 w-6 place-items-center rounded-[6px] text-secondary hov
 // The actions the volume level slides in over: they fade out while it's open.
 const fading = `${action} transition-opacity group-data-volume-open/actions:pointer-events-none group-data-volume-open/actions:opacity-0`;
 
-const slider = [
-  'absolute top-1/2 right-[33px] mx-0 mb-0 -mt-2 block h-4 w-24 cursor-pointer appearance-none bg-transparent',
-  'pointer-events-none translate-x-2 opacity-0 transition-[opacity,translate]',
-  'data-open:pointer-events-auto data-open:translate-none data-open:opacity-100',
-  '[&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-[linear-gradient(to_right,white_var(--fill),rgba(255,255,255,0.18)_var(--fill))] [&::-webkit-slider-runnable-track]:shadow-[inset_0_1px_1px_rgba(0,0,0,0.4)]',
-  '[&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-[linear-gradient(to_right,white_var(--fill),rgba(255,255,255,0.18)_var(--fill))]',
-  '[&::-webkit-slider-thumb]:-mt-1 [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_8px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.8)] [&::-webkit-slider-thumb]:transition-transform hover:[&::-webkit-slider-thumb]:scale-110',
-  '[&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-[0_0_8px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.8)]',
-].join(' ');
-
 /**
  * Apple's volume control: the speaker mutes, and hovering it slides the level
  * in where the other actions were (they fade out while it's open).
@@ -51,11 +41,11 @@ const slider = [
 function VolumeControl(props: { open: boolean; onOpen: () => void }) {
   const muted = () => playerStore.muted;
   const level = () => (muted() ? 0 : playerStore.volume);
+  const percent = () => Math.round(level() * 100);
+
   return (
-    <>
+    <div class="relative flex items-center">
       <input
-        class={slider}
-        data-open={props.open || undefined}
         type="range"
         min={0}
         max={1}
@@ -63,7 +53,16 @@ function VolumeControl(props: { open: boolean; onOpen: () => void }) {
         value={level()}
         aria-label="Volume"
         tabIndex={props.open ? 0 : -1}
-        style={{ '--fill': `${level() * 100}%` }}
+        class={`absolute top-1/2 right-[32px] -mt-2 block h-4 w-28 cursor-pointer appearance-none bg-transparent transition-all duration-200 z-20 ${
+          props.open
+            ? 'pointer-events-auto translate-x-0 opacity-100'
+            : 'pointer-events-none translate-x-2 opacity-0'
+        } [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-thumb]:-mt-1 [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_1px_4px_rgba(0,0,0,0.6)] [&::-webkit-slider-thumb]:transition-transform hover:[&::-webkit-slider-thumb]:scale-110 [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-[0_1px_4px_rgba(0,0,0,0.6)]`}
+        style={{
+          background: `linear-gradient(to right, #ffffff ${percent()}%, rgba(255, 255, 255, 0.22) ${percent()}%)`,
+          'border-radius': '9999px',
+          height: '4px',
+        }}
         onInput={(e) => playerStore.setVolume(Number(e.currentTarget.value))}
       />
       <button
@@ -76,7 +75,7 @@ function VolumeControl(props: { open: boolean; onOpen: () => void }) {
       >
         <VolumeIcon level={level()} size={20} />
       </button>
-    </>
+    </div>
   );
 }
 

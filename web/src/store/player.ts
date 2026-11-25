@@ -17,6 +17,7 @@ import { api as apiClient } from '@/lib/api';
 import { createStore, unwrap } from 'solid-js/store';
 import { prewarmArtworkColor } from '@/lib/artworkColor';
 import { isVideoThumbnail } from '@/lib/artwork';
+import { getCachedArtwork, setCachedArtwork, warmTrackArtwork } from '@/lib/artworkCache';
 import { persistSlice, readLS, writeLS } from './persist';
 import { api } from '../lib/api';
 import type { StreamResult, Track } from '../lib/types';
@@ -513,6 +514,12 @@ function queuePrefetch(track: Track, priority = false) {
   }
   if (!track?.id || snap().current?.id === track.id || prefetched.has(track.id) || streamRequests.has(track.id)) return;
   if (prefetchQueue.some((queued) => queued.id === track.id)) return;
+
+  // Pre-warm artwork for the upcoming track
+  if (track && (isVideoThumbnail(track.thumb) || !track.thumb)) {
+    void warmTrackArtwork(track);
+  }
+
   if (priority) prefetchQueue.unshift(track);
   else prefetchQueue.push(track);
   // Pointer movement over search results should never create a long queue
@@ -588,21 +595,38 @@ async function loadTrack(index: number, autoplay = true) {
 
   // If the track is from a video playlist or carries a video still thumbnail, resolve authentic studio album poster
   if (track && (isVideoThumbnail(track.thumb) || track.isUpload || !track.thumb)) {
-    void api.artwork(track).then((res) => {
-      if (res?.thumb && res.thumb !== track.thumb) {
-        track.thumb = res.thumb;
-        if (session === activeLoadSession && snap().current?.id === track.id) {
-          setPlayerStore({
-            current: {
-              ...snap().current!,
-              thumb: res.thumb,
-            },
-          });
-          prewarmArtworkColor(res.thumb);
-          updateNowPlaying(snap().current!);
-        }
+    const cached = getCachedArtwork(track);
+    if (cached && cached !== track.thumb) {
+      track.thumb = cached;
+      if (session === activeLoadSession && snap().current?.id === track.id) {
+        setPlayerStore({
+          current: {
+            ...snap().current!,
+            thumb: cached,
+          },
+        });
+        prewarmArtworkColor(cached);
+        updateNowPlaying(snap().current!);
       }
-    }).catch(() => {});
+    } else {
+      void warmTrackArtwork(track).then((thumb) => {
+        if (thumb && thumb !== track.thumb) {
+          track.thumb = thumb;
+          if (session === activeLoadSession && snap().current?.id === track.id) {
+            setPlayerStore({
+              current: {
+                ...snap().current!,
+                thumb,
+              },
+            });
+            prewarmArtworkColor(thumb);
+            updateNowPlaying(snap().current!);
+          }
+        }
+      }).catch(() => {});
+    }
+  } else if (track?.thumb && !isVideoThumbnail(track.thumb)) {
+    setCachedArtwork(track, track.thumb);
   }
 
   let streamResolved = false;
@@ -913,20 +937,24 @@ const hiRes = (url: string) => {
 };
 
 /** Use catalogue/album artwork preferred; falls back to available thumbnail. */
-export function thumbCandidates(t: Pick<Track, 'thumb' | 'source' | 'id' | 'title'>): string[] {
-  if (!t.thumb) return [];
-  return [sized(t.thumb, 544)];
+export function thumbCandidates(t: Pick<Track, 'thumb' | 'source' | 'id' | 'title' | 'artists' | 'album'>): string[] {
+  const cached = getCachedArtwork(t as Track);
+  const src = cached || t.thumb;
+  if (!src) return [];
+  return [sized(src, 544)];
 }
 
 /** Fullscreen poster: highest-resolution catalogue artwork preferred; falls back to available thumbnail instantly. */
-export function posterCandidates(t: Pick<Track, 'thumb' | 'source' | 'id' | 'title'>): string[] {
-  if (!t.thumb) return [];
-  const u = String(t.thumb);
+export function posterCandidates(t: Pick<Track, 'thumb' | 'source' | 'id' | 'title' | 'artists' | 'album'>): string[] {
+  const cached = getCachedArtwork(t as Track);
+  const src = cached || t.thumb;
+  if (!src) return [];
+  const u = String(src);
   if (/ytimg\.com/i.test(u)) {
     // Return reliable hqdefault thumbnail first so player opens instantly with no 404s
     const base = u.replace(/(?:mqdefault|default|sddefault)\.(jpg|webp)/i, 'hqdefault.$1');
     return [base];
   }
-  const high = hiRes(t.thumb);
-  return high !== t.thumb ? [high, t.thumb] : [t.thumb];
+  const high = hiRes(src);
+  return high !== src ? [high, src] : [src];
 }

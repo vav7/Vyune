@@ -16,6 +16,7 @@ import { playerStore } from '@/store/player';
 import { uiStore } from '@/store/ui';
 import { PanelLeft } from 'lucide-solid';
 import { ImageFrost } from '@/components/music/ImageFrost';
+import { useArtworkColor } from '@/lib/artworkColor';
 import { pageArtStore } from '@/lib/pageArt';
 import { useWarmLyrics } from '@/lib/lyricsWarm';
 import { AppBackground } from '@/components/ui/glass/AppBackground';
@@ -74,6 +75,11 @@ export function Layout(props: RouteSectionProps) {
   const location = useLocation();
   const pathname = () => location.pathname;
 
+  // Real-time artwork color extraction from current playing track or page album art
+  const currentArtwork = () => playerStore.current?.thumb ?? null;
+  const songColor = useArtworkColor(currentArtwork);
+  const activePalette = () => songColor()?.palette ?? pageArtStore.palette ?? null;
+
   createEffect(() => {
     document.documentElement.dataset.sidebar = sidebarHidden() ? 'hidden' : 'shown';
   });
@@ -121,10 +127,10 @@ export function Layout(props: RouteSectionProps) {
         class="mc-ambient"
         aria-hidden="true"
         style={{
-          '--amb1': pageArtStore.palette?.[0] ?? AMBIENT[0],
-          '--amb2': pageArtStore.palette?.[1] ?? AMBIENT[1],
-          '--amb3': pageArtStore.palette?.[2] ?? AMBIENT[2],
-          '--amb4': pageArtStore.palette?.[3] ?? pageArtStore.palette?.[0] ?? AMBIENT[3],
+          '--amb1': activePalette()?.[0] ?? AMBIENT[0],
+          '--amb2': activePalette()?.[1] ?? AMBIENT[1],
+          '--amb3': activePalette()?.[2] ?? AMBIENT[2],
+          '--amb4': activePalette()?.[3] ?? activePalette()?.[0] ?? AMBIENT[3],
         }}
       />
       {/* The side panel slides in from beyond the right edge; never let it scroll the page. */}

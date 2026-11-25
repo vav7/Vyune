@@ -769,6 +769,7 @@ app.get('/api/artwork', async (c) => {
 
     return null;
   });
+  c.header('Cache-Control', 'public, max-age=604800, stale-while-revalidate=2592000');
   return c.json({ thumb: thumb || null });
 });
 
