@@ -1913,16 +1913,16 @@ function detectPart(str) {
   return null;
 }
 
-// 1. Hard-rejected keywords (no live, no lyrics, no fan-made/edits, no audio-only)
+// 1. Hard-rejected keywords (no live, no lyrics, no fan-made/edits, no audio-only, no interviews/talk-shows)
 const BANNED_RE =
-  /\b(live|concert|unplugged|acoustic|session|performance|tour|festival|lyrical|lyric\s*video|lyrics|with\s*lyrics|audio|official\s*audio|full\s*audio|fan\s*made|fanmade|edit|status|whatsapp|shorts|#shorts|teaser|trailer|promo|making|bts|behind\s*the\s*scenes|reaction|cover|karaoke|instrumental|8d|slowed|reverb|sped\s*up|lofi|lo-fi|mashup|jukebox|remix|dj\s*mix)\b/i;
+  /\b(live|concert|unplugged|acoustic|session|performance|tour|festival|lyrical|lyric\s*video|lyrics|with\s*lyrics|audio|official\s*audio|full\s*audio|fan\s*made|fanmade|edit|status|whatsapp|shorts|#shorts|teaser|trailer|promo|making|bts|behind\s*the\s*scenes|reaction|cover|karaoke|instrumental|8d|slowed|reverb|sped\s*up|lofi|lo-fi|mashup|jukebox|remix|dj\s*mix|interview|talk\s*show|podcast|q&a|vlog|speech|documentary|review|tutorial|dance\s*practice|choreography|audition)\b/i;
 
 // 2. Trusted official Indian & global label channels (blocks fan-made re-uploads)
 const INDIAN_LABELS_RE =
   /\b(t-series|sony\s*music|zee\s*music|yrf|yash\s*raj|saregama|tips\s*official|tips\s*films|venus|shemaroo|speed\s*records|white\s*hill|eros\s*now|ultra\s*bollywood|ishtar\s*music|junglee\s*music|aditya\s*music|lahari\s*music|think\s*music|muzik247|desi\s*music\s*factory|vyrl|panorama\s*music|times\s*music|gaane\s*sune\s*ansune|bollywood\s*classics|goldmines|dharma|red\s*chillies)\b/i;
 
 const GLOBAL_LABELS_RE =
-  /\b(vevo|atlantic|interscope|republic|columbia|warner|universal|def\s*jam|rca\s*records|capitol|island\s*records|epic\s*records|fueled\s*by\s*ramen|monstercat|spinnin|ultra\s*records|hybe|jyp|smtown|yg\s*entertainment)\b/i;
+  /\b(vevo|atlantic|interscope|republic|columbia|warner|universal|def\s*jam|rca\s*records|capitol|island\s*records|epic\s*records|fueled\s*by\s*ramen|monstercat|spinnin|ultra\s*records|hybe|jyp|smtown|yg\s*entertainment|xl\s*recordings|beggars|domino|sub\s*pop|matador|4ad|virgin\s*records|emi|geffen|polydor|parlophone)\b/i;
 
 const ROMAN = { ii: '2', iii: '3', iv: '4', v: '5' };
 
@@ -1956,12 +1956,34 @@ function isOfficialChannel(channel, cleanArtist) {
   const ch = channel.toLowerCase().trim();
   if (!ch || /-\s*topic$/.test(ch)) return null; // never pick auto-generated audio Topic channels
 
-  const artistWords = tokens(cleanArtist).filter((w) => w.length > 1);
-  const artistMatchesChannel =
-    artistWords.length > 0 && artistWords.every((w) => ch.includes(w));
+  const chAlpha = ch.replace(/[^a-z0-9]/g, '');
 
-  if (/vevo$/i.test(ch) && artistWords.some((w) => ch.includes(w))) return 'vevo';
-  if (artistMatchesChannel) return 'artist';
+  // Split multi-artist strings (e.g. "Adele", "Arijit Singh, Pritam", "The Weeknd & Daft Punk")
+  const individualArtists = (cleanArtist || '')
+    .split(/[,;&/]|(?:\b(?:feat|ft|with|and)\b)/i)
+    .map((a) => a.trim())
+    .filter(Boolean);
+
+  for (const artist of individualArtists) {
+    const artistAlpha = artist.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!artistAlpha) continue;
+
+    // Check Vevo (e.g. AdeleVEVO, PostMaloneVEVO)
+    if (chAlpha.endsWith('vevo') && (chAlpha.includes(artistAlpha) || artistAlpha.includes(chAlpha.replace(/vevo$/, '')))) {
+      return 'vevo';
+    }
+
+    // Direct channel match (e.g. "Adele", "Red Hot Chili Peppers")
+    if (chAlpha === artistAlpha || chAlpha.includes(artistAlpha) || artistAlpha.includes(chAlpha)) {
+      return 'artist';
+    }
+
+    const words = tokens(artist).filter((w) => w.length > 1);
+    if (words.length > 0 && words.every((w) => ch.includes(w))) {
+      return 'artist';
+    }
+  }
+
   if (INDIAN_LABELS_RE.test(ch)) return 'indian_label';
   if (GLOBAL_LABELS_RE.test(ch)) return 'global_label';
   return null; // anything else (fan channels, random uploaders) -> rejected
@@ -1983,16 +2005,19 @@ export function pickBestMusicVideo(candidates, { cleanTitle, cleanArtist, album 
     const duration = Number(v?.duration?.seconds || v?.duration || 0);
     if (!rawTitle || !channel) continue;
 
-    // A. Reject banned types (live, lyrics, fan-made, remix, etc.) unless the song itself has that word
+    // A. Reject banned types (live, lyrics, fan-made, remix, interview, etc.) unless the song itself has that word
     const bannedMatch = rawTitle.match(BANNED_RE);
     if (bannedMatch && !new RegExp(`\\b${bannedMatch[0]}\\b`, 'i').test(srcText)) continue;
+
+    // Also reject if channel has banned keywords (like "Live Concerts", "Interview Channel")
+    if (BANNED_RE.test(channel)) continue;
 
     // B. Duration sanity (blocks shorts, teasers, movie clips, jukeboxes)
     if (duration > 0) {
       if (duration < 45 || duration > 540) continue;
       if (targetDuration > 0) {
-        const minDur = Math.max(45, targetDuration - 20);
-        const maxDur = Math.min(480, Math.round(targetDuration * 1.45 + 60));
+        const minDur = Math.max(45, targetDuration - 25);
+        const maxDur = Math.min(540, Math.round(targetDuration * 1.5 + 60));
         if (duration < minDur || duration > maxDur) continue;
       }
     }
@@ -2026,13 +2051,14 @@ export function pickBestMusicVideo(candidates, { cleanTitle, cleanArtist, album 
     else if (/\b(4k|2160p|uhd|remastered)\b/i.test(rawTitle)) rank += 35;
 
     // Prefer explicit music video labels
-    if (/\bofficial\s*(music\s*)?video\b|\bofficial\s*mv\b/i.test(rawTitle)) rank += 25;
+    if (/\bofficial\s*(music\s*)?video\b|\bofficial\s*mv\b/i.test(rawTitle)) rank += 35;
     else if (/\bfull\s*video\b|\bvideo\s*song\b/i.test(rawTitle)) rank += 20;
 
     // Channel authority tie-breaker
-    if (authority === 'vevo') rank += 25;
-    else if (authority === 'artist') rank += 20;
-    else if (authority === 'indian_label') rank += 15;
+    if (authority === 'vevo') rank += 30;
+    else if (authority === 'artist') rank += 25;
+    else if (authority === 'indian_label') rank += 20;
+    else if (authority === 'global_label') rank += 20;
 
     // Closer duration to the original audio track
     if (duration > 0 && targetDuration > 0 && Math.abs(duration - targetDuration) <= 15) {

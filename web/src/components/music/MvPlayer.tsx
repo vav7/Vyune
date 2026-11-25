@@ -21,6 +21,9 @@ interface MvPlayerProps {
  * instantaneous seekbar tracking, and smooth zero-black-screen transitions over artwork.
  * Features automatic YouTube iframe fallback when direct proxy stream is challenged.
  */
+// Remember video IDs where direct proxy stream was unavailable/bot-challenged, so they start iframe instantly
+const failedVideoIds = new Set<string>();
+
 export function MvPlayer(props: MvPlayerProps) {
   const [videoEl, setVideoEl] = createSignal<HTMLVideoElement | null>(null);
   const [iframeEl, setIframeEl] = createSignal<HTMLIFrameElement | null>(null);
@@ -175,29 +178,21 @@ export function MvPlayer(props: MvPlayerProps) {
     onSeek();
 
     // rAF loop progress listener to keep video locked with audio with zero timer drift
-    let lastIframeSeek = 0;
     const unsub = subscribeProgress((cur) => {
-      if (!props.active || document.hidden) return;
-
-      if (useIframe()) {
-        // Iframe periodic alignment check
-        const now = Date.now();
-        if (now - lastIframeSeek > 3500) {
-          lastIframeSeek = now;
-          sendIframeCommand('seekTo', [cur, true]);
-        }
-        return;
-      }
+      if (!props.active || document.hidden || useIframe()) return;
 
       const el = videoEl();
       if (!el || el.seeking) return;
       const delta = cur - el.currentTime; // + means video is behind audio
-      if (Math.abs(delta) > 0.8 && el.readyState >= 2) {
+      if (Math.abs(delta) > 1.2 && el.readyState >= 2) {
         el.playbackRate = 1.0;
         el.currentTime = cur; // hard seek only on real scrub
-      } else if (Math.abs(delta) > 0.04) {
-        el.playbackRate = Math.min(1.08, Math.max(0.92, 1.0 + delta * 0.45));
-      } else {
+      } else if (Math.abs(delta) > 0.15) {
+        const targetRate = Math.min(1.06, Math.max(0.94, 1.0 + delta * 0.35));
+        if (Math.abs(el.playbackRate - targetRate) > 0.02) {
+          el.playbackRate = targetRate;
+        }
+      } else if (el.playbackRate !== 1.0) {
         el.playbackRate = 1.0;
       }
     });
@@ -213,15 +208,18 @@ export function MvPlayer(props: MvPlayerProps) {
   let lastMvTrackId: string | null = null;
   createEffect(() => {
     const curId = props.track?.id || null;
+    const vId = videoId();
     if (curId !== lastMvTrackId) {
       lastMvTrackId = curId;
       setLoaded(false);
       setIsPlaying(false);
-      setUseIframe(false);
+      setUseIframe(vId ? failedVideoIds.has(vId) : false);
+    } else if (vId && failedVideoIds.has(vId) && !useIframe()) {
+      setUseIframe(true);
     }
   });
 
-  // Fallback timer: if <video> does not become ready within 3.5s, switch to iframe embed
+  // Fallback timer: if <video> does not become ready within 1.8s, switch to iframe embed
   createEffect(() => {
     const active = props.active;
     const id = videoId();
@@ -231,9 +229,10 @@ export function MvPlayer(props: MvPlayerProps) {
       const el = videoEl();
       if (!loaded() && (!el || el.readyState < 2)) {
         console.info('[MvPlayer] video element timeout, falling back to YouTube player');
+        failedVideoIds.add(id);
         setUseIframe(true);
       }
-    }, 3500);
+    }, 1800);
 
     onCleanup(() => window.clearTimeout(timer));
   });
@@ -261,11 +260,11 @@ export function MvPlayer(props: MvPlayerProps) {
           fallback={
             <iframe
               ref={(el) => setIframeEl(el)}
-              src={`https://www.youtube-nocookie.com/embed/${videoId()}?enablejsapi=1&autoplay=1&mute=1&controls=0&playsinline=1&loop=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
+              src={`https://www.youtube.com/embed/${videoId()}?enablejsapi=1&autoplay=1&mute=1&controls=0&playsinline=1&loop=1&rel=0&modestbranding=1&iv_load_policy=3&disablekb=1&fs=0`}
               class="size-full pointer-events-auto border-0 object-cover select-none transition-opacity duration-700 ease-out"
               allow="autoplay; encrypted-media; picture-in-picture"
               style={{
-                transform: 'scale(1.15)',
+                transform: 'scale(1.08)',
                 'transform-origin': 'center center',
               }}
               classList={{
@@ -335,11 +334,13 @@ export function MvPlayer(props: MvPlayerProps) {
             }}
             onError={(e) => {
               console.warn('[MvPlayer] video element error, falling back to YouTube player:', e);
+              const id = videoId();
+              if (id) failedVideoIds.add(id);
               setUseIframe(true);
             }}
             class="size-full transition-opacity duration-500 ease-out will-change-[opacity,transform] object-cover"
             style={{
-              transform: 'scale(1.08)',
+              transform: 'scale(1.04)',
               'transform-origin': 'center center',
             }}
             classList={{

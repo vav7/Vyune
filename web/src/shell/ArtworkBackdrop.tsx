@@ -19,7 +19,9 @@ export function ArtworkBackdrop(props: {
   const measured = useArtworkColor(() => props.artworkUrl);
   const color = () => measured() ?? knownArtworkColor(props.fallbackUrl ?? null) ?? null;
 
-  const isVideoMode = () => props.mode !== 'art' && !!props.motionVideo && props.videoReady === true;
+  // Video motion frost runs strictly when in 'mv' mode with an active ready video element.
+  // In 'art' mode and 'motion' mode, ImageFrost provides the 120 FPS silky, zero-lag ambient background.
+  const isVideoMode = () => props.mode === 'mv' && !!props.motionVideo && props.videoReady === true;
 
   const bgStyle = createMemo(() => {
     const c = color() ?? lastArtworkColor();
@@ -57,13 +59,13 @@ export function ArtworkBackdrop(props: {
           isVideoMode() ? 'opacity-100' : 'opacity-0'
         }`}
       >
-        <Show when={props.motionVideo}>
+        <Show when={isVideoMode() ? props.motionVideo : null}>
           {(video) => (
             <MotionFrost
               video={video()}
-              detail={220}
-              dim={0.22}
-              class="absolute inset-0 size-full scale-[1.06]"
+              detail={180}
+              dim={0.18}
+              class="absolute inset-0 size-full scale-[1.04]"
             />
           )}
         </Show>

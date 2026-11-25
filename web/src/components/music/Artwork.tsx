@@ -108,6 +108,15 @@ export function Artwork(props: ArtworkProps) {
             loading={props.eager ? 'eager' : 'lazy'}
             decoding="async"
             draggable={false}
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              // YouTube returns a 120x90 pixel gray deleted/unavailable placeholder on HTTP 200
+              if (img.naturalWidth === 120 && img.naturalHeight === 90 && isVideoThumbnail(img.currentSrc || img.src)) {
+                if (attempt() < chain().length - 1) {
+                  setAttempt(attempt() + 1);
+                }
+              }
+            }}
             onError={() => {
               if (attempt() < chain().length - 1) setAttempt(attempt() + 1);
             }}

@@ -29,8 +29,10 @@ export async function attachHlsClip(
     const { default: Hls } = await import('hls.js/light');
     if (Hls.isSupported()) {
       const hls = new Hls({
-        capLevelToPlayerSize: false,
-        maxBufferLength: opts.maxBufferLength ?? 12,
+        capLevelToPlayerSize: true,
+        maxBufferLength: opts.maxBufferLength ?? 6,
+        maxMaxBufferLength: 10,
+        maxBufferSize: 15 * 1024 * 1024,
         startLevel: -1,
         enableWorker: true,
       });

@@ -431,7 +431,8 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
       {(current) => {
         const alternateThumb = () => catalogArtwork.data?.thumb;
         const originalIsVideoThumbnail = () => /(?:^|\/\/)(?:i\d*\.)?ytimg\.com\//i.test(current().thumb || '');
-        const artworkTrack = () => (originalIsVideoThumbnail() && alternateThumb() ? { ...current(), thumb: alternateThumb()! } : current());
+        const isValidArt = (url?: string | null) => !!url && !/(?:^|\/\/)(?:i\d*\.)?ytimg\.com\//i.test(url);
+        const artworkTrack = () => (originalIsVideoThumbnail() && isValidArt(alternateThumb()) ? { ...current(), thumb: alternateThumb()! } : current());
         const poster = () => posterCandidates(artworkTrack());
         const showLyrics = () => panel() === 'lyrics';
         const showQueue = () => panel() === 'queue';
@@ -441,13 +442,20 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
         // stays in pure square 1:1 while buffering / resolving to eliminate jarring aspect ratio jumps.
         const isMvActive = createMemo(() => artModeStore.mode === 'mv' && mvReady());
 
-        // Responsive artwork stage width: sleek cinematic 16:9 in active MV mode,
+        // Responsive artwork stage width & height: sleek cinematic 16:9 in active MV mode,
         // locked square 1:1 in static art / motion visualizer mode / buffering MV mode
         const stageWidth = createMemo(() => {
           if (isMvActive()) {
             return 'min(44vw, calc((100dvh - 240px) * 16 / 9), 680px)';
           }
           return 'min(42vw, calc(100dvh - 160px), 640px)';
+        });
+
+        const stageHeight = createMemo(() => {
+          if (isMvActive()) {
+            return 'calc(min(44vw, calc((100dvh - 240px) * 16 / 9), 680px) * 9 / 16)';
+          }
+          return stageWidth();
         });
 
         const [lyricsEverOpened, setLyricsEverOpened] = createSignal(false);
@@ -493,7 +501,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
               videoSrc={artModeStore.mode === 'mv' ? mvStreamSrc() : null}
               motionVideo={settled() ? motionVideo() : null}
               mode={artModeStore.mode}
-              videoReady={artModeStore.mode === 'mv' ? isMvActive() : (artModeStore.mode === 'motion' && settled() && !!motionVideo())}
+              videoReady={artModeStore.mode === 'mv' && isMvActive()}
             />
 
             {/* The pull handle spans the top edge so it is easy to catch with a thumb. */}
@@ -549,12 +557,12 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                 }}
                 aria-label="Player"
               >
-                {/* Apple-grade squarish card with subtle curve, morphing into 16:9 only once MV is playing & ready */}
+                {/* Apple-grade squarish card with subtle curve, morphing smoothly into 16:9 only once MV is playing & ready */}
                 <div
-                  class={`fs-poster group/poster relative rounded-[14px] overflow-hidden bg-black/40 shadow-[0_24px_60px_rgba(0,0,0,0.6)] border border-white/15 transition-[width,aspect-ratio,transform,opacity] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer select-none group-data-[idle=true]:scale-[0.98]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.94]'}`}
+                  class={`fs-poster group/poster relative rounded-[14px] overflow-hidden bg-black/40 shadow-[0_24px_60px_rgba(0,0,0,0.6)] border border-white/15 transition-[width,height,transform,opacity] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer select-none group-data-[idle=true]:scale-[0.98]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.94]'}`}
                   style={{
                     width: stageWidth(),
-                    'aspect-ratio': isMvActive() ? '16 / 9' : '1',
+                    height: stageHeight(),
                     'max-width': '100%',
                   }}
                   onClick={() => {
@@ -563,20 +571,34 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
                 >
                   <div class="absolute inset-0 size-full">
                     {/* Base Layer: High-Res Album Artwork — ALWAYS VISIBLE! Zero black screen while MV resolves */}
-                    <Show when={poster()[0]}>
-                      <Artwork
-                        candidates={poster()}
-                        track={artworkTrack()}
-                        displayWidth={900}
-                        radius="14px"
-                        eager
-                        class="size-full rounded-[14px] object-cover"
-                      />
-                    </Show>
+                    <div
+                      class="absolute inset-0 size-full transition-opacity duration-500 ease-out"
+                      classList={{
+                        'opacity-100': !isMvActive(),
+                        'opacity-0': isMvActive(),
+                      }}
+                    >
+                      <Show when={poster()[0]}>
+                        <Artwork
+                          candidates={poster()}
+                          track={artworkTrack()}
+                          displayWidth={900}
+                          radius="14px"
+                          eager
+                          class="size-full rounded-[14px] object-cover"
+                        />
+                      </Show>
+                    </div>
 
                     {/* Layer 2: Apple Motion Visualizer */}
                     <Show when={artModeStore.mode === 'motion' && settled()}>
-                      <div class="absolute inset-0 size-full overflow-hidden rounded-[14px]">
+                      <div
+                        class="absolute inset-0 size-full overflow-hidden rounded-[14px] transition-opacity duration-500 ease-out"
+                        classList={{
+                          'opacity-100': artModeStore.mode === 'motion',
+                          'opacity-0': artModeStore.mode !== 'motion',
+                        }}
+                      >
                         <AppleMotionArtwork track={current()} onVideo={setMotionVideo} />
                       </div>
                     </Show>
