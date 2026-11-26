@@ -55,20 +55,34 @@ const rowVariant: Record<Variant, string> = {
 };
 
 function Artists(props: { track: Track }) {
-  const artists = () => props.track.artists || [];
+  const rawArtists = () => props.track.artists || [];
+  const rawIds = () => props.track.artistIds || [];
+  const entries = () => {
+    const list = rawArtists();
+    const ids = rawIds();
+    // If catalogue gave a single combined string ("Artist A, Artist B") with no per-artist IDs, split it
+    if (list.length === 1 && ids.length <= 1 && /[,&]|\b(?:feat|ft)\.?\b/i.test(list[0] || '')) {
+      const split = (list[0] || '')
+        .split(/\s*(?:,|&|\b(?:feat|ft|featuring)\.?\b)\s*/i)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (split.length > 1) return split.map((name, idx) => ({ name, id: idx === 0 ? ids[0] ?? null : null }));
+    }
+    return list.map((name, idx) => ({ name, id: ids[idx] ?? null }));
+  };
   return (
     <>
-      <For each={artists()}>
-        {(artist, i) => {
-          const href = () => artistLink(props.track.artistIds?.[i()], artist);
-          const total = artists().length;
+      <For each={entries()}>
+        {(entry, i) => {
+          const href = () => artistLink(entry.id, entry.name);
+          const total = entries().length;
           const isLast = () => i() === total - 1;
           const isSecondToLast = () => i() === total - 2;
           return (
             <span>
-              <Show when={href()} fallback={<span>{artist}</span>}>
-                <PrefetchLink to={href()!} hint={{ title: artist }} class={link} onClick={(e) => e.stopPropagation()}>
-                  {artist}
+              <Show when={href()} fallback={<span>{entry.name}</span>}>
+                <PrefetchLink to={href()!} hint={{ title: entry.name }} class={link} onClick={(e) => e.stopPropagation()}>
+                  {entry.name}
                 </PrefetchLink>
               </Show>
               <Show when={!isLast()}>

@@ -39,16 +39,20 @@ const isVideoThumbnail = (url?: string | null) => !!url && /(?:^|\/\/)(?:i\d*\.)
  * the first picture it was given.
  */
 export function Artwork(props: ArtworkProps) {
+  const [attempt, setAttempt] = createSignal(0);
+  const [sawDeadThumb, setSawDeadThumb] = createSignal(false);
+  const [broken, setBroken] = createSignal(false);
+
   // Check memory / localStorage cache synchronously
   const cachedArt = () => (props.track ? getCachedArtwork(props.track) : null);
 
-  // Only look up high-res catalogue artwork for large sleeves/posters (>64px) if not already cached.
-  // Tracklist rows (40px) use their video/catalog thumbnail directly, avoiding 100s of network lookups.
+  // Only look up high-res catalogue artwork for large sleeves/posters (>64px) if not already cached,
+  // OR immediately if a 120x90 deleted-video placeholder was detected.
   const needsLookup = () =>
-    props.displayWidth > 64 &&
+    (props.displayWidth > 64 || sawDeadThumb()) &&
     !!props.track &&
     !cachedArt() &&
-    (isVideoThumbnail(props.track.thumb) || !props.track.thumb);
+    (isVideoThumbnail(props.track.thumb) || !props.track.thumb || sawDeadThumb());
 
   const catalogArtwork = useQuery(() => ({
     queryKey: ['catalog-artwork', props.track?.id],
@@ -94,14 +98,13 @@ export function Artwork(props: ArtworkProps) {
     return out;
   });
 
-  const [attempt, setAttempt] = createSignal(0);
-
   // A different picture reusing this instance starts over on its own chain.
   createEffect(
     on(
       () => chain()[0] ?? null,
       () => {
         setAttempt(0);
+        setBroken(false);
       },
       { defer: true },
     ),
@@ -118,28 +121,35 @@ export function Artwork(props: ArtworkProps) {
       class={props.class ? `${frame} ${props.class}` : frame}
       style={{ 'aspect-ratio': String(props.aspect ?? 1), 'border-radius': props.radius }}
     >
-      <Show when={sized()}>
+      <Show when={!broken() && sized()}>
         {(source) => (
           <img
-            class="absolute inset-0 size-full object-cover transition-opacity duration-300 ease-out"
+            class="absolute inset-0 size-full object-cover transition-opacity duration-200 ease-out"
             src={source()}
             alt=""
             // googleusercontent throttles hotlinked images (429) by Referer.
             referrerPolicy="no-referrer"
             loading={props.eager ? 'eager' : 'lazy'}
+            fetchpriority={props.eager ? 'high' : 'auto'}
             decoding="async"
             draggable={false}
             onLoad={(e) => {
               const img = e.currentTarget;
               // YouTube returns a 120x90 pixel gray deleted/unavailable placeholder on HTTP 200
               if (img.naturalWidth === 120 && img.naturalHeight === 90 && isVideoThumbnail(img.currentSrc || img.src)) {
-                if (attempt() < chain().length - 1) {
-                  setAttempt(attempt() + 1);
+                setSawDeadThumb(true);
+                const list = chain();
+                const nextNonYt = list.findIndex((u, idx) => idx > attempt() && !isVideoThumbnail(u));
+                if (nextNonYt >= 0) {
+                  setAttempt(nextNonYt);
+                } else {
+                  setBroken(true);
                 }
               }
             }}
             onError={() => {
               if (attempt() < chain().length - 1) setAttempt(attempt() + 1);
+              else setBroken(true);
             }}
           />
         )}

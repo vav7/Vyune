@@ -242,9 +242,8 @@
   color: rgb(255 255 255 / 0.95);
   font-weight: 700;
 }
-/* Inside the one line the painted word does not need room above it. */
-.fs-oneline .lyric-word { white-space: pre; padding-block: 0.14em 0.18em; margin-block: -0.14em -0.18em; }
-.fs-oneline .lyric-word[data-live='true'] { translate: 0 -0.055em; }
+/* Inside the one line the painted word does not need room above it, and stays stationary (no bounce). */
+.fs-oneline .lyric-word { white-space: pre; padding-block: 0.1em 0.14em; margin-block: -0.1em -0.14em; }
 .fs-oneline .mc-kinetic-note i { animation: lyric-dot 1.6s ease-in-out infinite; }
 .fs-oneline .mc-kinetic-note i:nth-child(2) { animation-delay: 0.2s; }
 .fs-oneline .mc-kinetic-note i:nth-child(3) { animation-delay: 0.4s; }
@@ -253,8 +252,8 @@
 }
 /* The fill is written every frame here, so it must not ease behind the voice. */
 .fs-oneline .lyric-word {
-  --wipe-feather: 0.85em;
-  transition: translate 0.45s var(--lyric-spring, ease) !important;
+  --wipe-feather: 0.7em;
+  transition: none !important;
 }
 
 /* ------------------------------------------------------------------ */

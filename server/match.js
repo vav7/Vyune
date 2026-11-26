@@ -726,9 +726,16 @@ export function score(candidate, target) {
   const driftPenalty = durationPenalty(target.durationSec, candidate.durationSec, {
     isVideo: Boolean(target.isVideo || candidate.isVideo),
   });
+  const isCompilationAlbum =
+    candidate.album &&
+    /\b(?:best\s+of|greatest\s+hits|essentials|anthology|top\s+hits|super\s*hits|evergreen|golden\s+hits|non[\s-]*stop|jukebox|collection)\b/i.test(
+      candidate.album,
+    ) &&
+    !(target.album && /\b(?:best\s+of|greatest\s+hits|essentials|anthology|top\s+hits|super\s*hits|evergreen|golden\s+hits|non[\s-]*stop|jukebox|collection)\b/i.test(target.album));
+  const compilationPenalty = isCompilationAlbum ? 35 : 0;
   return (
     BASE + artist + duration + albumScore(target.album, candidate.album) + explicit +
-    contextScore(wanted, got) + officialWeight(candidate) - driftPenalty
+    contextScore(wanted, got) + officialWeight(candidate) - driftPenalty - compilationPenalty
   );
 }
 

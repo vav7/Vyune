@@ -45,7 +45,7 @@ export function PlayerMenu(props: {
       <Show when={open()}>
         <div
           role="menu"
-          class={`absolute right-0 z-[80] w-64 rounded-[14px] border border-white/12 bg-[rgb(18_18_18/0.88)] p-1.5 shadow-[0_24px_60px_-14px_#000e] [backdrop-filter:blur(26px)_saturate(1.6)] animate-[fade-in_140ms_ease-out_both] ${(props.up ?? true) ? 'bottom-full mb-3' : 'top-full mt-2'}`}
+          class={`absolute right-0 z-[80] w-64 rounded-[16px] border border-white/18 bg-black/50 p-1.5 shadow-[0_36px_90px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.55),inset_0_0_0_1px_rgba(255,255,255,0.1)] backdrop-blur-[32px] backdrop-saturate-[2] animate-[fade-in_140ms_ease-out_both] ${(props.up ?? true) ? 'bottom-full mb-3' : 'top-full mt-2'}`}
         >
           <p class="px-3 pt-1.5 pb-1 type-[700_10px/14px] tracking-[0.16em] text-tertiary uppercase">Background</p>
           <For each={ART_MODES}>

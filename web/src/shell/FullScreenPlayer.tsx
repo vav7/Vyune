@@ -124,6 +124,13 @@ function Credits() {
     const c = current();
     if (!c) return [];
     const fromArtists = (c.artists || []).map(cleanArtistDisplay).filter(Boolean);
+    if (fromArtists.length === 1 && (c.artistIds?.length ?? 0) <= 1 && /[,&]|\b(?:feat|ft)\.?\b/i.test(fromArtists[0]!)) {
+      const split = fromArtists[0]!
+        .split(/\s*(?:,|&|\b(?:feat|ft|featuring)\.?\b)\s*/i)
+        .map(cleanArtistDisplay)
+        .filter(Boolean);
+      if (split.length > 1) return split;
+    }
     if (fromArtists.length > 0) return fromArtists;
     const cleanChan = cleanArtistDisplay(c.channel || '');
     if (cleanChan) return [cleanChan];

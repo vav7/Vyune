@@ -129,7 +129,7 @@ function ProviderPicker(props: {
     <div
       class={
         props.full
-          ? 'flex items-center justify-between pb-1 opacity-100 transition-opacity duration-500 group-data-[idle=true]:pointer-events-none group-data-[idle=true]:opacity-0'
+          ? 'pointer-events-auto absolute top-4 left-0 z-20 flex items-center justify-between opacity-100 transition-opacity duration-500 group-data-[idle=true]:pointer-events-none group-data-[idle=true]:opacity-0'
           : 'flex items-center justify-between px-4 pt-4 pb-1'
       }
     >
@@ -273,6 +273,7 @@ function ProviderPicker(props: {
           </div>
         </Menu>
       )}
+      <Show when={!props.full}>
         <div class="flex items-center gap-1.5">
           <button
             class="grid size-8 place-items-center rounded-[8px] text-secondary hover:text-primary hover:bg-white/[0.1] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition-all duration-200 active:scale-90 aria-pressed:bg-white/[0.16] aria-pressed:text-primary aria-pressed:shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]"
@@ -293,6 +294,7 @@ function ProviderPicker(props: {
             <Languages size={16} />
           </button>
         </div>
+      </Show>
     </div>
   );
 }
@@ -504,7 +506,7 @@ export function LyricPreview() {
       state() === 'lyric' &&
       !!primary()?.isWordSynced &&
       parts().length > 1 &&
-      parts().some((part) => !part.lineSynced && part.endtime > part.timestamp) &&
+      parts().filter((part) => !part.lineSynced && part.endtime > part.timestamp).length > 1 &&
       new Set(parts().map((p) => `${p.timestamp}|${p.endtime}`)).size > 1,
   );
   let words: HTMLParagraphElement | undefined;
@@ -531,12 +533,9 @@ export function LyricPreview() {
         const end = part.endtime > start ? part.endtime : start + 1;
         const value = Math.max(0, Math.min(1, (ms - start) / (end - start)));
         const span = spans[i];
-        if (span && Math.abs((written[i] ?? -1) - value) > 0.002) {
+        if (span && Math.abs((written[i] ?? -1) - value) > 0.001) {
           written[i] = value;
           span.style.setProperty('--fill', value.toFixed(3));
-          const live = value > 0.02 && value < 0.98;
-          if (live) span.dataset.live = 'true';
-          else delete span.dataset.live;
         }
       });
       if (!audio.paused) frame = requestAnimationFrame(draw);
@@ -661,7 +660,7 @@ export function LyricPreview() {
         </Show>
         <Show when={state() === 'instrumental'}>
           <div class="inline-flex items-center gap-2 text-white/95 font-bold tracking-tight text-[15px]">
-            <svg class="size-4.5 text-white inline-block -mt-0.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <svg class="size-4 text-white inline-block shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M9 18V5l12-2v13" />
               <circle cx="6" cy="18" r="3" fill="currentColor" />
               <circle cx="18" cy="16" r="3" fill="currentColor" />
@@ -671,12 +670,21 @@ export function LyricPreview() {
         </Show>
         <Show when={state() === 'vocals'}>
           <div class="inline-flex items-center gap-2 text-white/90 font-bold tracking-tight text-[15px]">
+            <svg class="size-4 text-white/90 inline-block shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 18V5l12-2v13" />
+              <circle cx="6" cy="18" r="3" fill="currentColor" />
+              <circle cx="18" cy="16" r="3" fill="currentColor" />
+            </svg>
             <span class="fs-oneline-words fs-oneline-words--solid text-[15px]">{vocalMsg()}</span>
           </div>
         </Show>
         <Show when={state() === 'loading'}>
-          <div class="inline-flex items-center gap-2 text-white/70 font-semibold tracking-tight text-[14px]">
-            <LoadingDots small />
+          <div class="inline-flex items-center gap-2 text-white/75 font-semibold tracking-tight text-[14px]">
+            <svg class="size-3.5 text-white/75 inline-block shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 18V5l12-2v13" />
+              <circle cx="6" cy="18" r="3" fill="currentColor" />
+              <circle cx="18" cy="16" r="3" fill="currentColor" />
+            </svg>
             <span class="fs-oneline-words fs-oneline-words--solid text-[14px]">{loadingMsg()}</span>
           </div>
         </Show>
@@ -800,10 +808,14 @@ function PlainLyrics(props: { lines: LyricsLine[]; source: string; full: boolean
         class="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       >
         <div
-          class={`mx-auto w-full ${props.full ? 'max-w-[46rem]' : 'max-w-[34rem]'} px-6 sm:px-8 ${
-            props.full ? 'pt-12 pb-40' : 'pt-5 pb-24'
+          class={`mx-auto w-full ${props.full ? 'max-w-[46rem]' : 'max-w-[34rem]'} px-6 sm:px-8 antialiased ${
+            props.full ? 'pt-4 pb-40' : 'pt-2 pb-24'
           }`}
-          style={{ 'font-family': "-apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'SF Pro Display', 'SF Pro Text', 'SF Pro', 'Helvetica Neue', system-ui, sans-serif" }}
+          style={{
+            'font-family': LYRIC_FONT,
+            'font-optical-sizing': 'auto',
+            'text-rendering': 'optimizeLegibility',
+          }}
         >
           {props.lines.map((line, index) => {
             const text = line.text.map((part) => part.text).join('').trim();

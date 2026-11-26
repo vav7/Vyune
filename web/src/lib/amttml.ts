@@ -28,14 +28,11 @@ const esc = (value: string) =>
 
 const ms = (value: number) => `${Math.max(0, Math.round(Number.isFinite(value) ? value : 0))}ms`;
 
-const spanOf = (syllable: Syllable, index?: number, arr?: readonly Syllable[]) => {
+const spanOf = (syllable: Syllable, index: number, arr: readonly Syllable[], hasExplicitSpaces: boolean) => {
   let text = syllable.text;
-  // If this syllable marks the end of a word (or whole word) and lacks trailing whitespace,
-  // ensure a trailing space so adjacent word spans don't mash together.
-  if (syllable.part === false && !/\s$/.test(text)) {
-    if (!arr || index === undefined || index < arr.length - 1) {
-      text += ' ';
-    }
+  // Only synthesize word-boundary spaces when the line's syllables don't already carry explicit whitespace.
+  if (!hasExplicitSpaces && syllable.part === false && !/\s$/.test(text) && index < arr.length - 1) {
+    text += ' ';
   }
   return `<span begin="${ms(syllable.timestamp)}" end="${ms(Math.max(syllable.endtime, syllable.timestamp))}">${esc(text)}</span>`;
 };
@@ -76,15 +73,17 @@ export function linesToTtml(lines: readonly LyricsLine[], opts: { translation?: 
 
     let inner: string;
     if (wordTimed(line)) {
-      inner = line.text.map((s, i, arr) => spanOf(s, i, arr)).join('');
+      const hasExplicitSpaces = line.text.some((s) => /\s/.test(s.text));
+      inner = line.text.map((s, i, arr) => spanOf(s, i, arr, hasExplicitSpaces)).join('');
     } else {
       // Honest line-synced representation: bare text in <p> with zero artificial word interpolation.
       inner = esc(line.text.map((s) => s.text).join(''));
     }
     if (line.backgroundText?.length) {
       const bgWordTimed = line.backgroundText.some((s) => !s.lineSynced && s.endtime > s.timestamp);
+      const bgHasSpaces = line.backgroundText.some((s) => /\s/.test(s.text));
       const bgInner = bgWordTimed
-        ? line.backgroundText.map((s, i, arr) => spanOf(s, i, arr)).join('')
+        ? line.backgroundText.map((s, i, arr) => spanOf(s, i, arr, bgHasSpaces)).join('')
         : esc(line.backgroundText.map((s) => s.text).join(''));
       inner += `<span ttm:role="x-bg">${bgInner}</span>`;
     }

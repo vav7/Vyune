@@ -231,6 +231,9 @@ app.get('/api/stream', async (c) => {
 
   let title = rawTitle;
   let artist = rawArtist;
+  // Preserve featured artists (e.g. "Dracula (ft. JENNIE)") before cleanTitle strips credits
+  const featMatch = rawTitle.match(/(?:[([ ]|\b)(?:feat|ft|featuring)\.?\s+([^)\]]+)/i);
+  const featArtist = featMatch?.[1]?.trim() || '';
   if (rawTitle.includes('|')) {
     const parts = rawTitle.split('|').map((p) => p.trim()).filter(Boolean);
     title = cleanTitle(parts[0], rawArtist);
@@ -244,6 +247,10 @@ app.get('/api/stream', async (c) => {
   } else {
     title = cleanTitle(rawTitle, rawArtist);
   }
+  if (featArtist && !artist.toLowerCase().includes(featArtist.toLowerCase())) {
+    artist = artist ? `${artist}, ${featArtist}` : featArtist;
+  }
+  const streamSearchTitle = featArtist ? `${title} feat. ${featArtist}` : title;
 
   const key = `st:${id}${isUpload ? ':u' : ''}${preferOpus ? ':opus' : ''}:${wrapper}`;
   if (refresh) {
@@ -292,7 +299,7 @@ app.get('/api/stream', async (c) => {
       const saavnPromise = (async () => {
         try {
           const match = await withTimeout(
-            saavn.findSaavnMatch(title, artist, { album, duration }),
+            saavn.findSaavnMatch(streamSearchTitle, artist, { album, duration }),
             2500,
             null
           ).catch(() => null);
@@ -353,7 +360,7 @@ app.get('/api/stream', async (c) => {
       } else {
         // Video / upload track: race JioSaavn against official YouTube Music studio search
         const studioYtPromise = (async () => {
-          const studioTracks = await yt.searchSongs(`${title} ${artist}`.trim(), 6).catch(() => []);
+          const studioTracks = await yt.searchSongs(`${streamSearchTitle} ${artist}`.trim(), 6).catch(() => []);
           const cleanCandidates = studioTracks.filter(
             (t) =>
               !t.isUpload &&
@@ -750,6 +757,9 @@ app.get('/api/artwork', async (c) => {
 
   let title = rawTitle;
   let artist = rawArtist;
+  // Preserve featured artists (e.g. "Dracula (ft. JENNIE)") before cleanTitle strips credits
+  const featMatch = rawTitle.match(/(?:[([ ]|\b)(?:feat|ft|featuring)\.?\s+([^)\]]+)/i);
+  const featArtist = featMatch?.[1]?.trim() || '';
   if (rawTitle.includes('|')) {
     const parts = rawTitle.split('|').map((p) => p.trim()).filter(Boolean);
     title = cleanTitle(parts[0], rawArtist);
@@ -763,6 +773,10 @@ app.get('/api/artwork', async (c) => {
   } else {
     title = cleanTitle(rawTitle, rawArtist);
   }
+  if (featArtist && !artist.toLowerCase().includes(featArtist.toLowerCase())) {
+    artist = artist ? `${artist}, ${featArtist}` : featArtist;
+  }
+  const streamSearchTitle = featArtist ? `${title} feat. ${featArtist}` : title;
 
   const key = [title, artist, album, duration ? Math.round(duration) : ''].join('|').toLowerCase();
   const thumb = await artworkCache.resolve(`art:${key}`, async () => {
@@ -774,7 +788,7 @@ app.get('/api/artwork', async (c) => {
       try {
         const itunesQuery = [title, artist || album].filter(Boolean).join(' ');
         const res = await withTimeout(
-          fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(itunesQuery)}&entity=song&limit=6`),
+          fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(itunesQuery)}&entity=song&limit=10`),
           2200,
           null
         );

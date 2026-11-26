@@ -34,23 +34,52 @@ const CHROME = `
     visibility: hidden !important;
   }
   .lyrics-footer { opacity: 0 !important; pointer-events: none !important; }
-  /* Where the active line parks: am-lyrics' default is 18% from the top, which reads as
-     "stuck at the top". About a third down keeps it in the middle of the eye line. */
-  .lyrics-container { --lyrics-scroll-padding-top: 34%; }
-  /* Restore original am-lyrics background-vocal (adlib) timing so adlibs enter and paint smoothly without a 300ms lag. */
+  /* Active line sits right at the top with zero awkward gap. */
   .lyrics-container {
+    --lyrics-scroll-padding-top: 4%;
+    --scroll-duration: 580ms;
     --am-lyrics-background-vocal-enter-delay: 0ms;
     --am-lyrics-background-vocal-enter-duration: 650ms;
     --am-lyrics-background-vocal-exit-duration: 450ms;
+    /* Crisp HD text (no fractional scale bitmap blur), lift & glow ONLY on held/high notes */
+    --am-lyrics-lift: 0;
+    --char-rise-y: -2.5px;
+    --am-lyrics-character-rise-peak: -1.25px;
+    --am-lyrics-inactive-scale: 1;
+    --am-lyrics-glow-radius: 6px;
+  }
+  .lyrics-line,
+  .lyrics-container:not(.is-unsynced) .lyrics-line.scroll-exiting {
+    transition:
+      opacity 560ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 600ms cubic-bezier(0.22, 1, 0.36, 1) var(--lyrics-line-delay, 0ms),
+      filter 560ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+  }
+  .lyrics-word.normal-word-motion,
+  .lyrics-word.normal-word-motion.word-started {
+    --am-lyrics-lift: 0 !important;
+    transform: none !important;
+  }
+  .lyrics-word.glowing,
+  .lyrics-word.char-rise,
+  .lyrics-word.growable {
+    --am-lyrics-lift: 1 !important;
   }
 
-  /* ---- Premium type: SF Pro / Inter Variable font for lyrics, crisp HD glyphs ---- */
-  :host, .lyrics-container, .lyrics-line, .lyrics-syllable, .lyrics-word, span.char, span.word {
+  /* ---- Premium type: SF Pro / Inter Variable font for lyrics, crisp HD glyphs on every provider ---- */
+  :host, *, .lyrics-container, .lyrics-line, .lyrics-syllable, .lyrics-word, .lyrics-translation-container, span.char, span.word {
     font-family: 'MC SF Pro Display', 'SF Pro Rounded', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Inter Variable', 'Inter', system-ui, sans-serif !important;
-    font-weight: 700 !important;
+    font-optical-sizing: auto !important;
+    text-rendering: optimizeLegibility !important;
     -webkit-font-smoothing: antialiased !important;
     -moz-osx-font-smoothing: grayscale !important;
     font-synthesis: none !important;
+  }
+  .lyrics-line, .lyrics-syllable, .lyrics-word, span.char, span.word {
+    font-weight: 700 !important;
+  }
+  .lyrics-line-container {
+    transform: none !important;
   }
   :host {
     --am-lyrics-highlight-color: #ffffff;
@@ -129,6 +158,7 @@ const CHROME = `
   .lyrics-container {
     width: 100% !important;
     max-width: 100% !important;
+    padding-top: 0 !important;
     padding-inline-start: 12px !important;
     padding-inline-end: 48px !important;
     box-sizing: border-box !important;
@@ -149,7 +179,7 @@ const CHROME = `
     contain: none !important;
     overflow: visible !important;
     word-break: normal !important;
-    overflow-wrap: break-word !important;
+    overflow-wrap: normal !important;
   }
   .lyrics-line:not(.singer-right) {
     padding-inline-start: 0 !important;
@@ -213,20 +243,29 @@ const CHROME = `
     width: 100% !important;
     max-width: 100% !important;
     overflow: visible !important;
-    overflow-wrap: break-word !important;
+    overflow-wrap: normal !important;
     word-break: normal !important;
   }
-  .lyrics-word {
+  .lyrics-word,
+  .lyrics-word.allow-break {
+    display: inline !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
-    white-space: nowrap !important;
-    word-break: normal !important;
+    white-space: normal !important;
+    word-break: keep-all !important;
     overflow-wrap: normal !important;
   }
-  .lyrics-word.allow-break {
-    white-space: normal !important;
-    overflow-wrap: break-word !important;
-    word-break: normal !important;
+  .lyrics-translation-container {
+    color: rgba(255, 255, 255, 0.45) !important;
+    font-size: 0.54em !important;
+    font-weight: 600 !important;
+    margin-top: 4px !important;
+    line-height: 1.3 !important;
+    letter-spacing: -0.01em !important;
+    transition: color 0.35s ease, opacity 0.35s ease !important;
+  }
+  .lyrics-line.active .lyrics-translation-container {
+    color: #ff375f !important;
   }
   .lyrics-line::before { corner-shape: squircle; }
   /* Scope vertical glyph headroom to main vocals only so background adlibs aren't clipped or shifted. */
@@ -282,13 +321,31 @@ export function AmLyricsView(props: {
 
   const [enrichedLines, setEnrichedLines] = createSignal<LyricsLine[] | null>(null);
   const effectiveLines = () => enrichedLines() ?? props.lines;
-  const ttml = createMemo(() => linesToTtml(effectiveLines()));
+  const ttml = createMemo(() =>
+    linesToTtml(effectiveLines(), {
+      translation: !props.full && props.translation,
+      romanization: !props.full && props.romanization,
+    }),
+  );
 
-  // Enrich lines with accurate line-locked translation/romanization when toggled on (works in both Full & Panel modes)
+  const isMostlyLatin = (list: LyricsLine[]) => {
+    const sample = list
+      .filter((l) => !l.section)
+      .slice(0, 12)
+      .map((l) => l.text.map((s) => s.text).join(''))
+      .join(' ')
+      .trim();
+    if (!sample) return true;
+    const latin = (sample.match(/[A-Za-z]/g) || []).length;
+    const letters = (sample.match(/\p{L}/gu) || []).length;
+    return letters > 0 && latin / letters > 0.85;
+  };
+
+  // Enrich lines with accurate line-locked translation/romanization when toggled on in panel mode
   createEffect(() => {
     const base = props.lines;
-    const wantTrans = props.translation;
-    const wantRoman = props.romanization;
+    const wantTrans = props.translation && !props.full;
+    const wantRoman = props.romanization && !props.full;
     let cancelled = false;
 
     if (!base.length || (!wantTrans && !wantRoman)) {
@@ -296,8 +353,9 @@ export function AmLyricsView(props: {
       return;
     }
 
-    const needsTrans = wantTrans && base.some((l) => !l.section && !l.translation && l.text?.some((s) => s.text?.trim()));
-    const needsRoman = wantRoman && base.some((l) => !l.section && !l.romanizedText && l.text?.some((s) => s.text?.trim()));
+    const skipEnglishTrans = isMostlyLatin(base);
+    const needsTrans = wantTrans && !skipEnglishTrans && base.some((l) => !l.section && !l.translation && l.text?.some((s) => s.text?.trim()));
+    const needsRoman = wantRoman && !skipEnglishTrans && base.some((l) => !l.section && !l.romanizedText && l.text?.some((s) => s.text?.trim()));
 
     if (!needsTrans && !needsRoman) {
       setEnrichedLines(null);
@@ -311,9 +369,12 @@ export function AmLyricsView(props: {
         const translated = await GoogleService.translate(lineTexts, 'en').catch(() => null);
         if (cancelled) return;
         if (Array.isArray(translated)) {
-          next = next.map((l, i) =>
-            l.translation || !translated[i] ? l : { ...l, translation: translated[i] },
-          );
+          next = next.map((l, i) => {
+            const orig = lineTexts[i]?.toLowerCase() || '';
+            const tr = (translated[i] || '').trim();
+            if (l.translation || !tr || tr.toLowerCase() === orig) return l;
+            return { ...l, translation: tr };
+          });
         }
       }
       if (needsRoman) {
@@ -340,8 +401,8 @@ export function AmLyricsView(props: {
 
   const apply = () => {
     if (!el) return;
-    el.showRomanization = props.romanization;
-    el.showTranslation = props.translation;
+    el.showRomanization = !props.full && props.romanization;
+    el.showTranslation = !props.full && props.translation;
   };
 
   const tick = () => {
@@ -380,9 +441,9 @@ export function AmLyricsView(props: {
     const shaping = props.lines.some((line) => line.text.some((syllable) => SHAPING.test(syllable.text)));
     if (shaping) next.setAttribute('data-shaping', '');
     const size = Math.round((props.full ? 38 : 20) * (shaping ? 1.15 : 1));
-    next.style.cssText = `display:block;width:100%;height:100%;--lyplus-font-size-base:${size}px;--am-lyrics-line-height:${shaping ? 1.4 : 1.24};--am-lyrics-line-spacing:${shaping ? 26 : (props.full ? 24 : 18)}px;`;
-    next.showRomanization = props.romanization;
-    next.showTranslation = props.translation;
+    next.style.cssText = `display:block;width:100%;height:100%;--lyplus-font-family:${props.fontFamily};--lyplus-font-size-base:${size}px;--am-lyrics-line-height:${shaping ? 1.4 : 1.24};--am-lyrics-line-spacing:${shaping ? 26 : (props.full ? 24 : 18)}px;`;
+    next.showRomanization = !props.full && props.romanization;
+    next.showTranslation = !props.full && props.translation;
     next.ttml = ttml();
     next.addEventListener('line-click', (event) => {
       const at = (event as CustomEvent<{ timestamp: number }>).detail?.timestamp;

@@ -106,6 +106,9 @@ export function parseTTML(ttmlString) {
 
     const trNodes = doc.getElementsByTagName('translation');
     for (let i = 0; i < trNodes.length; i++) {
+      const trLang = (trNodes[i].getAttribute('xml:lang') || trNodes[i].getAttribute('lang') || '').toLowerCase();
+      // Skip non-English embedded translations (e.g., AMLL zh-CN) so they never leak into English UI
+      if (trLang && !trLang.startsWith('en')) continue;
       const texts = trNodes[i].getElementsByTagName('text');
       for (let j = 0; j < texts.length; j++) {
         const key = texts[j].getAttribute('for');

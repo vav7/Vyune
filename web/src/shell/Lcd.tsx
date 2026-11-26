@@ -4,7 +4,7 @@ import { AppleMotionArtwork } from '@/components/music/AppleMotionArtwork';
 import { artModeStore } from '@/store/artMode';
 import { LogoMark } from '@/components/LogoMark';
 import { ExplicitBadge } from '@/components/music/ExplicitBadge';
-import { albumHref, artistHref } from '@/components/music/links';
+import { albumHref, artistLink } from '@/components/music/links';
 import { PrefetchLink } from '@/components/PrefetchLink';
 import { SongTitle } from '@/components/music/SongTitle';
 import { cleanArtistDisplay, creditSegments } from '@/lib/artistCredits';
@@ -26,15 +26,17 @@ export function Credits() {
         const segments = creditSegments(line, validArtists, current.artistIds);
         return (
           <For each={segments}>
-            {(segment) =>
-              segment.id ? (
-                <PrefetchLink class={pageLink} to={artistHref(segment.id)!}>
+            {(segment) => {
+              const isJoiner = /^\s*[,&•·・、＆]\s*$/.test(segment.text) || segment.text.trim() === '&' || segment.text.trim() === 'and';
+              const href = isJoiner ? null : artistLink(segment.id, segment.text);
+              return href ? (
+                <PrefetchLink class={pageLink} to={href}>
                   {segment.text}
                 </PrefetchLink>
               ) : (
                 <span>{segment.text}</span>
-              )
-            }
+              );
+            }}
           </For>
         );
       }}

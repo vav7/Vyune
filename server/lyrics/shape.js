@@ -264,9 +264,10 @@ export function respaced(syllables, plainText) {
         last.text += slice.ch;
         last.endtime = Math.max(last.endtime || 0, slice.syl.endtime || 0);
       } else {
-        group.push({ text: slice.ch, part: false, timestamp: slice.syl.timestamp, endtime: slice.syl.endtime, src: slice.syl });
+        group.push({ text: slice.ch, part: true, timestamp: slice.syl.timestamp, endtime: slice.syl.endtime, src: slice.syl });
       }
     }
+    group[group.length - 1].part = false;
     group[group.length - 1].text += wi < words.length - 1 ? ' ' : '';
     out.push(...group);
   });
@@ -278,10 +279,8 @@ export function respaced(syllables, plainText) {
 
 /** The sheet as the client receives it. */
 export function present(sheet) {
-  // If the sheet has timed lines but lacks native word sync, synthesize syllable flow alignment
-  // so the user gets fluid word-by-word synced lyrics rather than flat static lines.
-  const aligned = alignSheetWords(sheet);
-  const lines = aligned.lines.flatMap(splitRow).map(bracketAdlibs).map(wholeGraphemes);
+  // Keep line-synced sheets honest (no fake word-sync guessing); word-synced sheets keep their real timings.
+  const lines = sheet.lines.flatMap(splitRow).map(bracketAdlibs).map(wholeGraphemes);
   return {
     source: sheet.source,
     estimated: !!sheet.estimated,

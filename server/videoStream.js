@@ -78,66 +78,68 @@ export async function proxyVideoStream(videoId, rangeHeader, method = 'GET', sig
   let cached = videoFormatCache.get(videoId);
 
   if (!cached || now > cached.expiresAt) {
-    try {
-      const url = `https://www.youtube.com/watch?v=${videoId}`;
-      const ytdl = await getYtdl();
-      const info = await ytdl.getInfo(url);
-      const videoFormats = (info.formats || []).filter(
-        (f) => f.hasVideo && (f.container === 'mp4' || f.container === 'webm')
-      );
-
-      // Cap at 1080p H.264 (avc1) for universal hardware GPU decode and instant seeking.
-      const isAv1 = (f) => /av01/i.test(f.codecs || f.mimeType || '');
-      const hasGoodNonAv1 = videoFormats.some((f) => !isAv1(f) && (f.height || 0) >= 480);
-      const nonAv1 = hasGoodNonAv1 ? videoFormats.filter((f) => !isAv1(f)) : videoFormats;
-
-      const hdCandidates = nonAv1.filter((f) => (f.height || 0) <= 1080 && (f.height || 0) >= 480);
-      const candidates = hdCandidates.length > 0 ? hdCandidates : nonAv1;
-
-      const sorted = [...candidates].sort((a, b) => {
-        const isAvc1A = /avc1|h264/i.test(a.codecs || a.container || a.mimeType || '');
-        const isAvc1B = /avc1|h264/i.test(b.codecs || b.container || b.mimeType || '');
-        if (isAvc1A !== isAvc1B) return isAvc1A ? -1 : 1;
-
-        const hA = Math.min(a.height || 0, 1080);
-        const hB = Math.min(b.height || 0, 1080);
-        if (hA !== hB) return hB - hA;
-
-        const isMp4A = /mp4/i.test(a.container || a.mimeType || '');
-        const isMp4B = /mp4/i.test(b.container || b.mimeType || '');
-        if (isMp4A !== isMp4B) return isMp4A ? -1 : 1;
-
-        return (b.bitrate || 0) - (a.bitrate || 0);
-      });
-
-      const chosen = sorted[0];
-      if (chosen) {
-        cached = {
-          info,
-          format: chosen,
-          expiresAt: now + 3 * 3600_000,
-        };
-        videoFormatCache.set(videoId, cached);
-      }
-    } catch (err) {
-      console.warn(`[videoStream] ytdl info failed for ${videoId}:`, err?.message || err);
+    // 1. Fast Path: Direct IOS /player resolution (~300ms) before slow ytdl-core
+    const resolved = await resolveVideoStream(videoId).catch(() => null);
+    if (resolved?.url) {
+      cached = {
+        info: null,
+        format: {
+          url: resolved.url,
+          mimeType: resolved.mime || 'video/mp4',
+          container: 'mp4',
+          contentLength: resolved.contentLength,
+          height: resolved.height || 720,
+        },
+        expiresAt: now + 2 * 3600_000,
+      };
+      videoFormatCache.set(videoId, cached);
     }
 
+    // 2. Fallback: ytdl-core PO-token provider
     if (!cached) {
-      const resolved = await resolveVideoStream(videoId).catch(() => null);
-      if (resolved?.url) {
-        cached = {
-          info: null,
-          format: {
-            url: resolved.url,
-            mimeType: resolved.mime || 'video/mp4',
-            container: 'mp4',
-            contentLength: resolved.contentLength,
-            height: resolved.height || 720,
-          },
-          expiresAt: now + 2 * 3600_000,
-        };
-        videoFormatCache.set(videoId, cached);
+      try {
+        const url = `https://www.youtube.com/watch?v=${videoId}`;
+        const ytdl = await getYtdl();
+        const info = await ytdl.getInfo(url);
+        const videoFormats = (info.formats || []).filter(
+          (f) => f.hasVideo && (f.container === 'mp4' || f.container === 'webm')
+        );
+
+        // Cap at 1080p H.264 (avc1) for universal hardware GPU decode and instant seeking.
+        const isAv1 = (f) => /av01/i.test(f.codecs || f.mimeType || '');
+        const hasGoodNonAv1 = videoFormats.some((f) => !isAv1(f) && (f.height || 0) >= 480);
+        const nonAv1 = hasGoodNonAv1 ? videoFormats.filter((f) => !isAv1(f)) : videoFormats;
+
+        const hdCandidates = nonAv1.filter((f) => (f.height || 0) <= 1080 && (f.height || 0) >= 480);
+        const candidates = hdCandidates.length > 0 ? hdCandidates : nonAv1;
+
+        const sorted = [...candidates].sort((a, b) => {
+          const isAvc1A = /avc1|h264/i.test(a.codecs || a.container || a.mimeType || '');
+          const isAvc1B = /avc1|h264/i.test(b.codecs || b.container || b.mimeType || '');
+          if (isAvc1A !== isAvc1B) return isAvc1A ? -1 : 1;
+
+          const hA = Math.min(a.height || 0, 1080);
+          const hB = Math.min(b.height || 0, 1080);
+          if (hA !== hB) return hB - hA;
+
+          const isMp4A = /mp4/i.test(a.container || a.mimeType || '');
+          const isMp4B = /mp4/i.test(b.container || b.mimeType || '');
+          if (isMp4A !== isMp4B) return isMp4A ? -1 : 1;
+
+          return (b.bitrate || 0) - (a.bitrate || 0);
+        });
+
+        const chosen = sorted[0];
+        if (chosen) {
+          cached = {
+            info,
+            format: chosen,
+            expiresAt: now + 3 * 3600_000,
+          };
+          videoFormatCache.set(videoId, cached);
+        }
+      } catch (err) {
+        console.warn(`[videoStream] ytdl info failed for ${videoId}:`, err?.message || err);
       }
     }
 

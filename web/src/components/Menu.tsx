@@ -84,7 +84,7 @@ export function Menu(props: MenuProps) {
       <div class="fixed inset-0 z-[calc(var(--z-contextual-menus)-1)]" onPointerDown={() => props.onClose()} aria-hidden="true" />
       <div
         ref={panelRef}
-        class="fixed z-(--z-contextual-menus) max-w-[320px] min-w-[195px] animate-menu-in overflow-y-auto rounded-[14px] bg-[#121212]/90 border border-white/16 p-1.5 shadow-[0_24px_64px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.4)] [backdrop-filter:saturate(2.2)_blur(40px)]"
+        class="fixed z-(--z-contextual-menus) max-w-[320px] min-w-[195px] animate-menu-in overflow-y-auto rounded-[16px] bg-black/50 backdrop-blur-[32px] backdrop-saturate-[2] border border-white/18 p-1.5 shadow-[0_36px_90px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.55),inset_0_0_0_1px_rgba(255,255,255,0.1)]"
         style={position()}
         role="menu"
         aria-label={props.label}

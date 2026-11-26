@@ -8,9 +8,9 @@ interface Layer {
 }
 
 /**
- * Smooth frosted artwork backdrop:
- * Draws once into a 640×360 canvas with offscreen blur (eliminates 128×72 pixelation)
- * and a single clean black veil (eliminates multi-gradient banding stripes).
+ * Band-free GPU-blurred artwork backdrop:
+ * Uses a tiny 120px artwork <img> promoted to its own GPU layer with a half-float
+ * CSS blur filter, eliminating the 8-bit <canvas> contour scratches/banding.
  */
 export function ImageFrost(props: { src: string | null; dim?: number; palette?: string[]; class?: string }) {
   const [layers, setLayers] = createSignal<Layer[]>([]);
@@ -32,7 +32,7 @@ export function ImageFrost(props: { src: string | null; dim?: number; palette?: 
 
   return (
     <div class={`absolute inset-0 overflow-hidden bg-transparent ${props.class ?? ''}`} aria-hidden="true">
-      <For each={layers()}>{(layer) => <FrostCanvas url={layer.url} />}</For>
+      <For each={layers()}>{(layer) => <FrostLayer url={layer.url} />}</For>
       <div
         class="absolute inset-0 transition-colors duration-700"
         style={{ 'background-color': `rgba(0, 0, 0, ${veilAlpha().toFixed(3)})` }}
@@ -41,48 +41,17 @@ export function ImageFrost(props: { src: string | null; dim?: number; palette?: 
   );
 }
 
-function FrostCanvas(props: { url: string }) {
-  let canvas!: HTMLCanvasElement;
+function FrostLayer(props: { url: string }) {
   const [ready, setReady] = createSignal(false);
-  const W = 640;
-  const H = 360;
-
-  createEffect(() => {
-    const el = canvas;
-    const ctx = el?.getContext('2d', { alpha: false });
-    if (!el || !ctx) return;
-    const source = props.url;
-    let dead = false;
-    const image = new Image();
-    image.decoding = 'async';
-    image.onload = () => {
-      if (dead || !image.naturalWidth) return;
-      ctx.save();
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      if ('filter' in ctx) {
-        ctx.filter = 'blur(42px) saturate(1.85) brightness(1.02)';
-      }
-      const cover = Math.max(W / image.naturalWidth, H / image.naturalHeight) * 1.25;
-      const dw = image.naturalWidth * cover;
-      const dh = image.naturalHeight * cover;
-      ctx.drawImage(image, (W - dw) / 2, (H - dh) / 2, dw, dh);
-      ctx.restore();
-      setReady(true);
-    };
-    image.src = proxiedImg(artworkForPaint(source, 544));
-    onCleanup(() => {
-      dead = true;
-      image.onload = null;
-    });
-  });
 
   return (
-    <canvas
-      ref={canvas}
-      width={W}
-      height={H}
-      class={`absolute inset-0 size-full scale-[1.06] object-cover transition-opacity duration-700 ease-out ${ready() ? 'opacity-100' : 'opacity-0'}`}
+    <img
+      src={proxiedImg(artworkForPaint(props.url, 120))}
+      alt=""
+      aria-hidden="true"
+      decoding="async"
+      onLoad={() => setReady(true)}
+      class={`pointer-events-none absolute inset-0 size-full scale-[1.25] object-cover transition-opacity duration-700 ease-out will-change-[opacity] [filter:blur(64px)_saturate(1.75)_brightness(1.02)] [transform:translate3d(0,0,0)_scale(1.25)] ${ready() ? 'opacity-100' : 'opacity-0'}`}
     />
   );
 }

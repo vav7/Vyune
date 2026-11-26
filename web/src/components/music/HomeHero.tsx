@@ -63,7 +63,7 @@ export function HomeHero(props: { tracks: Track[] }) {
         {/* The hero's own luminous ambient light */}
         <div class="pointer-events-none absolute inset-0 -z-1 overflow-hidden">
           <ImageFrost src={current()!.thumb} dim={0.42} />
-          <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(4,4,8,0.55)_0%,rgba(4,4,8,0.15)_52%,transparent_100%)]" />
+          <div class="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.52)_0%,rgba(0,0,0,0.14)_52%,transparent_100%)]" />
           <div class="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/30" />
         </div>
 

@@ -237,7 +237,10 @@ export function mapTrack(item, fallbackArtist) {
   const artistObjs = item.artists || item.authors || [];
   let artists = artistObjs.map((a) => a?.name).filter((n) => n && !isNotArtist(n));
   if (!artists.length && fallbackArtist && !isNotArtist(fallbackArtist)) artists.push(fallbackArtist);
-  const artistIds = artistObjs.map((a) => a?.id || a?.channel_id).filter(Boolean);
+  // Keep 1:1 index alignment between artists[] and artistIds[]
+  const artistIds = artistObjs
+    .filter((a) => a?.name && !isNotArtist(a.name))
+    .map((a) => a?.id || a?.channel_id || null);
   const rawTitle = typeof item.title === 'string' ? item.title : item.title?.text || '';
   const channel = item.author?.name || item.author || null;
   const parsed = parseTitleAndArtist(rawTitle, artists, typeof channel === 'string' ? channel : null);
@@ -2087,12 +2090,12 @@ export function pickBestMusicVideo(candidates, { cleanTitle, cleanArtist, album 
     // Also reject if channel has banned keywords (like "Live Concerts", "Interview Channel")
     if (BANNED_RE.test(channel)) continue;
 
-    // B. Tighter duration sanity (blocks shorts, teasers, movie scenes, jukeboxes)
+    // B. Duration sanity (blocks shorts, teasers, movie scenes, jukeboxes while allowing MV intros/outros)
     if (duration > 0) {
-      if (duration < 45 || duration > 480) continue;
+      if (duration < 45 || duration > 600) continue;
       if (targetDuration > 0) {
-        const minDur = Math.max(45, targetDuration - 20);
-        const maxDur = Math.min(480, Math.round(targetDuration * 1.3 + 45));
+        const minDur = Math.max(45, targetDuration - 25);
+        const maxDur = Math.min(600, Math.round(targetDuration * 1.45 + 75));
         if (duration < minDur || duration > maxDur) continue;
       }
     }
@@ -2100,7 +2103,7 @@ export function pickBestMusicVideo(candidates, { cleanTitle, cleanArtist, album 
     // C. Sequel lock (e.g. Awarapan 1 vs 2)
     if (!sameSequel(srcText, rawTitle)) continue;
 
-    // D. Bidirectional song title precision check (blocks unrelated songs sharing 1-2 words)
+    // D. Song title precision check (allows official MVs with movie/cast/label credits when exact title phrase matches)
     const strippedTitle = rawTitle
       .replace(/\(.*?\)|\[.*?\]/g, ' ')
       .replace(/\b(?:official|music|video|full|song|mv|4k|8k|hd|uhd|2160p|4320p|remastered|feat\.?|ft\.?)\b/gi, ' ');
@@ -2113,12 +2116,11 @@ export function pickBestMusicVideo(candidates, { cleanTitle, cleanArtist, album 
     const knownWords = new Set([...titleWords, ...artistWords, ...albumWords]);
     const extraTokens = candTokens.filter((w) => w.length > 1 && !knownWords.has(w));
     const hasExactPhrase = normCleanTitle.length >= 3 && tokens(rawTitle).join(' ').includes(normCleanTitle);
-    // Reject if there are too many unrelated extra words and no exact title phrase match
-    if (!hasExactPhrase && extraTokens.length > Math.max(2, titleWords.length)) continue;
-    if (titleWords.length <= 2 && extraTokens.length > 4 && !hasExactPhrase) continue;
+    const isYtMusicOmv = v?._ytMusicOmv === true;
+    // Reject only if there's NO exact title phrase AND it's NOT a YouTube Music OMV AND it has many unrelated words
+    if (!isYtMusicOmv && !hasExactPhrase && extraTokens.length > Math.max(3, titleWords.length)) continue;
 
     // E. Official channel ONLY (YouTube Music OMV, Vevo, artist's own/verified channel, or official labels)
-    const isYtMusicOmv = v?._ytMusicOmv === true;
     const isVerifiedArtist = Boolean(v?.author?.is_verified_artist || v?.author?.is_verified);
     const authority = isOfficialChannel(channel, cleanArtist) || (isYtMusicOmv ? 'ytmusic_omv' : null) || (isVerifiedArtist ? 'verified' : null);
     if (!authority) continue;

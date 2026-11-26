@@ -36,7 +36,7 @@ export function sizedArtwork(url: string | null | undefined, cssPx: number, aspe
     return url.replace(/(?:mqdefault|default|sddefault)\.(jpg|webp)/i, 'hqdefault.$1');
   }
   if (!RESIZABLE.test(url) || Math.abs(aspect - 1) > 0.01) return url;
-  const dpr = Math.min(typeof window === 'undefined' ? 2 : window.devicePixelRatio || 1, 3);
+  const dpr = Math.min(typeof window === 'undefined' ? 2 : window.devicePixelRatio || 1, 2);
   const needed = cssPx * dpr;
   const size = SQUARE_SIZES.find((s) => s >= needed) ?? SQUARE_SIZES[SQUARE_SIZES.length - 1]!;
   return artworkAtPixels(url, size);

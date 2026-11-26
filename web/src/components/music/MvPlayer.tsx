@@ -219,7 +219,7 @@ export function MvPlayer(props: MvPlayerProps) {
     }
   });
 
-  // Fallback timer: if <video> does not become ready within 1.8s, switch to iframe embed
+  // Fallback timer: if <video> does not become ready within 5s, switch to iframe embed (without permanent blacklisting)
   createEffect(() => {
     const active = props.active;
     const id = videoId();
@@ -229,10 +229,9 @@ export function MvPlayer(props: MvPlayerProps) {
       const el = videoEl();
       if (!loaded() && (!el || el.readyState < 2)) {
         console.info('[MvPlayer] video element timeout, falling back to YouTube player');
-        failedVideoIds.add(id);
         setUseIframe(true);
       }
-    }, 1800);
+    }, 5000);
 
     onCleanup(() => window.clearTimeout(timer));
   });

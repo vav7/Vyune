@@ -36,7 +36,7 @@ export interface LyricsStore {
 export const [lyricsStore, setLyricsStore] = createStore<LyricsStore>({
   picks: readLS<Record<string, LyricsPick>>(KEY, {}),
   syncOffsetMs: readLS<number>(OFFSET_KEY, 0),
-  showTranslation: readLS<boolean>(TRANS_KEY, true),
+  showTranslation: readLS<boolean>(TRANS_KEY, false),
   showRomanization: readLS<boolean>(ROMAN_KEY, false),
 
   getPick: (key) => lyricsStore.picks[key] ?? DEFAULT_PICK,
