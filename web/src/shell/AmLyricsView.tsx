@@ -10,8 +10,9 @@
  *   4. restyles its header/footer chrome away — the panel has its own menu.
  */
 
-import { createEffect, createMemo, on, onCleanup, onMount } from 'solid-js';
+import { createEffect, createMemo, createSignal, on, onCleanup, onMount } from 'solid-js';
 import { AmLyrics } from '@/vendor/am-lyrics/AmLyrics';
+import { GoogleService } from '@/vendor/am-lyrics/GoogleService';
 import { LyricClock } from '@/lib/clock';
 import { linesToTtml } from '@/lib/amttml';
 import type { LyricsLine } from '@/lib/types';
@@ -36,14 +37,11 @@ const CHROME = `
   /* Where the active line parks: am-lyrics' default is 18% from the top, which reads as
      "stuck at the top". About a third down keeps it in the middle of the eye line. */
   .lyrics-container { --lyrics-scroll-padding-top: 34%; }
-  /* Ad-libs never overlap their neighbours. am-lyrics commits an ad-lib's height at once and
-     lets the lines below glide into place; the ad-lib's text must not be visible during that
-     glide. So it fades IN after the neighbours have moved clear (the enter delay is the one
-     local patch in the vendored file) and fades OUT quickly, before the neighbour arrives. */
+  /* Restore original am-lyrics background-vocal (adlib) timing so adlibs enter and paint smoothly without a 300ms lag. */
   .lyrics-container {
-    --am-lyrics-background-vocal-enter-delay: 300ms;
-    --am-lyrics-background-vocal-enter-duration: 560ms;
-    --am-lyrics-background-vocal-exit-duration: 140ms;
+    --am-lyrics-background-vocal-enter-delay: 0ms;
+    --am-lyrics-background-vocal-enter-duration: 650ms;
+    --am-lyrics-background-vocal-exit-duration: 450ms;
   }
 
   /* ---- Premium type: SF Pro / Inter Variable font for lyrics, crisp HD glyphs ---- */
@@ -143,9 +141,9 @@ const CHROME = `
     text-rendering: optimizeLegibility;
     font-kerning: normal;
     letter-spacing: -0.015em;
-    line-height: 1.38 !important;
-    margin-block-end: 24px !important;
-    --am-lyrics-highlight-radius: 24px;
+    line-height: 1.24 !important;
+    margin-block-end: 22px !important;
+    --am-lyrics-highlight-radius: 20px;
     will-change: transform, opacity;
     text-wrap: pretty !important;
     contain: none !important;
@@ -221,18 +219,19 @@ const CHROME = `
   .lyrics-word {
     max-width: 100% !important;
     box-sizing: border-box !important;
+    white-space: nowrap !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
   }
   .lyrics-word.allow-break {
     white-space: normal !important;
     overflow-wrap: break-word !important;
-    word-break: break-word !important;
+    word-break: normal !important;
   }
   .lyrics-line::before { corner-shape: squircle; }
-  /* background-clip:text only paints inside the span's box. A tight box shaves the top off tall
-     glyphs and Indic vowel signs, so every span gets vertical room, cancelled by the negative
-     margin so the layout does not move. (Vertical only: the wipe is horizontal.) */
-  .lyrics-line:not(.lyrics-gap) .lyrics-syllable,
-  .lyrics-line:not(.lyrics-gap) .lyrics-syllable span.char {
+  /* Scope vertical glyph headroom to main vocals only so background adlibs aren't clipped or shifted. */
+  .lyrics-line:not(.lyrics-gap) .main-vocal-container .lyrics-syllable,
+  .lyrics-line:not(.lyrics-gap) .main-vocal-container .lyrics-syllable span.char {
     padding-block: 0.34em 0.26em;
     margin-block: -0.34em -0.26em;
   }
@@ -281,7 +280,63 @@ export function AmLyricsView(props: {
   let currentTrackId: string | null = null;
   const clock = new LyricClock(0);
 
-  const ttml = createMemo(() => linesToTtml(props.lines));
+  const [enrichedLines, setEnrichedLines] = createSignal<LyricsLine[] | null>(null);
+  const effectiveLines = () => enrichedLines() ?? props.lines;
+  const ttml = createMemo(() => linesToTtml(effectiveLines()));
+
+  // Enrich lines with accurate line-locked translation/romanization when toggled on (works in both Full & Panel modes)
+  createEffect(() => {
+    const base = props.lines;
+    const wantTrans = props.translation;
+    const wantRoman = props.romanization;
+    let cancelled = false;
+
+    if (!base.length || (!wantTrans && !wantRoman)) {
+      setEnrichedLines(null);
+      return;
+    }
+
+    const needsTrans = wantTrans && base.some((l) => !l.section && !l.translation && l.text?.some((s) => s.text?.trim()));
+    const needsRoman = wantRoman && base.some((l) => !l.section && !l.romanizedText && l.text?.some((s) => s.text?.trim()));
+
+    if (!needsTrans && !needsRoman) {
+      setEnrichedLines(null);
+      return;
+    }
+
+    void (async () => {
+      let next = base;
+      if (needsTrans) {
+        const lineTexts = next.map((l) => (l.section ? '' : l.text.map((s) => s.text).join('').trim()));
+        const translated = await GoogleService.translate(lineTexts, 'en').catch(() => null);
+        if (cancelled) return;
+        if (Array.isArray(translated)) {
+          next = next.map((l, i) =>
+            l.translation || !translated[i] ? l : { ...l, translation: translated[i] },
+          );
+        }
+      }
+      if (needsRoman) {
+        const romanInput = next.map((l) => ({
+          text: l.text.map((s) => ({ text: s.text, romanizedText: s.romanizedText })),
+          romanizedText: l.romanizedText,
+          isWordSynced: l.text.length > 1,
+        }));
+        const romanized = await GoogleService.romanize(romanInput).catch(() => null);
+        if (cancelled) return;
+        if (Array.isArray(romanized)) {
+          next = next.map((l, i) =>
+            l.romanizedText || !romanized[i]?.romanizedText ? l : { ...l, romanizedText: romanized[i].romanizedText },
+          );
+        }
+      }
+      if (!cancelled) setEnrichedLines(next);
+    })();
+
+    onCleanup(() => {
+      cancelled = true;
+    });
+  });
 
   const apply = () => {
     if (!el) return;
@@ -325,7 +380,9 @@ export function AmLyricsView(props: {
     const shaping = props.lines.some((line) => line.text.some((syllable) => SHAPING.test(syllable.text)));
     if (shaping) next.setAttribute('data-shaping', '');
     const size = Math.round((props.full ? 38 : 20) * (shaping ? 1.15 : 1));
-    next.style.cssText = `display:block;width:100%;height:100%;--lyplus-font-size-base:${size}px;--am-lyrics-line-height:${shaping ? 1.48 : 1.38};--am-lyrics-line-spacing:${shaping ? 28 : (props.full ? 28 : 20)}px;`;
+    next.style.cssText = `display:block;width:100%;height:100%;--lyplus-font-size-base:${size}px;--am-lyrics-line-height:${shaping ? 1.4 : 1.24};--am-lyrics-line-spacing:${shaping ? 26 : (props.full ? 24 : 18)}px;`;
+    next.showRomanization = props.romanization;
+    next.showTranslation = props.translation;
     next.ttml = ttml();
     next.addEventListener('line-click', (event) => {
       const at = (event as CustomEvent<{ timestamp: number }>).detail?.timestamp;

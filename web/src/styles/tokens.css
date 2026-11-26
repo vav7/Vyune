@@ -162,7 +162,7 @@
     color-scheme: dark;
 
     --pageBG: transparent;
-    --pageBG-rgb: 13, 14, 23;
+    --pageBG-rgb: 10, 10, 10;
 
     --systemPrimary: #ffffffeb;
     --systemSecondary: #ffffffa3;
@@ -221,9 +221,9 @@
     --glass-overlay-bg: rgba(0, 0, 0, 0.42);
     --glass-overlay-border: rgba(255, 255, 255, 0.14);
 
-    --systemStandardThinMaterialSover: rgba(18, 18, 24, 0.75);
-    --systemStandardThickMaterialSover: rgba(12, 12, 18, 0.85);
-    --systemHeaderMaterialSover: rgba(10, 10, 16, 0.85);
+    --systemStandardThinMaterialSover: rgba(16, 16, 16, 0.75);
+    --systemStandardThickMaterialSover: rgba(10, 10, 10, 0.85);
+    --systemHeaderMaterialSover: rgba(8, 8, 8, 0.85);
 
     --navSidebarSelectedState: rgba(255, 255, 255, 0.12);
     --tracklistHoverColor: rgba(255, 255, 255, 0.08);

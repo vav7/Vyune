@@ -1761,10 +1761,68 @@ const FAST_CLIENTS = [
 
 const fastClientCooldown = new Map();
 
+let cachedVisitorData = '';
+let visitorDataFetchedAt = 0;
+let visitorDataPromise = null;
+
+/**
+ * Fetches and caches a fresh YouTube visitorData token
+ * so VISIONOS / ANDROID_VR player requests succeed immediately without LOGIN_REQUIRED / 403.
+ */
+async function getVisitorData() {
+  const now = Date.now();
+  if (cachedVisitorData && now - visitorDataFetchedAt < 6 * 60 * 60_000) {
+    return cachedVisitorData;
+  }
+  if (visitorDataPromise) return visitorDataPromise;
+
+  visitorDataPromise = (async () => {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 2000);
+      const res = await fetch('https://www.youtube.com/youtubei/v1/visitor_id?prettyPrint=false', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Youtube-Client-Name': '82',
+          'X-Youtube-Client-Version': '1.02',
+          'User-Agent': FAST_CLIENTS[0].ua,
+        },
+        body: JSON.stringify({
+          context: {
+            client: {
+              clientName: 'VISIONOS',
+              clientVersion: '1.02',
+              hl: 'en',
+              gl: 'US',
+            },
+          },
+        }),
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        const id = data?.responseContext?.visitorData;
+        if (id) {
+          cachedVisitorData = id;
+          visitorDataFetchedAt = Date.now();
+          return id;
+        }
+      }
+    } catch {}
+    return cachedVisitorData || '';
+  })().finally(() => {
+    visitorDataPromise = null;
+  });
+
+  return visitorDataPromise;
+}
+
 /**
  * Tokenless Fast Audio Stream Resolver.
  * Races raw POST https://www.youtube.com/youtubei/v1/player?prettyPrint=false for VISIONOS and ANDROID_VR
- * with a 2,500ms timeout.
+ * with a cached X-Goog-Visitor-Id and 2,500ms timeout.
  */
 export async function resolveFastAudio(videoId, preferOpus = false) {
   if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) return null;
@@ -1775,20 +1833,25 @@ export async function resolveFastAudio(videoId, preferOpus = false) {
   );
   if (!availableClients.length) return null;
 
+  const visitorData = await getVisitorData();
+
   const resolveClient = async (client) => {
     const key = `${client.name}:${videoId}`;
     try {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 2500);
 
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-Youtube-Client-Name': client.id,
+        'X-Youtube-Client-Version': client.version,
+        'User-Agent': client.ua,
+      };
+      if (visitorData) headers['X-Goog-Visitor-Id'] = visitorData;
+
       const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Youtube-Client-Name': client.id,
-          'X-Youtube-Client-Version': client.version,
-          'User-Agent': client.ua,
-        },
+        headers,
         body: JSON.stringify({
           context: {
             client: {
@@ -1796,6 +1859,7 @@ export async function resolveFastAudio(videoId, preferOpus = false) {
               clientVersion: client.version,
               hl: 'en',
               gl: 'US',
+              ...(visitorData ? { visitorData } : {}),
             },
           },
           videoId,
@@ -1805,13 +1869,13 @@ export async function resolveFastAudio(videoId, preferOpus = false) {
       clearTimeout(timer);
 
       if (!res.ok) {
-        fastClientCooldown.set(key, Date.now() + 10 * 60_000);
+        fastClientCooldown.set(key, Date.now() + 30_000);
         throw new Error(`HTTP ${res.status}`);
       }
 
       const data = await res.json();
       if (data.playabilityStatus?.status !== 'OK') {
-        fastClientCooldown.set(key, Date.now() + 10 * 60_000);
+        fastClientCooldown.set(key, Date.now() + 30_000);
         throw new Error(`Playability: ${data.playabilityStatus?.status}`);
       }
 
@@ -1913,9 +1977,9 @@ function detectPart(str) {
   return null;
 }
 
-// 1. Hard-rejected keywords (no live, no lyrics, no fan-made/edits, no audio-only, no interviews/talk-shows, no room/casual sessions)
+// 1. Hard-rejected keywords (no live, TV/late-night shows, radio sessions, lyrics, fan-made/edits, audio-only, interviews)
 const BANNED_RE =
-  /\b(live|concert|unplugged|acoustic|session|performance|tour|festival|lyrical|lyric\s*video|lyrics|with\s*lyrics|audio|official\s*audio|full\s*audio|fan\s*made|fanmade|edit|status|whatsapp|shorts|#shorts|teaser|trailer|promo|making|bts|behind\s*the\s*scenes|reaction|cover|karaoke|instrumental|8d|slowed|reverb|sped\s*up|lofi|lo-fi|mashup|jukebox|remix|dj\s*mix|interview|talk\s*show|podcast|q&a|vlog|speech|documentary|review|tutorial|dance\s*practice|choreography|audition|in\s*room|singing|jamming|rehearsal|practice|casual|at\s*home|home\s*video|room\s*recording|homerecording|selfie)\b/i;
+  /\b(live|concert|unplugged|acoustic|session|performance|performs|tour|festival|jimmy\s*kimmel|jimmy\s*fallon|tonight\s*show|stephen\s*colbert|late\s*show|late\s*night|seth\s*meyers|james\s*corden|graham\s*norton|snl|saturday\s*night\s*live|tiny\s*desk|npr\s*music|colors\s*show|bbc\s*radio|live\s*lounge|iheartradio|siriusxm|vevo\s*lift|genius|open\s*mic|on\s*air|lyrical|lyric\s*video|lyrics|with\s*lyrics|audio|official\s*audio|full\s*audio|fan\s*made|fanmade|edit|status|whatsapp|shorts|#shorts|teaser|trailer|promo|making|bts|behind\s*the\s*scenes|reaction|cover|karaoke|instrumental|8d|slowed|reverb|sped\s*up|lofi|lo-fi|mashup|jukebox|remix|dj\s*mix|interview|talk\s*show|podcast|q&a|vlog|speech|documentary|review|tutorial|dance\s*practice|choreography|audition|in\s*room|singing|jamming|rehearsal|practice|casual|at\s*home|home\s*video|room\s*recording|homerecording|selfie)\b/i;
 
 // 2. Trusted official Indian & global label channels (blocks fan-made re-uploads)
 const INDIAN_LABELS_RE =
@@ -1996,11 +2060,15 @@ function isOfficialChannel(channel, cleanArtist) {
   return null; // anything else (fan channels, random uploaders) -> rejected
 }
 
+const ARTIST_STOPWORDS = new Set(['the', 'and', 'for', 'with', 'feat', 'ft', 'dj', 'mr', 'ms', 'mc', 'dr']);
+
 export function pickBestMusicVideo(candidates, { cleanTitle, cleanArtist, album = '', targetDuration = 0 }) {
   const titleWords = tokens(cleanTitle).filter((w) => w.length > 1);
-  const artistWords = tokens(cleanArtist).filter((w) => w.length > 1);
-  const albumWords = tokens(album).filter((w) => w.length > 2);
+  const artistWords = tokens(cleanArtist).filter((w) => w.length >= 3 && !ARTIST_STOPWORDS.has(w));
+  const albumWords = tokens(album).filter((w) => w.length >= 3);
   const srcText = `${cleanTitle} ${album}`;
+  const normCleanTitle = tokens(cleanTitle).join(' ');
+  const normCleanArtist = tokens(cleanArtist).join(' ');
 
   if (!titleWords.length) return null;
 
@@ -2019,12 +2087,12 @@ export function pickBestMusicVideo(candidates, { cleanTitle, cleanArtist, album 
     // Also reject if channel has banned keywords (like "Live Concerts", "Interview Channel")
     if (BANNED_RE.test(channel)) continue;
 
-    // B. Duration sanity (blocks shorts, teasers, movie clips, jukeboxes)
+    // B. Tighter duration sanity (blocks shorts, teasers, movie scenes, jukeboxes)
     if (duration > 0) {
-      if (duration < 45 || duration > 540) continue;
+      if (duration < 45 || duration > 480) continue;
       if (targetDuration > 0) {
-        const minDur = Math.max(45, targetDuration - 25);
-        const maxDur = Math.min(540, Math.round(targetDuration * 1.5 + 60));
+        const minDur = Math.max(45, targetDuration - 20);
+        const maxDur = Math.min(480, Math.round(targetDuration * 1.3 + 45));
         if (duration < minDur || duration > maxDur) continue;
       }
     }
@@ -2032,44 +2100,65 @@ export function pickBestMusicVideo(candidates, { cleanTitle, cleanArtist, album 
     // C. Sequel lock (e.g. Awarapan 1 vs 2)
     if (!sameSequel(srcText, rawTitle)) continue;
 
-    // D. Exact song title check
+    // D. Bidirectional song title precision check (blocks unrelated songs sharing 1-2 words)
+    const strippedTitle = rawTitle
+      .replace(/\(.*?\)|\[.*?\]/g, ' ')
+      .replace(/\b(?:official|music|video|full|song|mv|4k|8k|hd|uhd|2160p|4320p|remastered|feat\.?|ft\.?)\b/gi, ' ');
+    const candTokens = tokens(strippedTitle);
     const candWords = new Set(tokens(rawTitle));
     const hits = titleWords.filter((w) => candWords.has(w)).length;
     const minRatio = titleWords.length <= 3 ? 1.0 : 0.85;
     if (hits / titleWords.length < minRatio) continue;
 
-    // E. Official channel ONLY (Vevo / artist's own channel / Indian & global official labels)
-    const authority = isOfficialChannel(channel, cleanArtist);
+    const knownWords = new Set([...titleWords, ...artistWords, ...albumWords]);
+    const extraTokens = candTokens.filter((w) => w.length > 1 && !knownWords.has(w));
+    const hasExactPhrase = normCleanTitle.length >= 3 && tokens(rawTitle).join(' ').includes(normCleanTitle);
+    // Reject if there are too many unrelated extra words and no exact title phrase match
+    if (!hasExactPhrase && extraTokens.length > Math.max(2, titleWords.length)) continue;
+    if (titleWords.length <= 2 && extraTokens.length > 4 && !hasExactPhrase) continue;
+
+    // E. Official channel ONLY (YouTube Music OMV, Vevo, artist's own/verified channel, or official labels)
+    const isYtMusicOmv = v?._ytMusicOmv === true;
+    const isVerifiedArtist = Boolean(v?.author?.is_verified_artist || v?.author?.is_verified);
+    const authority = isOfficialChannel(channel, cleanArtist) || (isYtMusicOmv ? 'ytmusic_omv' : null) || (isVerifiedArtist ? 'verified' : null);
     if (!authority) continue;
 
-    // For label channels (e.g. T-Series / Sony / Zee), confirm artist OR movie/album appears in the video title
-    if (authority === 'indian_label' || authority === 'global_label') {
-      const lower = rawTitle.toLowerCase();
-      const hasArtist = artistWords.some((w) => lower.includes(w));
-      const hasAlbum = albumWords.length > 0 && albumWords.some((w) => lower.includes(w));
-      if (!hasArtist && !hasAlbum) continue;
+    // For label or generic verified channels, confirm full primary artist OR album appears in title/artists
+    if (authority === 'indian_label' || authority === 'global_label' || authority === 'verified' || authority === 'ytmusic_omv') {
+      const lower = `${rawTitle} ${(v?.artists || []).join(' ')} ${channel}`.toLowerCase();
+      const normRaw = tokens(`${rawTitle} ${(v?.artists || []).join(' ')} ${channel}`).join(' ');
+      const hasFullArtist = normCleanArtist.length >= 3 && normRaw.includes(normCleanArtist);
+      const hasArtistTokens = artistWords.length > 0 && artistWords.every((w) => lower.includes(w));
+      const hasAlbum = albumWords.length > 0 && albumWords.every((w) => lower.includes(w));
+      if (!hasFullArtist && !hasArtistTokens && !hasAlbum) continue;
     }
 
-    // --- Step 2: Simple ranking among verified official MVs ---
+    // --- Step 2: Google-style authority + relevance ranking ---
     let rank = 0;
 
-    // Prefer 8K / 4K remasters (great for T-Series / Sony / Zee classic Indian songs)
-    if (/\b(8k|4320p)\b/i.test(rawTitle)) rank += 45;
-    else if (/\b(4k|2160p|uhd|remastered)\b/i.test(rawTitle)) rank += 35;
+    if (isYtMusicOmv) rank += 90;
+    if (hasExactPhrase) rank += 30;
+    if (extraTokens.length === 0) rank += 20;
+
+    // Prefer 8K / 4K remasters
+    if (/\b(8k|4320p)\b/i.test(rawTitle)) rank += 35;
+    else if (/\b(4k|2160p|uhd|remastered)\b/i.test(rawTitle)) rank += 25;
 
     // Prefer explicit music video labels
-    if (/\bofficial\s*(music\s*)?video\b|\bofficial\s*mv\b/i.test(rawTitle)) rank += 35;
+    if (/\bofficial\s*(music\s*)?video\b|\bofficial\s*mv\b/i.test(rawTitle)) rank += 40;
     else if (/\bfull\s*video\s*song\b|\bofficial\s*video\s*song\b/i.test(rawTitle)) rank += 35;
     else if (/\bfull\s*video\b|\bvideo\s*song\b/i.test(rawTitle)) rank += 25;
 
-    // Channel authority tie-breaker (Indian and global verified labels are top authority for film/album music videos)
-    if (authority === 'indian_label') rank += 35;
-    else if (authority === 'vevo') rank += 30;
-    else if (authority === 'artist') rank += 25;
-    else if (authority === 'global_label') rank += 25;
+    // Channel authority tie-breaker
+    if (authority === 'ytmusic_omv') rank += 45;
+    else if (authority === 'vevo') rank += 40;
+    else if (authority === 'artist') rank += 35;
+    else if (authority === 'indian_label') rank += 35;
+    else if (authority === 'global_label') rank += 30;
+    else if (authority === 'verified') rank += 20;
 
     // Closer duration to the original audio track
-    if (duration > 0 && targetDuration > 0 && Math.abs(duration - targetDuration) <= 15) {
+    if (duration > 0 && targetDuration > 0 && Math.abs(duration - targetDuration) <= 12) {
       rank += 15;
     }
 
@@ -2108,25 +2197,35 @@ export async function resolveMusicVideo(title, artist, songVideoId, opts = {}) {
   try {
     const yt = await getYT();
 
-    // 3 parallel targeted searches: official MV query, album full video song query, and HD remaster query
+    // Tier 1: YouTube Music's own Video shelf (OMV) + Tier 2: Google-style YouTube official MV queries
+    const ytMusicPromise = searchVideos(`${cleanArtist} ${cleanTitle}`.trim(), 8).catch(() => []);
     const queries = [
       `${cleanArtist} ${cleanTitle} official music video`.trim(),
       album && !cleanTitle.toLowerCase().includes(album.toLowerCase())
         ? `${cleanTitle} ${album} full video song`.trim()
-        : `${cleanArtist} ${cleanTitle} 4k official video`.trim(),
-      album
-        ? `${cleanTitle} ${album} official video song`.trim()
-        : `${cleanArtist} ${cleanTitle} full video song`.trim(),
+        : `${cleanArtist} ${cleanTitle} official video`.trim(),
     ];
 
-    const settled = await Promise.allSettled(
-      queries.map((q) => yt.search(q, { type: 'video' }))
-    );
+    const [ytmVideos, ...settled] = await Promise.all([
+      ytMusicPromise,
+      ...queries.map((q) => yt.search(q, { type: 'video' }).catch(() => null)),
+    ]);
 
     const deduped = new Map();
+    for (const v of ytmVideos || []) {
+      if (v?.id && !deduped.has(v.id)) {
+        deduped.set(v.id, {
+          id: v.id,
+          title: v.title,
+          channel: (v.artists || []).join(', ') || v.channel || '',
+          artists: v.artists || [],
+          duration: v.duration || 0,
+          _ytMusicOmv: true,
+        });
+      }
+    }
     for (const r of settled) {
-      if (r.status !== 'fulfilled') continue;
-      for (const v of r.value?.videos || []) {
+      for (const v of r?.videos || []) {
         const id = v?.id;
         if (id && !deduped.has(id)) deduped.set(id, v);
       }

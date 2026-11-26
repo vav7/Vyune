@@ -393,14 +393,14 @@
   background:
     radial-gradient(130% 85% at 12% 0%, rgba(255, 255, 255, 0.10) 0%, transparent 58%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.01) 35%, rgba(0, 0, 0, 0.28) 100%),
-    rgba(10, 10, 16, 0.65);
-  backdrop-filter: blur(48px) saturate(220%) brightness(1.05);
-  -webkit-backdrop-filter: blur(48px) saturate(220%) brightness(1.05);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+    rgba(0, 0, 0, 0.50);
+  backdrop-filter: blur(32px) saturate(2);
+  -webkit-backdrop-filter: blur(32px) saturate(2);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.50),
     inset 0 0 0 0.5px rgba(255, 255, 255, 0.10),
-    0 28px 70px -22px rgba(0, 0, 0, 0.65);
+    0 28px 70px -22px rgba(0, 0, 0, 0.85);
 }
 
 /* The player pill's glass: pure optical liquid refraction with dual-vector rim and specular drift. */
@@ -421,9 +421,9 @@
     background:
       radial-gradient(120% 80% at 15% 0%, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.03) 45%, transparent 70%),
       radial-gradient(100% 70% at 85% 100%, color-mix(in srgb, var(--song-tint, transparent) 18%, transparent) 0%, transparent 68%),
-      rgba(14, 14, 20, 0.68);
-    backdrop-filter: blur(36px) saturate(2.1) brightness(1.04);
-    -webkit-backdrop-filter: blur(36px) saturate(2.1) brightness(1.04);
+      rgba(0, 0, 0, 0.52);
+    backdrop-filter: blur(32px) saturate(2);
+    -webkit-backdrop-filter: blur(32px) saturate(2);
     transition: background-color 400ms cubic-bezier(0.22, 1, 0.36, 1);
     box-shadow:
       0 24px 60px -12px rgba(0, 0, 0, 0.75),
@@ -771,15 +771,13 @@
   /* Titles in the display face (important: the type-* tokens set the font shorthand). */
   h1, h2, h3 { font-family: var(--font-display) !important; letter-spacing: -0.028em; }
 
-  /* Pure liquid glass track rows: crystal transparency, soft rim and zero grain */
+  /* Clean liquid glass track rows: zero per-row backdrop-filter so scrolling is 120fps */
   .track-row {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.035);
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09);
+    transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
   }
   .track-row:hover {
     background: rgba(255, 255, 255, 0.09);
@@ -1062,29 +1060,7 @@
   .artist-rise, .hero-settle, .hero-name { animation: none; }
 }
 
-/* ------------------------------------------------------------------ */
-/* Colour scatter over the frosted artwork: a few huge soft pools of   */
-/* the picture's own colours, drifting slowly. Transform only.         */
-/* ------------------------------------------------------------------ */
-.frost-blob {
-  position: absolute;
-  width: 72vmax;
-  height: 72vmax;
-  border-radius: 50%;
-  opacity: 0.4;
-  will-change: transform;
-}
-.frost-blob[data-i='0'] { left: -22vmax; top: -26vmax; animation: frost-a 34s ease-in-out infinite alternate; }
-.frost-blob[data-i='1'] { right: -26vmax; top: -12vmax; animation: frost-b 41s ease-in-out infinite alternate; }
-.frost-blob[data-i='2'] { right: -18vmax; bottom: -34vmax; animation: frost-c 38s ease-in-out infinite alternate; }
-.frost-blob[data-i='3'] { left: -30vmax; bottom: -30vmax; animation: frost-d 46s ease-in-out infinite alternate; }
-@keyframes frost-a { to { transform: translate3d(16vmax, 12vmax, 0) scale(1.12); } }
-@keyframes frost-b { to { transform: translate3d(-14vmax, 16vmax, 0) scale(0.92); } }
-@keyframes frost-c { to { transform: translate3d(-18vmax, -12vmax, 0) scale(1.1); } }
-@keyframes frost-d { to { transform: translate3d(14vmax, -16vmax, 0) scale(0.94); } }
-@media (prefers-reduced-motion: reduce) {
-  .frost-blob { animation: none; }
-}
+/* (frost-blob removed for 120fps compositor performance) */
 
 /* Search: the "now playing" bars laid over the current row's art. */
 .sr-bars{display:inline-flex;align-items:flex-end;gap:2px;height:14px}

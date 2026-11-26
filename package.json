@@ -23,10 +23,8 @@
   "dependencies": {
     "@distube/ytdl-core": "5.2.1",
     "@xmldom/xmldom": "^0.9.12",
-    "bgutils-js": "^4.0.3",
     "crypto-js": "^4.2.0",
     "hono": "^4.13.16",
-    "jsdom": "^24.1.3",
     "youtubei.js": "^18.3.0"
   },
   "workspaces": [

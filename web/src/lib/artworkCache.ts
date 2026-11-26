@@ -54,17 +54,6 @@ export function preloadImage(url: string): void {
   img.decoding = 'async';
   img.referrerPolicy = 'no-referrer';
   img.src = url;
-
-  // Cache in CacheStorage if supported
-  if ('caches' in window) {
-    void window.caches.open('vyune-art-v1').then((cache) => {
-      cache.match(url).then((matched) => {
-        if (!matched) {
-          fetch(url, { mode: 'no-cors' }).then((res) => cache.put(url, res)).catch(() => {});
-        }
-      });
-    }).catch(() => {});
-  }
 }
 
 /** Save verified high-res studio artwork into client cache and pre-decode */

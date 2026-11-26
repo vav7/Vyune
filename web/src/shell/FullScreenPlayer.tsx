@@ -485,7 +485,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
           <div
             // Over everything but menus and dialogs, which portal above it. The on-dark colours come from tokens.css.
             // --art, the artwork's side: Apple's 461px at 1440px wide, and never taller than the screen leaves room for.
-            class={`fullscreen group fixed inset-0 z-[calc(var(--z-contextual-menus)-2)] isolate overflow-hidden bg-[#0a0a0e] text-primary will-change-transform [--art:min(43vw,calc(100dvh-140px),880px)] max-md:[--art:min(54vw,calc(100dvh-420px),340px)]`}
+            class={`fullscreen group fixed inset-0 z-[calc(var(--z-contextual-menus)-2)] isolate overflow-hidden bg-[#050505] text-primary will-change-transform [--art:min(43vw,calc(100dvh-140px),880px)] max-md:[--art:min(54vw,calc(100dvh-420px),340px)]`}
             role="dialog"
             aria-modal="true"
             aria-label="Now Playing"
@@ -559,7 +559,7 @@ export function FullScreenPlayer(props: { onExited: () => void }) {
               >
                 {/* Apple-grade squarish card with subtle curve, morphing smoothly into 16:9 only once MV is playing & ready */}
                 <div
-                  class={`fs-poster group/poster relative rounded-[14px] overflow-hidden bg-black/40 shadow-[0_24px_60px_rgba(0,0,0,0.6)] border border-white/15 transition-[width,height,transform,opacity] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer select-none group-data-[idle=true]:scale-[0.98]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.94]'}`}
+                  class={`fs-poster group/poster relative rounded-[16px] overflow-hidden bg-black/50 shadow-[0_28px_70px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.28)] border border-white/18 transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer select-none group-data-[idle=true]:scale-[0.98]${playerStore.playing || playerStore.loading ? '' : ' scale-[0.94]'}`}
                   style={{
                     width: stageWidth(),
                     height: stageHeight(),

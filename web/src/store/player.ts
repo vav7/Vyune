@@ -459,7 +459,7 @@ async function recoverStream(track: Track, shouldResume: boolean) {
   try {
     const fallback = await resolveStream(track, true);
     if (snap().current !== track) return;
-    const fallbackSrc = fallback.source === 'saavn' ? (fallback.url || fallback.proxy) : (fallback.proxy || fallback.url);
+    const fallbackSrc = fallback.url || fallback.proxy;
     if (fallbackSrc) {
       audio.src = fallbackSrc;
       applyVolume();
@@ -502,12 +502,19 @@ function scheduleStreamRecovery(delay: number) {
 }
 
 function queuePrefetch(track: Track, priority = false) {
-  // Apple's motion clip for upcoming songs is looked up ahead, so it is ready when they start.
+  // Apple's motion clip and official MV metadata are pre-resolved ahead of time so switching tracks or modes is instant.
   if (track?.title && track.artists?.[0] && TIERS[currentTier()].motion) {
     void queryClient
       .prefetchQuery({
         queryKey: ['apple-motion-v2', track.id, track.title, (track.artists || []).join('|'), track.album],
         queryFn: ({ signal }) => apiClient.appleMotion(track, signal),
+        staleTime: 24 * 60 * 60_000,
+      })
+      .catch(() => undefined);
+    void queryClient
+      .prefetchQuery({
+        queryKey: ['mv-resolve-v2', track.id, track.title, (track.artists || []).join('|')],
+        queryFn: ({ signal }) => apiClient.resolveMv(track, signal),
         staleTime: 24 * 60 * 60_000,
       })
       .catch(() => undefined);
@@ -634,12 +641,11 @@ async function loadTrack(index: number, autoplay = true) {
     const stream = await resolveStream(track);
     if (session !== activeLoadSession || snap().current?.id !== track.id) return; // skipped while resolving
 
-    const chosenSrc = stream.source === 'saavn' ? (stream.url || stream.proxy) : (stream.proxy || stream.url);
+    const chosenSrc = stream.url || stream.proxy;
     if (!chosenSrc) throw new Error('no_stream_url');
 
     audio.src = chosenSrc;
     applyVolume();
-    audio.load();
     streamResolved = true;
 
     if (autoplay) {
@@ -680,7 +686,7 @@ async function loadTrack(index: number, autoplay = true) {
       recoveredTrackId = track.id;
       const fallback = await resolveStream(track, true);
       if (session !== activeLoadSession || snap().current?.id !== track.id) return;
-      const fallbackSrc = fallback.source === 'saavn' ? (fallback.url || fallback.proxy) : (fallback.proxy || fallback.url);
+      const fallbackSrc = fallback.url || fallback.proxy;
       if (fallbackSrc) {
         audio.src = fallbackSrc;
         applyVolume();

@@ -11,12 +11,7 @@ const LABEL: Record<string, string> = {
 };
 
 /** The player's three dots: what the glass behind the art is made of, the Up Next list, and volume. */
-export function PlayerMenu({
-  class: className = '',
-  up = true,
-  upNext,
-  showVolume = true,
-}: {
+export function PlayerMenu(props: {
   class?: string;
   up?: boolean;
   /** Overrides the side-panel Up Next toggle (the full-screen player has its own column). */
@@ -40,17 +35,17 @@ export function PlayerMenu({
     });
   });
 
-  const upNextActive = () => (upNext ? upNext.active() : uiStore.sidePanel === 'up-next');
+  const upNextActive = () => (props.upNext ? props.upNext.active() : uiStore.sidePanel === 'up-next');
 
   return (
     <div ref={root} class="relative">
-      <button class={className} aria-label="More options" aria-haspopup="menu" aria-expanded={open()} onClick={() => setOpen((v) => !v)}>
+      <button class={props.class ?? ''} aria-label="More options" aria-haspopup="menu" aria-expanded={open()} onClick={() => setOpen((v) => !v)}>
         <MoreHorizontal size={18} />
       </button>
       <Show when={open()}>
         <div
           role="menu"
-          class={`absolute right-0 z-[80] w-64 rounded-[14px] border border-white/12 bg-[rgb(22_22_28/0.88)] p-1.5 shadow-[0_24px_60px_-14px_#000e] [backdrop-filter:blur(26px)_saturate(1.6)] animate-[fade-in_140ms_ease-out_both] ${up ? 'bottom-full mb-3' : 'top-full mt-2'}`}
+          class={`absolute right-0 z-[80] w-64 rounded-[14px] border border-white/12 bg-[rgb(18_18_18/0.88)] p-1.5 shadow-[0_24px_60px_-14px_#000e] [backdrop-filter:blur(26px)_saturate(1.6)] animate-[fade-in_140ms_ease-out_both] ${(props.up ?? true) ? 'bottom-full mb-3' : 'top-full mt-2'}`}
         >
           <p class="px-3 pt-1.5 pb-1 type-[700_10px/14px] tracking-[0.16em] text-tertiary uppercase">Background</p>
           <For each={ART_MODES}>
@@ -95,7 +90,7 @@ export function PlayerMenu({
             aria-checked={upNextActive()}
             class="flex h-9 w-full items-center justify-between rounded-[9px] px-3 text-left type-[500_13px/18px] text-white hover:bg-white/10"
             onClick={() => {
-              if (upNext) upNext.toggle();
+              if (props.upNext) props.upNext.toggle();
               else uiStore.toggleSidePanel('up-next');
               setOpen(false);
             }}
@@ -105,7 +100,7 @@ export function PlayerMenu({
               <Check size={15} aria-hidden="true" />
             </Show>
           </button>
-          <Show when={showVolume}>
+          <Show when={props.showVolume ?? true}>
             <div class="px-3 pt-2 pb-1.5">
               <ArtVolume />
             </div>

@@ -45,6 +45,8 @@ export class GoogleService {
     );
   }
 
+  private static translationCache = new Map<string, string>();
+
   static async translate(
     textOrArray: string | string[],
     targetLang: string,
@@ -59,7 +61,6 @@ export class GoogleService {
     const isArray = Array.isArray(textOrArray);
     const texts = isArray ? (textOrArray as string[]) : [textOrArray as string];
 
-    // Check for empty strings to preserve indices
     const nonEmptyIndices: number[] = [];
     const textsToTranslate: string[] = [];
 
@@ -74,62 +75,95 @@ export class GoogleService {
       return isArray ? texts : texts[0];
     }
 
-    // Batching logic: Google Translate URL limit is roughly 2000 chars.
-    // We'll be conservative with 1500 chars per batch.
-    const BATCH_SIZE_CHARS = 1500;
-    const translatedResults: string[] = new Array(textsToTranslate.length).fill(
-      '',
-    );
+    const translatedResults: string[] = new Array(textsToTranslate.length).fill('');
+    const uncachedIndices: number[] = [];
+    const uncachedTexts: string[] = [];
 
+    textsToTranslate.forEach((t, i) => {
+      const hit = GoogleService.translationCache.get(`${targetLang}::${t}`);
+      if (hit !== undefined) translatedResults[i] = hit;
+      else {
+        uncachedIndices.push(i);
+        uncachedTexts.push(t);
+      }
+    });
+
+    if (uncachedTexts.length === 0) {
+      const cachedOut = [...texts];
+      nonEmptyIndices.forEach((realIdx, mappedIdx) => {
+        cachedOut[realIdx] = translatedResults[mappedIdx];
+      });
+      return isArray ? cachedOut : cachedOut[0];
+    }
+
+    // Detect dominant source language once across the song so mixed/romanized lines don't flip languages per batch
+    let sourceLang = 'auto';
+    try {
+      const sample = uncachedTexts.slice(0, 8).join(' ').slice(0, 400);
+      const detectUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(sample)}`;
+      const detectRes = await GoogleService.fetchWithTimeout(detectUrl);
+      if (detectRes.ok) {
+        const detectData = await detectRes.json();
+        if (typeof detectData?.[2] === 'string' && detectData[2]) {
+          sourceLang = detectData[2];
+        }
+      }
+    } catch {}
+
+    // If the song is already in the target language, return originals cleanly without garbling
+    if (sourceLang === targetLang || sourceLang.startsWith(`${targetLang}-`)) {
+      uncachedIndices.forEach((idx, i) => {
+        translatedResults[idx] = uncachedTexts[i];
+        GoogleService.translationCache.set(`${targetLang}::${uncachedTexts[i]}`, uncachedTexts[i]);
+      });
+      const sameLangOut = [...texts];
+      nonEmptyIndices.forEach((realIdx, mappedIdx) => {
+        sameLangOut[realIdx] = translatedResults[mappedIdx];
+      });
+      return isArray ? sameLangOut : sameLangOut[0];
+    }
+
+    const BATCH_SIZE_CHARS = 1200;
     let currentBatch: string[] = [];
     let currentBatchIndices: number[] = [];
     let currentBatchLength = 0;
 
     const processBatch = async (batch: string[], indices: number[]) => {
       if (batch.length === 0) return;
-      const joinedText = batch.join('\n');
+      // Line-locked markers prevent Google Translate from merging or splitting lines
+      const markedText = batch.map((line, idx) => `[#${idx}] ${line}`).join('\n');
 
       let attempt = 0;
       let success = false;
 
       while (attempt < CONFIG.GOOGLE.MAX_RETRIES && !success) {
         try {
-          const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(joinedText)}`;
+          const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${encodeURIComponent(sourceLang)}&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(markedText)}`;
           // eslint-disable-next-line no-await-in-loop
           const response = await GoogleService.fetchWithTimeout(url);
           if (!response.ok) throw new Error(`Status ${response.status}`);
           // eslint-disable-next-line no-await-in-loop
           const data = await response.json();
 
-          // data[0] contains segments.
-          // With batching/newlines, Google sometimes returns one large segment with newlines,
-          // or multiple segments. We need to reconstruct the full text first.
-
           const fullTranslation =
             data?.[0]?.map((seg: any) => seg?.[0]).join('') || '';
 
-          // Split by newline to get individual lines back
-          const lines = fullTranslation.split('\n');
+          // Parse back by [#idx] markers first for 1:1 line alignment
+          const mapped = new Map<number, string>();
+          const markerRe = /\[#\s*(\d+)\s*\]\s*([^\n[]*(?:\n(?!\[#\s*\d+\s*\])[^\n]*)*)/g;
+          let m: RegExpExecArray | null;
+          while ((m = markerRe.exec(fullTranslation)) !== null) {
+            const idx = Number(m[1]);
+            const val = m[2].replace(/\s+/g, ' ').trim();
+            if (Number.isInteger(idx) && val) mapped.set(idx, val);
+          }
 
-          // Edge case: Google might strip trailing newlines or add extra.
-          // If we sent N lines, we expect N lines back approx.
-          // However, empty lines in input were filtered out before sending.
-          // So 'lines' should match 'batch'.
-
-          // If mismatch, try to align? Or just take what we have.
-          // If lines.length < batch.length, we might have lost some.
-          // If lines.length > batch.length, maybe some line wrap?
-
-          // We'll trust the split for now but ensure we don't overflow.
+          const fallbackLines = fullTranslation.split('\n').map((s: string) => s.replace(/^\s*\[#\s*\d+\s*\]\s*/, '').trim());
 
           indices.forEach((originalIdx, i) => {
-            // Safe access
-            if (i < lines.length) {
-              translatedResults[originalIdx] = lines[i];
-            } else {
-              // Fallback if response is shorter
-              translatedResults[originalIdx] = batch[i];
-            }
+            const val = mapped.get(i) || fallbackLines[i] || batch[i];
+            translatedResults[originalIdx] = val;
+            GoogleService.translationCache.set(`${targetLang}::${batch[i]}`, val);
           });
 
           success = true;
@@ -141,7 +175,6 @@ export class GoogleService {
               CONFIG.GOOGLE.RETRY_DELAY_MS * 2 ** (attempt - 1),
             );
           } else {
-            // Fail: fill with original
             indices.forEach((originalIdx, i) => {
               translatedResults[originalIdx] = batch[i];
             });
@@ -150,9 +183,9 @@ export class GoogleService {
       }
     };
 
-    for (let i = 0; i < textsToTranslate.length; i += 1) {
-      const text = textsToTranslate[i];
-      if (currentBatchLength + text.length > BATCH_SIZE_CHARS) {
+    for (let i = 0; i < uncachedTexts.length; i += 1) {
+      const text = uncachedTexts[i];
+      if (currentBatchLength + text.length + 8 > BATCH_SIZE_CHARS) {
         // eslint-disable-next-line no-await-in-loop
         await processBatch(currentBatch, currentBatchIndices);
         currentBatch = [];
@@ -160,15 +193,14 @@ export class GoogleService {
         currentBatchLength = 0;
       }
       currentBatch.push(text);
-      currentBatchIndices.push(i);
-      currentBatchLength += text.length;
+      currentBatchIndices.push(uncachedIndices[i]);
+      currentBatchLength += text.length + 8;
     }
 
     if (currentBatch.length > 0) {
       await processBatch(currentBatch, currentBatchIndices);
     }
 
-    // Reconstruct final array
     const finalArray = [...texts];
     nonEmptyIndices.forEach((realIdx, mappedIdx) => {
       finalArray[realIdx] = translatedResults[mappedIdx];

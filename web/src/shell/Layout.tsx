@@ -121,18 +121,16 @@ export function Layout(props: RouteSectionProps) {
   });
 
   return (
-    <div class="mc-frame">
+    <div
+      class="mc-frame"
+      style={{
+        '--amb1': activePalette()?.[0] ?? AMBIENT[0],
+        '--amb2': activePalette()?.[1] ?? AMBIENT[1],
+        '--amb3': activePalette()?.[2] ?? AMBIENT[2],
+        '--amb4': activePalette()?.[3] ?? activePalette()?.[0] ?? AMBIENT[3],
+      }}
+    >
       <AppBackground />
-      <div
-        class="mc-ambient"
-        aria-hidden="true"
-        style={{
-          '--amb1': activePalette()?.[0] ?? AMBIENT[0],
-          '--amb2': activePalette()?.[1] ?? AMBIENT[1],
-          '--amb3': activePalette()?.[2] ?? AMBIENT[2],
-          '--amb4': activePalette()?.[3] ?? activePalette()?.[0] ?? AMBIENT[3],
-        }}
-      />
       {/* The side panel slides in from beyond the right edge; never let it scroll the page. */}
       <div class="mc-col-sidebar">
         <Sidebar data-sidebar />

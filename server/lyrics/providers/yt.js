@@ -1,7 +1,7 @@
 /**
- * yt.js — Official YouTube Music Synchronized Lyrics Provider (BitChord engine).
+ * yt.js — Official YouTube Music Synchronized Lyrics Provider.
  *
- * Implements BitChord's native Android Music client context bypass:
+ * Implements native Android Music client context resolution:
  * 1. Calls /next on YouTube Music to extract the lyrics browseId (MUSIC_PAGE_TYPE_TRACK_LYRICS).
  * 2. Browses the endpoint as ANDROID_MUSIC (v7.21.50) to receive exact timedLyricsData.
  * 3. Maps millisecond start and end time ranges for 100% accurate lyrics sync.
@@ -19,7 +19,7 @@ const ANDROID_MUSIC_VERSION = '7.21.50';
  * YouTube Music only serves its timed lyrics to the phone app: the web client
  * is answered with the plain description shelf. youtubei.js's own
  * `YTMUSIC_ANDROID` client is pinned to 5.34.51, which YouTube now rejects, so
- * this asks with a current Android Music context instead (BitChord pattern).
+ * this asks with a current Android Music context instead.
  */
 async function browseAsAndroidMusic(yt, browseId) {
   const session = yt.session;
@@ -204,7 +204,7 @@ export default {
         if (hits[0]?.id) videoId = hits[0].id;
       }
 
-      // 1. BitChord Native YouTube Music Timed Lyrics extraction
+      // 1. Native YouTube Music Timed Lyrics extraction
       if (videoId) {
         try {
           const watch = await yt.actions.execute('/next', { videoId, client: 'YTMUSIC', parse: false });

@@ -4,6 +4,7 @@ import type {
   AlbumPage, AppleArtistArt, AppleMotionArt, ArtistPage, Card, GenreCategory, LyricsResult, Playlist,
   SearchFilter, SearchPageResult, SearchResult, SearchRow, StreamResult, Track,
 } from './types';
+import { isVideoThumbnail } from './artwork';
 
 async function getJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
   const r = await fetch(url, { signal });
@@ -57,9 +58,9 @@ export const api = {
       duration: track.duration ? String(track.duration) : '',
     });
     if (supportsOpusMse()) p.set('codec', 'opus');
-    // An upload is somebody's copy of something: resolve its official song
-    // recording before streaming, then use the alternate catalogue as needed.
-    if (track.isUpload) p.set('upload', '1');
+    // An upload or video-still track is not a guaranteed studio recording:
+    // resolve its official studio song recording before streaming.
+    if (track.isUpload || isVideoThumbnail(track.thumb)) p.set('upload', '1');
     if (refresh) p.set('refresh', '1');
     if (wrapper !== 'auto') p.set('wrapper', wrapper);
     return getJSON<StreamResult>(`/api/stream?${p}`, signal);

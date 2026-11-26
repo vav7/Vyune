@@ -323,8 +323,9 @@ app.get('/api/stream', async (c) => {
         return instantSaavn;
       }
 
-      // If JioSaavn has not resolved within 150ms, hedge in parallel with resolveFastAudio
-      if (id && /^[\w-]{11}$/.test(id)) {
+      // For studio tracks (not video/upload), race remaining JioSaavn with fast tokenless YouTube audio.
+      // For video/upload tracks, NEVER stream the video's raw audio first—resolve the studio recording!
+      if (!isUpload && id && /^[\w-]{11}$/.test(id)) {
         const fastYtPromise = (async () => {
           const fast = await yt.resolveFastAudio(id, preferOpus).catch(() => null);
           return fast
@@ -338,7 +339,6 @@ app.get('/api/stream', async (c) => {
             : null;
         })();
 
-        // Race remaining JioSaavn with fast tokenless YouTube audio
         const fastest = await Promise.race([
           saavnPromise.then((res) => (res ? { from: 'saavn', res } : null)),
           fastYtPromise.then((res) => (res ? { from: 'yt', res } : null)),
@@ -351,8 +351,39 @@ app.get('/api/stream', async (c) => {
         const saavnRes = await saavnPromise;
         if (saavnRes) return saavnRes;
       } else {
-        const saavnRes = await saavnPromise;
+        // Video / upload track: race JioSaavn against official YouTube Music studio search
+        const studioYtPromise = (async () => {
+          const studioTracks = await yt.searchSongs(`${title} ${artist}`.trim(), 6).catch(() => []);
+          const cleanCandidates = studioTracks.filter(
+            (t) =>
+              !t.isUpload &&
+              !/(?:live|concert|tour|stage|performance|rehearsal|skit|dialogue|scene|reaction|cover)/i.test(t.title || '')
+          );
+          const ranked = rankRecordings(cleanCandidates, { title, artist, album, durationSec: duration });
+          const bestStudio = ranked[0]?.item || cleanCandidates[0];
+          if (!bestStudio?.id) return null;
+          const fast = await yt.resolveFastAudio(bestStudio.id, preferOpus).catch(() => null);
+          if (fast?.url) {
+            return withProxy({
+              url: fast.url,
+              source: 'yt',
+              mime: fast.mime,
+              bitrate: fast.bitrate,
+              contentLength: fast.contentLength,
+            });
+          }
+          return tryVideo(bestStudio.id);
+        })();
+
+        const fastestStudio = await Promise.race([
+          saavnPromise.then((res) => (res ? { res } : null)),
+          studioYtPromise.then((res) => (res ? { res } : null)),
+        ]);
+        if (fastestStudio?.res) return fastestStudio.res;
+
+        const [saavnRes, studioRes] = await Promise.all([saavnPromise, studioYtPromise]);
         if (saavnRes) return saavnRes;
+        if (studioRes) return studioRes;
       }
     }
 
@@ -735,39 +766,62 @@ app.get('/api/artwork', async (c) => {
 
   const key = [title, artist, album, duration ? Math.round(duration) : ''].join('|').toLowerCase();
   const thumb = await artworkCache.resolve(`art:${key}`, async () => {
-    // 1) JioSaavn exact catalogue match (instant high-res artwork)
-    try {
-      const match = await saavn.findSaavnMatch(title, artist, { album, duration });
-      if (match?.thumb) return match.thumb;
-    } catch {}
+    const target = { title, artist, album, durationSec: duration };
+    const isYtStill = (u) => /(?:^|\/\/)(?:i\d*\.)?ytimg\.com\//i.test(u || '');
 
-    // 2) iTunes / Apple Music (1200x1200bb crystal-clear studio cover art)
-    try {
-      const itunesQuery = [title, album || artist].filter(Boolean).join(' ');
-      const res = await withTimeout(
-        fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(itunesQuery)}&entity=song&limit=4`),
-        2500,
-        null
-      );
-      if (res?.ok) {
+    // Race all 3 studio artwork providers in parallel and verify with match.js scoring
+    const itunesTask = (async () => {
+      try {
+        const itunesQuery = [title, artist || album].filter(Boolean).join(' ');
+        const res = await withTimeout(
+          fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(itunesQuery)}&entity=song&limit=6`),
+          2200,
+          null
+        );
+        if (!res?.ok) return null;
         const data = await res.json().catch(() => null);
-        const item = data?.results?.[0];
-        if (item?.artworkUrl100) {
-          return item.artworkUrl100.replace('100x100bb', '1200x1200bb');
-        }
-      }
-    } catch {}
+        const candidates = (data?.results || [])
+          .filter((r) => r?.artworkUrl100)
+          .map((r) => ({
+            title: r.trackName || '',
+            artists: [r.artistName || ''],
+            album: r.collectionName || '',
+            duration: r.trackTimeMillis ? r.trackTimeMillis / 1000 : 0,
+            thumb: r.artworkUrl100.replace('100x100bb', '1200x1200bb'),
+          }));
+        const ranked = rankRecordings(candidates, target);
+        const best = ranked[0];
+        if (best && best.score >= 45) return best.item.thumb;
+      } catch {}
+      return null;
+    })();
 
-    // 3) YouTube Music official studio release cover art (1080x1080)
-    try {
-      const yHits = await withTimeout(yt.searchSongs(`${title} ${artist}`.trim(), 4), 2500, []);
-      const studioHit = yHits.find(
-        (t) => !t.isUpload && t.thumb && !/(?:^|\/\/)(?:i\d*\.)?ytimg\.com\//i.test(t.thumb)
-      );
-      if (studioHit?.thumb) return studioHit.thumb;
-    } catch {}
+    const ytTask = (async () => {
+      try {
+        const yHits = await withTimeout(yt.searchSongs(`${title} ${artist}`.trim(), 6), 2200, []);
+        const studioHits = yHits.filter((t) => !t.isUpload && t.thumb && !isYtStill(t.thumb));
+        const ranked = rankRecordings(studioHits, target);
+        const best = ranked[0];
+        if (best && best.score >= 45) return best.item.thumb;
+      } catch {}
+      return null;
+    })();
 
-    return null;
+    const saavnTask = (async () => {
+      try {
+        const match = await withTimeout(
+          saavn.findSaavnMatch(title, artist, { album, duration }),
+          2200,
+          null
+        );
+        if (match?.thumb) return match.thumb;
+      } catch {}
+      return null;
+    })();
+
+    // Prefer crisp 1200x1200 iTunes or 1080x1080 YT Music studio cover, with JioSaavn fallback
+    const [itunesUrl, ytUrl, saavnUrl] = await Promise.all([itunesTask, ytTask, saavnTask]);
+    return itunesUrl || ytUrl || saavnUrl || null;
   });
   c.header('Cache-Control', 'public, max-age=604800, stale-while-revalidate=2592000');
   return c.json({ thumb: thumb || null });

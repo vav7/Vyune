@@ -273,7 +273,6 @@ function ProviderPicker(props: {
           </div>
         </Menu>
       )}
-      <Show when={!props.full}>
         <div class="flex items-center gap-1.5">
           <button
             class="grid size-8 place-items-center rounded-[8px] text-secondary hover:text-primary hover:bg-white/[0.1] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition-all duration-200 active:scale-90 aria-pressed:bg-white/[0.16] aria-pressed:text-primary aria-pressed:shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]"
@@ -294,7 +293,6 @@ function ProviderPicker(props: {
             <Languages size={16} />
           </button>
         </div>
-      </Show>
     </div>
   );
 }
@@ -411,17 +409,17 @@ export function useLyricsResult() {
 }
 
 const LOADING_MESSAGES = [
-  'Fetching lyrics from the archive…',
-  'Locating authentic sheet…',
-  'Tuning frequencies…',
-  'Searching global sources…',
+  'Syncing lyrics…',
+  'Pulling the lyric sheet…',
+  'Matching beat & bars…',
+  'Fetching timed lyrics…',
 ];
 
 const VOCAL_MESSAGES = [
-  'Vocals coming!',
-  'Vocals arriving…',
-  'Let the magic begin!',
-  'Warming it up…',
+  'Cue the vocals…',
+  'Vocals incoming…',
+  'Get ready to sing…',
+  'Waiting for the verse…',
 ];
 
 /** The one-line lyric that sits above the seek bar in the full-screen player. Synced sheets only. */
@@ -532,9 +530,13 @@ export function LyricPreview() {
         const start = part.timestamp || current.timestamp;
         const end = part.endtime > start ? part.endtime : start + 1;
         const value = Math.max(0, Math.min(1, (ms - start) / (end - start)));
-        if (Math.abs((written[i] ?? -1) - value) > 0.003 && spans[i]) {
+        const span = spans[i];
+        if (span && Math.abs((written[i] ?? -1) - value) > 0.002) {
           written[i] = value;
-          spans[i]!.style.setProperty('--fill', value.toFixed(3));
+          span.style.setProperty('--fill', value.toFixed(3));
+          const live = value > 0.02 && value < 0.98;
+          if (live) span.dataset.live = 'true';
+          else delete span.dataset.live;
         }
       });
       if (!audio.paused) frame = requestAnimationFrame(draw);
@@ -615,10 +617,10 @@ export function LyricPreview() {
           if (!box || matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
           box.animate(
             [
-              { opacity: 0, transform: 'translateY(3px)' },
-              { opacity: 1, transform: 'translateY(0)' },
+              { opacity: 0, transform: 'translate3d(0, 5px, 0) scale(0.988)' },
+              { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)' },
             ],
-            { duration: 240, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+            { duration: 340, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
           );
         });
       },
@@ -664,7 +666,7 @@ export function LyricPreview() {
               <circle cx="6" cy="18" r="3" fill="currentColor" />
               <circle cx="18" cy="16" r="3" fill="currentColor" />
             </svg>
-            <span class="fs-oneline-words fs-oneline-words--solid text-[15px] font-bold">Instrumental</span>
+            <span class="fs-oneline-words fs-oneline-words--solid text-[15px] font-bold">Instrumental break</span>
           </div>
         </Show>
         <Show when={state() === 'vocals'}>
@@ -849,9 +851,8 @@ export function LyricsPanel(props: { variant?: 'panel' | 'full' }) {
   const hasTrack = createMemo(() => playerStore.current !== null);
   const fontReady = useLyricFont();
   const { query, picked, pick, findBest } = useLyricsResult();
-  // Off by default: the song's own script is what is shown; the toggle adds the romanised line.
-  const [romanization, setRomanization] = createSignal(false);
-  const [translation, setTranslation] = createSignal(true);
+  const romanization = () => lyricsStore.showRomanization;
+  const translation = () => lyricsStore.showTranslation;
   // The next song's words, warmed while this one plays.
   usePrefetchNextLyrics();
   // Stale/provider-selected plain transcripts do not replace true timed lyrics.
@@ -879,8 +880,8 @@ export function LyricsPanel(props: { variant?: 'panel' | 'full' }) {
         full={full()}
         romanization={romanization()}
         translation={translation()}
-        onRomanization={() => setRomanization((v) => !v)}
-        onTranslation={() => setTranslation((v) => !v)}
+        onRomanization={() => lyricsStore.setShowRomanization(!romanization())}
+        onTranslation={() => lyricsStore.setShowTranslation(!translation())}
       />
       <Show
         when={hasTrack()}
