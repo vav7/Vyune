@@ -28,7 +28,7 @@ export function ImageFrost(props: { src: string | null; dim?: number; palette?: 
     onCleanup(() => window.clearTimeout(timer));
   });
 
-  const veilAlpha = () => Math.min(0.85, Math.max(0.25, props.dim ?? 0.42));
+  const veilAlpha = () => Math.min(0.78, Math.max(0.20, props.dim ?? 0.35));
 
   return (
     <div class={`absolute inset-0 overflow-hidden bg-transparent ${props.class ?? ''}`} aria-hidden="true">
@@ -46,12 +46,12 @@ function FrostLayer(props: { url: string }) {
 
   return (
     <img
-      src={proxiedImg(artworkForPaint(props.url, 120))}
+      src={proxiedImg(artworkForPaint(props.url, 240))}
       alt=""
       aria-hidden="true"
       decoding="async"
       onLoad={() => setReady(true)}
-      class={`pointer-events-none absolute inset-0 size-full scale-[1.25] object-cover transition-opacity duration-700 ease-out will-change-[opacity] [filter:blur(64px)_saturate(1.75)_brightness(1.02)] [transform:translate3d(0,0,0)_scale(1.25)] ${ready() ? 'opacity-100' : 'opacity-0'}`}
+      class={`pointer-events-none absolute inset-0 size-full scale-[1.2] object-cover transition-opacity duration-700 ease-out will-change-[opacity] [filter:blur(48px)_saturate(1.45)] [transform:translate3d(0,0,0)_scale(1.2)] ${ready() ? 'opacity-100' : 'opacity-0'}`}
     />
   );
 }

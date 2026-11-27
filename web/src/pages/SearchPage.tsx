@@ -553,7 +553,7 @@ export default function SearchPage() {
     <Portal>
       <Show when={!playerStore.fullscreen}>
         <div
-          class="search-sheet sidebar-glass fixed top-[3px] right-[3px] bottom-[3px] left-[max(3px,var(--web-navigation-width))] z-[calc(var(--z-web-chrome)-2)] flex flex-col overflow-hidden rounded-[14px] text-primary animate-[fade-in_200ms_ease-out_both] max-md:inset-0 max-md:rounded-none"
+          class="search-sheet fixed top-[3px] right-[3px] bottom-[3px] left-[max(3px,var(--web-navigation-width))] z-[calc(var(--z-web-chrome)-2)] flex flex-col overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#0b0b0d]/95 text-primary shadow-[0_24px_60px_rgba(0,0,0,0.8)] max-md:inset-0 max-md:rounded-none"
           role="dialog"
           aria-label="Search"
           data-search-sheet

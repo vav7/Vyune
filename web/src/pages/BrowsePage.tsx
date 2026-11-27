@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { CategoryTiles } from '@/components/music/CategoryTiles';
 import { Shelves, TrackShelf } from '@/components/music/ShelfView';
 import { LoadError } from '@/components/music/States';
+import { ShelfSkeleton } from '@/skeletons/ShelfSkeleton';
 import { cardItem } from '@/components/music/types';
 import { api } from '@/lib/api';
 
@@ -24,6 +25,10 @@ export default function BrowsePage() {
   return (
     <>
       <PageHeader title="Browse" />
+      <Show when={charts.isPending && !charts.data}>
+        <ShelfSkeleton kind="tracks" />
+        <ShelfSkeleton kind="square" />
+      </Show>
       <Show when={(charts.data?.tracks?.length ?? 0) > 0}>
         <TrackShelf title="Trending Tracks" tracks={charts.data!.tracks} />
       </Show>

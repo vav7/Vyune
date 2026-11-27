@@ -33,27 +33,19 @@ const CHROME = `
     pointer-events: none !important;
     visibility: hidden !important;
   }
-  .lyrics-footer { opacity: 0 !important; pointer-events: none !important; }
-  /* Active line sits right at the top with zero awkward gap. */
+  .lyrics-footer { opacity: 0 !important; pointer-events: none !important; min-height: 45vh !important; }
+  /* Keep active/painted line centered (~34% down) while padding-top: 28vh starts line 1 in the center. */
   .lyrics-container {
-    --lyrics-scroll-padding-top: 4%;
-    --scroll-duration: 580ms;
+    --lyrics-scroll-padding-top: 34%;
     --am-lyrics-background-vocal-enter-delay: 0ms;
     --am-lyrics-background-vocal-enter-duration: 650ms;
     --am-lyrics-background-vocal-exit-duration: 450ms;
-    /* Crisp HD text (no fractional scale bitmap blur), lift & glow ONLY on held/high notes */
+    /* Smooth down-to-up scale + cascade, lift & glow ONLY on held/high notes */
     --am-lyrics-lift: 0;
     --char-rise-y: -2.5px;
     --am-lyrics-character-rise-peak: -1.25px;
-    --am-lyrics-inactive-scale: 1;
+    --am-lyrics-inactive-scale: 0.96;
     --am-lyrics-glow-radius: 6px;
-  }
-  .lyrics-line,
-  .lyrics-container:not(.is-unsynced) .lyrics-line.scroll-exiting {
-    transition:
-      opacity 560ms cubic-bezier(0.22, 1, 0.36, 1),
-      transform 600ms cubic-bezier(0.22, 1, 0.36, 1) var(--lyrics-line-delay, 0ms),
-      filter 560ms cubic-bezier(0.22, 1, 0.36, 1) !important;
   }
   .lyrics-word.normal-word-motion,
   .lyrics-word.normal-word-motion.word-started {
@@ -66,7 +58,7 @@ const CHROME = `
     --am-lyrics-lift: 1 !important;
   }
 
-  /* ---- Premium type: SF Pro / Inter Variable font for lyrics, crisp HD glyphs on every provider ---- */
+  /* ---- Premium type: SF Pro / Inter Variable font for crisp HD glyphs ---- */
   :host, *, .lyrics-container, .lyrics-line, .lyrics-syllable, .lyrics-word, .lyrics-translation-container, span.char, span.word {
     font-family: 'MC SF Pro Display', 'SF Pro Rounded', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Inter Variable', 'Inter', system-ui, sans-serif !important;
     font-optical-sizing: auto !important;
@@ -77,9 +69,6 @@ const CHROME = `
   }
   .lyrics-line, .lyrics-syllable, .lyrics-word, span.char, span.word {
     font-weight: 700 !important;
-  }
-  .lyrics-line-container {
-    transform: none !important;
   }
   :host {
     --am-lyrics-highlight-color: #ffffff;
@@ -158,7 +147,7 @@ const CHROME = `
   .lyrics-container {
     width: 100% !important;
     max-width: 100% !important;
-    padding-top: 0 !important;
+    padding-top: 34% !important;
     padding-inline-start: 12px !important;
     padding-inline-end: 48px !important;
     box-sizing: border-box !important;
@@ -274,15 +263,17 @@ const CHROME = `
     padding-block: 0.34em 0.26em;
     margin-block: -0.34em -0.26em;
   }
-  /* Ligatures stay on: conjuncts and matra placement come from the font's own shaping. */
+  /* Ligatures & Indic shaping stay intact (zero broken matras/conjuncts on Hindi/Indic scripts). */
+  :host([data-shaping]) .lyrics-line,
   :host([data-shaping]) .lyrics-syllable,
-  :host([data-shaping]) .lyrics-syllable span.char {
-    font-variant-ligatures: normal;
-    font-feature-settings: normal;
-    letter-spacing: 0;
-    word-spacing: 0.06em;
+  :host([data-shaping]) .lyrics-syllable span.char,
+  :host([data-shaping]) .lyrics-syllable span.char-motion {
+    font-variant-ligatures: normal !important;
+    font-feature-settings: normal !important;
+    letter-spacing: 0 !important;
+    word-spacing: 0.04em !important;
+    display: inline !important;
   }
-  :host([data-shaping]) .lyrics-line { letter-spacing: 0; }
   /* The romanised / translated sub-lines get the same care. */
   .lyrics-syllable.transliteration, .translation, .romanization { text-rendering: optimizeLegibility; }
 `;

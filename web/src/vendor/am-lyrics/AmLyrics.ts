@@ -9519,7 +9519,12 @@ export class AmLyrics extends LitElement {
                       >`
                     : '';
 
-                const animateSyllable = isAnimatedByChar && !groupLineSynced;
+                const animateSyllable =
+                  isAnimatedByChar &&
+                  !groupLineSynced &&
+                  !/[\u0900-\u0dff\u0e00-\u0fff\u1000-\u109f\u1780-\u17ff]/.test(
+                    text,
+                  );
 
                 let syllableContent: any = text;
 

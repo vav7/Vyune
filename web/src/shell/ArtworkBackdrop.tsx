@@ -21,7 +21,7 @@ export function ArtworkBackdrop(props: {
 
   return (
     <div
-      class="pointer-events-none absolute inset-0 -z-1 overflow-hidden bg-[#050505]"
+      class="pointer-events-none absolute inset-0 -z-1 overflow-hidden bg-[#070708]"
       aria-hidden="true"
     >
       <Show when={!isVideoMode()}>

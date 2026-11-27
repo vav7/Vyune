@@ -28,14 +28,14 @@ const FILTERS = ['All', 'Albums', 'Singles'] as const;
 /** The discography's segmented control (report §6 tokens). */
 function Segmented(props: { value: string; onChange: (v: (typeof FILTERS)[number]) => void }) {
   return (
-    <div class="inline-flex items-center gap-1 rounded-full bg-black/40 border border-white/14 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_6px_20px_rgba(0,0,0,0.4)] [backdrop-filter:blur(24px)_saturate(1.8)]" role="tablist" aria-label="Discography filter">
+    <div class="inline-flex items-center gap-1 rounded-full bg-black/40 border border-white/12 p-1 shadow-[0_6px_20px_rgba(0,0,0,0.4)] [backdrop-filter:blur(18px)_saturate(1.5)]" role="tablist" aria-label="Discography filter">
       <For each={FILTERS}>
         {(f) => (
           <button
             role="tab"
             aria-selected={props.value === f}
             class={`rounded-full px-3.5 py-1.5 type-callout-emphasized transition-all duration-200 active:scale-95 ${
-              props.value === f ? 'bg-white text-black font-bold shadow-[0_4px_14px_rgba(255,255,255,0.4),inset_0_1px_0_#fff]' : 'text-secondary hover:text-primary hover:bg-white/[0.08]'
+              props.value === f ? 'bg-white text-black font-bold shadow-[0_2px_10px_rgba(0,0,0,0.3)]' : 'text-secondary hover:text-primary hover:bg-white/[0.08]'
             }`}
             onClick={() => props.onChange(f)}
           >

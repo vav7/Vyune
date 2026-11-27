@@ -1,15 +1,28 @@
-/* HomePage.tsx — a rotating hero of the day's biggest songs (live poster, frosted video behind it),
- * four rows of YouTube Music's own playlists, then Recently Played, the charts and the categories. */
+/* HomePage.tsx — Times-Square-grade front page: a cinematic hero carousel, quick-play
+ * track rows, panoramic album showcases, curated playlists, charts, and recently played.
+ * Everything is linked: click any artwork to play. */
 
-import { createMemo, onCleanup, onMount } from 'solid-js';
+import { createMemo, onCleanup, onMount, Show } from 'solid-js';
 import { useQuery } from '@tanstack/solid-query';
 import { HomeHero } from '@/components/music/HomeHero';
 import { Shelves, TrackShelf } from '@/components/music/ShelfView';
-import { cardItem } from '@/components/music/types';
+import { cardItem, trackItem } from '@/components/music/types';
 import { api } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { setNavHint } from '@/lib/navHint';
 import { prewarmArtworkColor } from '@/lib/artworkColor';
+import { playerStore } from '@/store/player';
+import { ShelfSkeleton } from '@/skeletons/ShelfSkeleton';
+
+/** A "Quick Play" banner row of the user's recently played tracks — instant recall. */
+function RecentlyPlayed() {
+  const history = () => playerStore.history.slice(0, 20);
+  return (
+    <Show when={history().length > 0}>
+      <TrackShelf title="Recently Played" tracks={history()} />
+    </Show>
+  );
+}
 
 export default function HomePage() {
   // The hero's own wash is the page's light; the shell behind it is the app background.
@@ -91,7 +104,7 @@ export default function HomePage() {
     if (!raw.length) return [];
     return [
       {
-        title: 'Apple Music Essentials',
+        title: '✦ Apple Music Essentials',
         detail: 'Official global playlists and charts curated by Apple Music',
         layout: 'square' as const,
         items: raw.map(cardItem),
@@ -103,7 +116,7 @@ export default function HomePage() {
     chartPlaylists().length
       ? [
           {
-            title: 'Top Chart Playlists',
+            title: '🔥 Top Chart Playlists',
             detail: 'Worldwide chart toppers & mainstream collections',
             layout: 'square' as const,
             seeAll: '/browse',
@@ -113,13 +126,51 @@ export default function HomePage() {
       : [],
   );
 
+  // "New Releases" — the first 12 chart tracks presented as large album cards.
+  const newReleaseShelves = createMemo(() => {
+    const tracks = charts()?.tracks || [];
+    if (tracks.length < 4) return [];
+    return [
+      {
+        title: '💿 New Releases',
+        detail: 'Fresh drops and hot new albums',
+        layout: 'square' as const,
+        className: 'new-releases-row',
+        items: tracks.slice(0, 12).map(trackItem),
+        tracks: tracks.slice(0, 12),
+      },
+    ];
+  });
+
   return (
     <>
       <h1 class="sr-only">Home</h1>
+      <Show when={home.isPending && !home.data}>
+        <div class="hero-skeleton" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </div>
+        <ShelfSkeleton kind="tracks" />
+      </Show>
       <HomeHero tracks={[...globalTracks(), ...(charts()?.tracks || [])]} />
-      {globalTracks().length > 0 && <TrackShelf title="Global Top 20" tracks={globalTracks()} />}
+
+      {/* Quick access: Recently played tracks */}
+      <RecentlyPlayed />
+
+      {/* Global top songs — the main draw */}
+      {globalTracks().length > 0 && <TrackShelf title="🌍 Global Top 20" tracks={globalTracks()} />}
+
+      {/* New releases showcase */}
+      <Shelves shelves={newReleaseShelves()} />
+
+      {/* Apple curated */}
       <Shelves shelves={applePlaylists()} />
+
+      {/* Charts */}
       <Shelves shelves={chartShelves()} />
+
+      {/* Platform curated rows */}
       <Shelves shelves={curated()} />
     </>
   );

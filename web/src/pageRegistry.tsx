@@ -5,6 +5,9 @@ import { matchPath } from '@/lib/matchPath';
 import HomePage from '@/pages/HomePage';
 import PlaylistPage from '@/pages/PlaylistPage';
 import AlbumPage from '@/pages/AlbumPage';
+import SearchPage from '@/pages/SearchPage';
+import BrowsePage from '@/pages/BrowsePage';
+import ArtistPage from '@/pages/ArtistPage';
 
 type PageModule = { default: Component<Record<string, never>> };
 
@@ -32,8 +35,8 @@ const definitions: PageDefinition[] = [
     load: () => Promise.resolve({ default: HomePage }),
     component: HomePage,
   },
-  { path: '/search', load: () => import('@/pages/SearchPage') as Promise<PageModule> },
-  { path: '/browse', load: () => import('@/pages/BrowsePage') as Promise<PageModule> },
+  { path: '/search', load: () => Promise.resolve({ default: SearchPage }), component: SearchPage },
+  { path: '/browse', load: () => Promise.resolve({ default: BrowsePage }), component: BrowsePage },
   {
     path: '/genre/:params/:label',
     load: () => import('@/pages/GenrePage') as Promise<PageModule>,
@@ -43,10 +46,7 @@ const definitions: PageDefinition[] = [
     load: () => Promise.resolve({ default: AlbumPage }),
     component: AlbumPage,
   },
-  {
-    path: '/artist/:id',
-    load: () => import('@/pages/ArtistPage') as Promise<PageModule>,
-  },
+  { path: '/artist/:id', load: () => Promise.resolve({ default: ArtistPage }), component: ArtistPage },
   {
     path: '/playlist/:id',
     load: () => Promise.resolve({ default: PlaylistPage }),

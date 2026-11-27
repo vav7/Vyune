@@ -27,9 +27,9 @@ import { PlayerMenu } from './PlayerMenu';
 import { useScrubber as useScrubberLocal } from './useScrubber';
 
 const control = 'grid place-items-center rounded-[8px] transition-all duration-200 ease-out hover:scale-110 active:scale-90 disabled:opacity-40';
-// Shuffle and repeat: secondary, and the key colour when on, as Apple's toggles.
-const toggleBtn = `${control} size-7 text-secondary hover:text-primary aria-pressed:text-key aria-pressed:bg-white/[0.14] aria-pressed:shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_2px_8px_rgba(0,0,0,0.3)]`;
-const transport = `${control} size-8 text-primary hover:bg-white/[0.12] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_2px_8px_rgba(0,0,0,0.3)] rounded-full`;
+// Shuffle and repeat: sleek dark liquid glass toggle.
+const toggleBtn = `${control} size-8 text-secondary hover:text-primary aria-pressed:text-key aria-pressed:bg-white/[0.12] aria-pressed:shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]`;
+const transport = `${control} size-9 text-primary hover:bg-white/[0.10] rounded-full`;
 const action = 'grid h-7 w-6 place-items-center rounded-[6px] text-secondary hover:text-primary hover:bg-white/[0.12] aria-pressed:text-key transition-all duration-150 active:scale-90';
 // The actions the volume level slides in over: they fade out while it's open.
 const fading = `${action} transition-opacity group-data-volume-open/actions:pointer-events-none group-data-volume-open/actions:opacity-0`;

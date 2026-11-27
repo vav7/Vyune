@@ -25,7 +25,7 @@ export function SearchBar(props: {
   return (
     <form
       role="search"
-      class="sr-field search-glass flex h-12 w-full max-w-[640px] items-center gap-3 rounded-full px-4 transition-all duration-200 focus-within:border-white/30 focus-within:ring-2 focus-within:ring-white/10"
+      class="sr-field flex h-12 w-full max-w-[640px] items-center gap-3 rounded-full border border-white/[0.12] bg-white/[0.06] px-4 transition-colors duration-200 focus-within:border-white/25 focus-within:bg-white/[0.09]"
       onSubmit={(event) => {
         event.preventDefault();
         props.onSubmit(input.value);

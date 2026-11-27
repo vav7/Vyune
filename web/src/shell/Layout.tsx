@@ -15,7 +15,6 @@ import { CommandPalette } from '@/components/CommandPalette';
 import { playerStore } from '@/store/player';
 import { uiStore } from '@/store/ui';
 import { PanelLeft } from 'lucide-solid';
-import { ImageFrost } from '@/components/music/ImageFrost';
 import { useArtworkColor } from '@/lib/artworkColor';
 import { pageArtStore } from '@/lib/pageArt';
 import { useWarmLyrics } from '@/lib/lyricsWarm';
@@ -49,24 +48,7 @@ function Toast() {
   );
 }
 
-/** The page's frosted backdrop: the open page's artwork, drawn once into a tiny canvas. */
-function PageFrost() {
-  return (
-    <Show when={pageArtStore.url}>
-      {(url) => (
-        <div class="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-          <ImageFrost
-            src={url()}
-            palette={pageArtStore.palette}
-            dim={pageArtStore.dim ?? (pageArtStore.lum > 0.6 ? 0.6 : 0.42)}
-          />
-        </div>
-      )}
-    </Show>
-  );
-}
-
-// Pure transparent baseline: colors only bloom when song artwork is extracted
+// Neutral baseline: colours bloom purely from the active song or hero poster.
 const AMBIENT = ['transparent', 'transparent', 'transparent', 'transparent'];
 
 export function Layout(props: RouteSectionProps) {
@@ -75,10 +57,16 @@ export function Layout(props: RouteSectionProps) {
   const location = useLocation();
   const pathname = () => location.pathname;
 
-  // Real-time artwork color extraction from current playing track or page album art
+  // Real-time artwork color extraction from current playing track or active page/hero poster
   const currentArtwork = () => playerStore.current?.thumb ?? null;
   const songColor = useArtworkColor(currentArtwork);
-  const activePalette = () => songColor()?.palette ?? pageArtStore.palette ?? null;
+  const pageColor = useArtworkColor(() => pageArtStore.url);
+  const activeColor = () => songColor() ?? pageColor() ?? null;
+  const activePalette = () =>
+    activeColor()?.palette ??
+    (activeColor()?.background ? [activeColor()!.background] : null) ??
+    pageArtStore.palette ??
+    null;
 
   createEffect(() => {
     document.documentElement.dataset.sidebar = sidebarHidden() ? 'hidden' : 'shown';
@@ -149,7 +137,6 @@ export function Layout(props: RouteSectionProps) {
 
       {/* The page scrolls under the fixed sidebar and the floating player. */}
       <div class="mc-col-page relative h-full min-h-0 overflow-hidden">
-        <PageFrost />
         <main
           id="scrollable-page"
           class="relative z-[1] isolate size-full overflow-x-hidden overflow-y-auto overscroll-y-contain [scroll-behavior:auto] [-webkit-overflow-scrolling:touch] will-change-[scroll-position] transform-gpu data-tint:bg-(--page-tint) data-tint:transition-[background-color] data-tint:duration-300 data-tint:ease-out max-sm:pt-(--mobile-top-bar-height)"

@@ -39,9 +39,9 @@ function size24({ size: _size, ...props }: NavIconProps) {
   return { size: 19, ...props, class: `m-[2.5px] ${props.class ?? ''}` };
 }
 
-// A sidebar row; NavLink sets aria-current on the page's own row.
+// A sidebar row; NavLink sets aria-current on the page's own row. (No nested backdrop-blur inside .sidebar-glass!)
 const item =
-  'group relative flex h-11 items-center gap-3 mb-1.5 px-3.5 rounded-[12px] type-[600_14px/20px] tracking-[-0.01em] text-secondary transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-white/[0.09] hover:text-white hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_4px_12px_rgba(0,0,0,0.25)] hover:border-white/10 active:scale-[0.98] aria-[current=page]:bg-white/[0.15] aria-[current=page]:text-white aria-[current=page]:border aria-[current=page]:border-white/20 aria-[current=page]:shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_8px_24px_-4px_rgba(0,0,0,0.6),inset_0_0_0_1px_rgba(255,255,255,0.12)] aria-[current=page]:backdrop-blur-md';
+  'group relative flex h-11 items-center gap-3 mb-1.5 px-3.5 rounded-[12px] type-[600_14px/20px] tracking-[-0.01em] text-secondary transition-colors duration-150 hover:bg-white/[0.08] hover:text-white active:scale-[0.98] aria-[current=page]:bg-white/[0.12] aria-[current=page]:text-white aria-[current=page]:border aria-[current=page]:border-white/[0.12]';
 // Apple's glyphs, drawn at 24px (their 24-unit box).
 const icon = 'inline-grid size-6 flex-none place-items-center text-current transition-colors group-aria-[current=page]:text-key';
 const navLabel = 'min-w-0 truncate';
